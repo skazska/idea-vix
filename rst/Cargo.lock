@@ -109,6 +109,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "hello-async"
+version = "0.1.0"
+
+[[package]]
 name = "libc"
 version = "0.2.172"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -157,6 +161,10 @@ dependencies = [
  "wasi 0.11.1+wasi-snapshot-preview1",
  "windows-sys",
 ]
+
+[[package]]
+name = "mt"
+version = "0.1.0"
 
 [[package]]
 name = "parking_lot"
