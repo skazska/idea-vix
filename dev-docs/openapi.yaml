@@ -10,32 +10,53 @@ info:
   license:
     name: MIT
 servers:
-  - url: http://localhost:3000
+  - url: http://localhost:5173
     description: Development server
 security:
   - SessionToken: []
+  - {} # Allow unauthenticated access for public endpoints
 paths:
   /api/boards:
     get:
+      tags:
+        - Boards
       summary: Retrieve all boards
+      description: |
+        Get a list of all available boards. Public boards are accessible to all users (read-only), 
+        while private boards require authentication.
+      security:
+        - SessionToken: []
+        - {} # Allow unauthenticated access for public boards
       responses:
         '200':
-          description: A list of boards
+          description: A list of boards (public boards for unauthenticated users, all boards for authenticated users)
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/Board'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /api/boards/{id}:
     get:
+      tags:
+        - Boards
       summary: Retrieve a specific board
+      description: |
+        Get details of a specific board by its ID. Public boards are accessible to all users (read-only), 
+        while private boards require authentication.
+      security:
+        - SessionToken: []
+        - {} # Allow unauthenticated access for public boards
       parameters:
         - name: id
           in: path
           required: true
+          description: The unique identifier of the board
           schema:
             type: string
+            example: "board-123"
       responses:
         '200':
           description: A board object
@@ -43,25 +64,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Board'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /api/package:
     get:
+      tags:
+        - Packages
       summary: Retrieve all packages
+      description: |
+        Get a list of all available packages. Public packages are accessible to all users (read-only), 
+        while private packages require authentication.
+      security:
+        - SessionToken: []
+        - {} # Allow unauthenticated access for public packages
       responses:
         '200':
-          description: A list of packages
+          description: A list of packages (public packages for unauthenticated users, all packages for authenticated users)
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/Package'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     post:
+      tags:
+        - Packages
       summary: Add a new package
+      description: Create a new package (requires authentication)
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Package'
+              $ref: '#/components/schemas/PackageNew'
       responses:
         '201':
           description: The created package
@@ -69,15 +108,31 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Package'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /api/package/{id}:
     get:
+      tags:
+        - Packages
       summary: Retrieve a specific package
+      description: |
+        Get details of a specific package by its ID. Public packages are accessible to all users (read-only), 
+        while private packages require authentication.
+      security:
+        - SessionToken: []
+        - {} # Allow unauthenticated access for public packages
       parameters:
         - name: id
           in: path
           required: true
+          description: The unique identifier of the package
           schema:
             type: string
+            example: "pkg-123"
       responses:
         '200':
           description: A package object
@@ -85,15 +140,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Package'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     put:
+      tags:
+        - Packages
       summary: Update an existing package
+      description: Update details of an existing package (requires authentication)
       parameters:
         - name: id
           in: path
           required: true
+          description: The unique identifier of the package
           schema:
             type: string
+            example: "pkg-123"
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -105,93 +170,272 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Package'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     delete:
+      tags:
+        - Packages
       summary: Remove a package
+      description: Delete a package by its ID (requires authentication)
       parameters:
         - name: id
           in: path
           required: true
+          description: The unique identifier of the package
           schema:
             type: string
+            example: "pkg-123"
       responses:
         '204':
-          description: Package deleted
+          description: Package deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /api/session/signin:
     post:
+      tags:
+        - Session
       summary: Sign in
+      description: |
+        Initiate the sign-in process by providing an email address. 
+        A verification code will be sent to the provided email.
+      security: []
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/SignInRequest'
       responses:
         '200':
-          description: Success
+          description: Sign-in request processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /api/session/verify:
     post:
+      tags:
+        - Session
       summary: Verify code
+      description: |
+        Verify the code sent to the email address during sign-in. 
+        Returns session data including the authentication token.
+      security: []
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/VerifyCodeRequest'
       responses:
         '200':
-          description: Session data
+          description: Code verified successfully, session data returned
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SessionData'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          description: Verification code is invalid or expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 components:
+  securitySchemes:
+    SessionToken:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Session token for authenticated requests
+  responses:
+    BadRequest:
+      description: Bad request - invalid input data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Unauthorized - authentication required or invalid token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    UnprocessableEntity:
+      description: Unprocessable entity - validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
   schemas:
     Board:
       type: object
+      required:
+        - id
+        - name
       properties:
         id:
           type: string
+          description: Unique identifier for the board
+          example: "123"
         name:
           type: string
+          description: Name of the board
+          example: "Project Ideas"
         description:
           type: string
+          description: Optional description of the board
+          example: "A board for collecting project ideas"
         icon:
           type: string
+          description: Optional icon identifier for the board
+          example: "lightbulb"
     Package:
       type: object
+      required:
+        - id
+        - name
       properties:
         id:
           type: string
+          description: Unique identifier for the package
+          example: "pkg-123"
         name:
           type: string
+          description: Name of the package
+          minLength: 1
+          example: "React Components"
         description:
           type: string
+          description: Optional description of the package
+          example: "A collection of reusable React components"
         icon:
           type: string
+          description: Optional icon identifier for the package
+          example: "package"
+    PackageNew:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Name of the package
+          minLength: 1
+          example: "React Components"
+        description:
+          type: string
+          description: Optional description of the package
+          example: "A collection of reusable React components"
+        icon:
+          type: string
+          description: Optional icon identifier for the package
+          example: "package"
     PackagePartial:
       type: object
       properties:
         name:
           type: string
+          description: Name of the package
+          minLength: 1
+          example: "Updated React Components"
         description:
           type: string
+          description: Optional description of the package
+          example: "An updated collection of reusable React components"
         icon:
           type: string
+          description: Optional icon identifier for the package
+          example: "package-updated"
     SignInRequest:
       type: object
+      required:
+        - address
       properties:
         address:
           type: string
+          format: email
+          description: Email address for sign-in
+          example: "user@example.com"
     VerifyCodeRequest:
       type: object
+      required:
+        - address
+        - code
       properties:
         address:
           type: string
+          format: email
+          description: Email address used for sign-in
+          example: "user@example.com"
         code:
           type: string
+          description: Verification code sent to email
+          minLength: 1
+          example: "123456"
     SessionData:
       type: object
+      required:
+        - address
+        - token
       properties:
         address:
           type: string
+          format: email
+          description: Email address of the authenticated user
+          example: "user@example.com"
         token:
           type: string
+          description: Authentication token for subsequent requests
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: "Invalid verification code"
+        details:
+          type: string
+          description: Additional error details
+          example: "The verification code has expired or is incorrect"
 
