@@ -1,0 +1,197 @@
+openapi: 3.1.1
+info:
+  title: Idea-Vix API
+  description: |
+    API for the Idea-Vix application, providing endpoints for managing boards, packages, and user sessions.
+    Built with Rust/Axum backend and SolidJS frontend.
+  version: 1.0.0
+  contact:
+    name: Idea-Vix API Support
+  license:
+    name: MIT
+servers:
+  - url: http://localhost:3000
+    description: Development server
+security:
+  - SessionToken: []
+paths:
+  /api/boards:
+    get:
+      summary: Retrieve all boards
+      responses:
+        '200':
+          description: A list of boards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Board'
+  /api/boards/{id}:
+    get:
+      summary: Retrieve a specific board
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A board object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Board'
+  /api/package:
+    get:
+      summary: Retrieve all packages
+      responses:
+        '200':
+          description: A list of packages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Package'
+    post:
+      summary: Add a new package
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Package'
+      responses:
+        '201':
+          description: The created package
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Package'
+  /api/package/{id}:
+    get:
+      summary: Retrieve a specific package
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A package object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Package'
+    put:
+      summary: Update an existing package
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PackagePartial'
+      responses:
+        '200':
+          description: The updated package
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Package'
+    delete:
+      summary: Remove a package
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Package deleted
+  /api/session/signin:
+    post:
+      summary: Sign in
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignInRequest'
+      responses:
+        '200':
+          description: Success
+  /api/session/verify:
+    post:
+      summary: Verify code
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyCodeRequest'
+      responses:
+        '200':
+          description: Session data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionData'
+components:
+  schemas:
+    Board:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        icon:
+          type: string
+    Package:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        icon:
+          type: string
+    PackagePartial:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        icon:
+          type: string
+    SignInRequest:
+      type: object
+      properties:
+        address:
+          type: string
+    VerifyCodeRequest:
+      type: object
+      properties:
+        address:
+          type: string
+        code:
+          type: string
+    SessionData:
+      type: object
+      properties:
+        address:
+          type: string
+        token:
+          type: string
+

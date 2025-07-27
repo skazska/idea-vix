@@ -1,3 +1,8 @@
 .idea
 
+learn-rs
+learn-rs/*
+web/ui/learn
+web/ui/learn/*
+
 target/
