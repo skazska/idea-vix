@@ -1,24 +1,24 @@
 import { createForm, valiForm } from "@modular-forms/solid";
 import { getError, getLabel, getInput, getString, getText, type TFormComponent } from "../../common/gen/forms";
-import { NewPackageSchema, type TPackage, type TPackageNew } from "../model";
+import { NewBoardSchema, type TBoard, type TBoardNew } from "../model";
 import { Footer, Header } from "../../common/forms";
-import { usePackageData } from "../providers/items";
+import { useBoardsData } from "../providers/items";
 import { action, useAction } from "@solidjs/router";
 import { createSignal } from "solid-js";
 import { ENTITY_NAME } from "../const";
 
-export const NewPackageForm: TFormComponent<TPackageNew, TPackage> = (props) => {
-    const [_form, { Form, Field }] = createForm<TPackageNew>({
-        validate: valiForm(NewPackageSchema),
+export const NewBoardForm: TFormComponent<TBoardNew, TBoard> = (props) => {
+    const [_form, { Form, Field }] = createForm<TBoardNew>({
+        validate: valiForm(NewBoardSchema),
         initialValues: props.initialValues
     });
 
-    const [, actions] = usePackageData();
+    const [, actions] = useBoardsData();
 
     const [loading, setLoading] = createSignal(false);
     const [error, setError] = createSignal<string | undefined>(undefined);
 
-    const add = action(async (values: TPackageNew) => {
+    const add = action(async (values: TBoardNew) => {
         setLoading(true);
         setError(undefined);
         try {
@@ -31,7 +31,6 @@ export const NewPackageForm: TFormComponent<TPackageNew, TPackage> = (props) => 
         setLoading(false);
     }, {});
 
-    // const submission = useSubmission(add);
     const onSubmit = useAction(add);
 
     return (<Form onSubmit={onSubmit} onCancel={props.onCancel} class="space-y-4" >

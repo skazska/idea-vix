@@ -16,7 +16,7 @@ security:
   - SessionToken: []
   - {} # Allow unauthenticated access for public endpoints
 paths:
-  /api/boards:
+  /api/board:
     get:
       tags:
         - Boards
@@ -38,7 +38,7 @@ paths:
                   $ref: '#/components/schemas/Board'
         '500':
           $ref: '#/components/responses/InternalServerError'
-  /api/boards/{id}:
+  /api/board/{id}:
     get:
       tags:
         - Boards

@@ -1,11 +1,12 @@
 import { useParams, A, useNavigate } from "@solidjs/router";
-import { createSignal, Show, ErrorBoundary, Suspense, createEffect } from "solid-js";
+import { createSignal, Show, ErrorBoundary, Suspense, createEffect, type Component } from "solid-js";
 import { setTitle } from "../common/providers/page-state";
 import { PackageItemProvider, usePackageItem } from "./providers/item";
 import { Portal } from "solid-js/web";
 import { Edit, Trash2, ArrowLeft, Plus, Save, X } from "lucide-solid";
 import { ModalCentered } from "../common/modals";
 import type { TPackage } from "./model";
+import { ENTITY_NAME, PAGE_TITLE, ROUTE } from "./const";
 
 function PackageContent() {
     console.log("PackageContent rendered");
@@ -50,7 +51,7 @@ function PackageContent() {
             // Reload to get fresh data
             actions.reload();
         } catch (error) {
-            console.error('Failed to save package:', error);
+            console.error('Failed to save ${ENTITY_NAME}:', error);
         } finally {
             setSaving(false);
         }
@@ -68,10 +69,9 @@ function PackageContent() {
         if (!packageId) return;
         try {
             await actions.remove(packageId);
-            // Navigate back to packages list using SolidJS router
-            navigate('/packages');
+            navigate(ROUTE);
         } catch (error) {
-            console.error('Failed to delete package:', error);
+            console.error('Failed to delete ${ENTITY_NAME}:', error);
         }
     };
     
@@ -84,7 +84,7 @@ function PackageContent() {
     };
 
     createEffect(() => {
-        setTitle(`Packages ${pkg.latest?.name}`);
+        setTitle(`${PAGE_TITLE} ${pkg.latest?.name}`);
     });
 
     return (
@@ -92,7 +92,7 @@ function PackageContent() {
             {/* Navigation and action buttons in header */}
             <Portal mount={document.getElementById("sub-menu")!}>
                 <div class="flex gap-2">
-                    <A href="/packages" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-1 px-2 rounded text-m">
+                    <A href={ROUTE} class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-1 px-2 rounded text-m">
                         <ArrowLeft size={'1rem'}/>
                     </A>
                     <Show when={pkg.latest}>
@@ -135,13 +135,13 @@ function PackageContent() {
                 <Show when={!editMode()} fallback={
                     <>
                         <div class="mb-4">
-                            <h3 class="text-lg font-semibold mb-2">Package Name</h3>
+                            <h3 class="text-lg font-semibold mb-2">Name</h3>
                             <input 
                                 type="text"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 value={editName()}
                                 onInput={(e) => setEditName(e.target.value)}
-                                placeholder="Package name"
+                                placeholder="name"
                             />
                         </div>
                         
@@ -168,7 +168,7 @@ function PackageContent() {
                                 rows="4"
                                 value={editDescription()}
                                 onInput={(e) => setEditDescription(e.target.value)}
-                                placeholder="Package description"
+                                placeholder="description"
                             />
                         </div>
                         
@@ -244,7 +244,7 @@ function PackageContent() {
                     <ModalCentered>
                         <div class="p-4">
                             <h3 class="text-lg font-bold mb-4">Confirm Delete</h3>
-                            <p class="mb-4">Are you sure you want to delete the package "{pkg.latest?.name}"? This action cannot be undone.</p>
+                            <p class="mb-4">Are you sure you want to delete the ${ENTITY_NAME} "{pkg.latest?.name}"? This action cannot be undone.</p>
                             <div class="flex gap-2 justify-end">
                                 <button 
                                     class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
@@ -269,9 +269,8 @@ function PackageContent() {
 
 export default function Package() {
     const params = useParams();
-    const packageId = params.id;
     
-    if (!packageId) {
+    if (!params.id) {
         return (
             <div class="p-4">
                 <div class="error">
@@ -291,8 +290,8 @@ export default function Package() {
                 </div>
             </div>
         )}>
-            <PackageItemProvider packageId={packageId}>
-                <Suspense fallback={<div class="p-4">Loading package...</div>}>
+            <PackageItemProvider packageId={params.id}>
+                <Suspense fallback={<div class="p-4">Loading...</div>}>
                     <PackageContent />
                 </Suspense>
             </PackageItemProvider>

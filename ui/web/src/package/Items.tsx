@@ -3,6 +3,7 @@ import { usePackageData } from "./providers/items";
 import { ListItemContainer, ListItemRowContainer } from "../common/list";
 import { Edit } from "lucide-solid";
 import { A } from "@solidjs/router";
+import { ROUTE } from "./const";
 
 const PackageItems: Component = () => {
     const [packageItems] = usePackageData();
@@ -26,7 +27,7 @@ const PackageItems: Component = () => {
                             <p>{item.description}</p>
                         </ListItemRowContainer>
                         <ListItemRowContainer class="w-10 flex-none self-center">
-                            <A href={`/packages/${item.id}`} class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-m"> 
+                            <A href={`${ROUTE}/${item.id}`} class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-m"> 
                                 <Edit size={'1rem'}/>
                             </A>
                         </ListItemRowContainer>

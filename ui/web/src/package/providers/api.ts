@@ -3,33 +3,34 @@
 import { query } from "@solidjs/router";
 import type { TPackage, TPackageNew } from "../model";
 import { getResponse, type IBackend } from "../../common/providers/backend";
+import { REST_PATH } from "../const";
 
 export async function getPackages(backend: IBackend): Promise<TPackage[]> {
-    return getResponse(backend.fetchJson('/api/package'), (data) => data as TPackage[], '/api/package');
+    return getResponse(backend.fetchJson(REST_PATH), (data) => data as TPackage[], REST_PATH);
 }
 
 export async function getPackage(backend: IBackend, id: string): Promise<TPackage> {
-    return getResponse(backend.fetchJson(`/api/package/${id}`), (data) => data as TPackage, `/api/package/${id}`);
+    return getResponse(backend.fetchJson(`${REST_PATH}/${id}`), (data) => data as TPackage, `${REST_PATH}/${id}`);
 }
 
 export async function addPackage(backend: IBackend, item: TPackageNew): Promise<TPackage> {
-    return getResponse(backend.fetchJson('/api/package', {
+    return getResponse(backend.fetchJson(REST_PATH, {
         method: 'POST',
         body: JSON.stringify(item),
         headers: { 'Content-Type': 'application/json' }
-    }), (data) => data as TPackage, '/api/package');
+    }), (data) => data as TPackage, REST_PATH);
 }
 
 export async function updatePackage(backend: IBackend, id: string, item: Partial<Omit<TPackage, 'id'>>): Promise<TPackage> {
-    return getResponse(backend.fetchJson(`/api/package/${id}`, {
+    return getResponse(backend.fetchJson(`${REST_PATH}/${id}`, {
         method: 'PUT',
         body: JSON.stringify(item),
         headers: { 'Content-Type': 'application/json' }
-    }), (data) => data as TPackage, `/api/package/${id}`);
+    }), (data) => data as TPackage, `${REST_PATH}/${id}`);
 }
 
 export async function removePackage(backend: IBackend, id: string): Promise<boolean> {
-    return getResponse(backend.fetchJson(`/api/package/${id}`, { method: 'DELETE' }), (data) => data as boolean, `/api/package/${id}`);
+    return getResponse(backend.fetchJson(`${REST_PATH}/${id}`, { method: 'DELETE' }), (data) => data as boolean, `${REST_PATH}/${id}`);
 }
 
 export class PackageApi {

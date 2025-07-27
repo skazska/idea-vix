@@ -12,8 +12,8 @@
 - **Database**: SQLite with SQLx for database operations
 - **Features**: API endpoints, validation, error handling
 - **Key modules**:
-  - Package management (`src/package/`)
-  - Boards functionality (`src/boards/`)
+  - Package management (`src/package`)
+  - Boards functionality (`src/boards`)
   - Database layer (`src/db/`)
   - API layer (`src/api/`)
 

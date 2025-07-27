@@ -14,11 +14,14 @@
 import { For, Suspense, type ParentComponent } from "solid-js";
 import { usePageState } from "./common/providers/page-state";
 import SessionIcon from "./session/SessionIcon";
+import { APP_COPYRIGHT } from "./common/const";
+import { ROUTE as BOARD_ROUTE, PAGE_TITLE as BOARD_TITLE } from "./boards/const";
+import { ROUTE as PACKAGE_ROUTE, PAGE_TITLE as PACKAGE_TITLE } from "./package/const";
 
 const pages = {
     "/": "Home",
-    "/packages": "Packages",
-    "/boards": "Boards",
+    [PACKAGE_ROUTE]: PACKAGE_TITLE,
+    [BOARD_ROUTE]: BOARD_TITLE,
     // "/learn": "Learn",
 }
 
@@ -51,7 +54,7 @@ const App: ParentComponent = (props) => {
         </main>
         <footer class="flex justify-between flex-row items-center p-1 bg-gray-800 text-white">
             <p class="text-xs">status</p>
-            <p>&copy; 2025 Shapes</p>
+            <p>{APP_COPYRIGHT}</p>
         </footer>
     </>);
 }

@@ -27,7 +27,7 @@ async fn main() {
         .route("/", get(root))
         .route("/wait_async", get(wait_async))
         .route("/wait_sync", get(wait_sync))
-        .nest("/api/boards", boards_router)
+        .nest("/api/board", boards_router)
         .nest("/api/package", package_router);
 
     let listener = tokio::net::TcpListener::bind(format!("{}:{}", config.host, config.port))

@@ -1,9 +1,10 @@
 // Solidjs typescript App for the home page 
 
+import { APP_NAME } from "../common/const";
 import { setTitle } from "../common/providers/page-state";
 
 export default function App() {
-    setTitle("");
+    setTitle(APP_NAME);
 
     return (
         <div class="p-4">
