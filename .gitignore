@@ -6,3 +6,6 @@ web/ui/learn
 web/ui/learn/*
 
 target/
+
+sqlite.db
+sqlite.db*

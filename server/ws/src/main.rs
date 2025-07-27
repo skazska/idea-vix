@@ -2,7 +2,7 @@ use axum::{
     routing::{get}, Router
 };
 
-use ws::{boards::get_boards, config::Config, package, db};
+use ws::{boards, config::Config, package, db};
 
 // #[tokio::main]
 #[tokio::main(flavor = "current_thread")]
@@ -21,13 +21,13 @@ async fn main() {
     ).await;
 
     let package_router = package::get_router(connection.get()).await;
-
+    let boards_router = boards::get_router(connection.get()).await;
 
     let app = Router::new()
         .route("/", get(root))
         .route("/wait_async", get(wait_async))
         .route("/wait_sync", get(wait_sync))
-        .route("/api/boards", get(get_boards))
+        .nest("/api/boards", boards_router)
         .nest("/api/package", package_router);
 
     let listener = tokio::net::TcpListener::bind(format!("{}:{}", config.host, config.port))

@@ -13,7 +13,7 @@
 - **Features**: API endpoints, validation, error handling
 - **Key modules**:
   - Package management (`src/package/`)
-  - Boards functionality (`src/boards.rs`)
+  - Boards functionality (`src/boards/`)
   - Database layer (`src/db/`)
   - API layer (`src/api/`)
 

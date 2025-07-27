@@ -1,0 +1,3 @@
+apis:
+  dev-docs/openapi.yaml:
+    alias: idea-vix-api

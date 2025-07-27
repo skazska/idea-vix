@@ -1,0 +1,598 @@
+{
+    "version": "2.0.0",
+    "runtimeConfiguration": {
+        "environment": "default",
+        "laxTestingModeEnabled": false,
+        "apiConnectivityCheck": true,
+        "logLevel": "error",
+        "logDestination": "stdout+platform",
+        "logMaxFileSize": 2147483648,
+        "requestHeaderNameRequestId": "x-scan-request-id",
+        "requestHeaderNameScenarioId": "x-scan-scenario-id",
+        "requestHeaderNameRequestType": "x-scan-request-type",
+        "requestFlowrate": 100,
+        "requestTimeout": 30,
+        "requestTlsInsecureSkipVerify": true,
+        "responseFollowRedirection": false,
+        "responseMaxBodySizeScan": 10485760,
+        "happyPathOnly": false,
+        "maxRequestRetryAttempts": 5,
+        "maxScanDuration": 1800,
+        "memoryLimit": 2147483648,
+        "memoryTimeSpan": 10,
+        "reportMaxRequestSizeHappyPath": 8092,
+        "reportMaxRequestSizeTest": 8092,
+        "reportIncludeRequestBody": true,
+        "reportIncludeResponseBody": true,
+        "reportMaxHttpResponseSizeHappyPath": 8092,
+        "reportMaxBodySizeHappyPath": 8092,
+        "reportMaxHttpResponseSizeTest": 8092,
+        "reportMaxBodySizeTest": 8092,
+        "reportIssuesOnly": false,
+        "reportMaxIssues": 1000,
+        "reportMaxSize": 20971520,
+        "reportGenerateCurlCommand": true,
+        "normalizeServerUrls": true
+    },
+    "customizations": {
+        "happyPaths": {
+            "retry": 1,
+            "responsePolicy": {
+                "httpStatusExpected": true,
+                "mustBeConformant": true
+            },
+            "httpStatusExpected": []
+        },
+        "tests": {
+            "responsePolicy": {
+                "httpStatusExpected": true,
+                "mustBeConformant": true
+            }
+        }
+    },
+    "authenticationDetails": [
+        {
+            "SessionToken": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "Authorization",
+                "default": "SessionToken",
+                "credentials": {
+                    "SessionToken": {
+                        "description": "SessionToken security",
+                        "credential": "{{SessionToken}}"
+                    }
+                }
+            }
+        }
+    ],
+    "operations": {
+        "/api/boards/{id}:get": {
+            "operationId": "/api/boards/{id}:get",
+            "scenarios": [
+                {
+                    "key": "happy.path",
+                    "fuzzing": true,
+                    "requests": [
+                        {
+                            "$ref": "#/operations/~1api~1boards~1{id}:get/request",
+                            "fuzzing": true
+                        }
+                    ]
+                }
+            ],
+            "request": {
+                "operationId": "/api/boards/{id}:get",
+                "auth": [
+                    "SessionToken"
+                ],
+                "request": {
+                    "type": "42c",
+                    "details": {
+                        "url": "{{host}}/api/boards/{id}",
+                        "method": "GET",
+                        "paths": [
+                            {
+                                "key": "id",
+                                "value": "board-123"
+                            }
+                        ]
+                    }
+                },
+                "defaultResponse": "200",
+                "responses": {
+                    "200": {
+                        "expectations": {
+                            "httpStatus": 200
+                        }
+                    },
+                    "404": {
+                        "expectations": {
+                            "httpStatus": 404
+                        }
+                    },
+                    "500": {
+                        "expectations": {
+                            "httpStatus": 500
+                        }
+                    }
+                }
+            }
+        },
+        "/api/boards:get": {
+            "operationId": "/api/boards:get",
+            "scenarios": [
+                {
+                    "key": "happy.path",
+                    "fuzzing": true,
+                    "requests": [
+                        {
+                            "$ref": "#/operations/~1api~1boards:get/request",
+                            "fuzzing": true
+                        }
+                    ]
+                }
+            ],
+            "request": {
+                "operationId": "/api/boards:get",
+                "auth": [
+                    "SessionToken"
+                ],
+                "request": {
+                    "type": "42c",
+                    "details": {
+                        "url": "{{host}}/api/boards",
+                        "method": "GET"
+                    }
+                },
+                "defaultResponse": "200",
+                "responses": {
+                    "200": {
+                        "expectations": {
+                            "httpStatus": 200
+                        }
+                    },
+                    "500": {
+                        "expectations": {
+                            "httpStatus": 500
+                        }
+                    }
+                }
+            }
+        },
+        "/api/package/{id}:delete": {
+            "operationId": "/api/package/{id}:delete",
+            "scenarios": [
+                {
+                    "key": "happy.path",
+                    "fuzzing": true,
+                    "requests": [
+                        {
+                            "$ref": "#/operations/~1api~1package~1{id}:delete/request",
+                            "fuzzing": true
+                        }
+                    ]
+                }
+            ],
+            "request": {
+                "operationId": "/api/package/{id}:delete",
+                "auth": [
+                    "SessionToken"
+                ],
+                "request": {
+                    "type": "42c",
+                    "details": {
+                        "url": "{{host}}/api/package/{id}",
+                        "method": "DELETE",
+                        "paths": [
+                            {
+                                "key": "id",
+                                "value": "pkg-123"
+                            }
+                        ]
+                    }
+                },
+                "defaultResponse": "204",
+                "responses": {
+                    "204": {
+                        "expectations": {
+                            "httpStatus": 204
+                        }
+                    },
+                    "401": {
+                        "expectations": {
+                            "httpStatus": 401
+                        }
+                    },
+                    "404": {
+                        "expectations": {
+                            "httpStatus": 404
+                        }
+                    },
+                    "500": {
+                        "expectations": {
+                            "httpStatus": 500
+                        }
+                    }
+                }
+            }
+        },
+        "/api/package/{id}:get": {
+            "operationId": "/api/package/{id}:get",
+            "scenarios": [
+                {
+                    "key": "happy.path",
+                    "fuzzing": true,
+                    "requests": [
+                        {
+                            "$ref": "#/operations/~1api~1package~1{id}:get/request",
+                            "fuzzing": true
+                        }
+                    ]
+                }
+            ],
+            "request": {
+                "operationId": "/api/package/{id}:get",
+                "auth": [
+                    "SessionToken"
+                ],
+                "request": {
+                    "type": "42c",
+                    "details": {
+                        "url": "{{host}}/api/package/{id}",
+                        "method": "GET",
+                        "paths": [
+                            {
+                                "key": "id",
+                                "value": "pkg-123"
+                            }
+                        ]
+                    }
+                },
+                "defaultResponse": "200",
+                "responses": {
+                    "200": {
+                        "expectations": {
+                            "httpStatus": 200
+                        }
+                    },
+                    "404": {
+                        "expectations": {
+                            "httpStatus": 404
+                        }
+                    },
+                    "500": {
+                        "expectations": {
+                            "httpStatus": 500
+                        }
+                    }
+                }
+            }
+        },
+        "/api/package/{id}:put": {
+            "operationId": "/api/package/{id}:put",
+            "scenarios": [
+                {
+                    "key": "happy.path",
+                    "fuzzing": true,
+                    "requests": [
+                        {
+                            "$ref": "#/operations/~1api~1package~1{id}:put/request",
+                            "fuzzing": true
+                        }
+                    ]
+                }
+            ],
+            "request": {
+                "operationId": "/api/package/{id}:put",
+                "auth": [
+                    "SessionToken"
+                ],
+                "request": {
+                    "type": "42c",
+                    "details": {
+                        "url": "{{host}}/api/package/{id}",
+                        "method": "PUT",
+                        "paths": [
+                            {
+                                "key": "id",
+                                "value": "pkg-123"
+                            }
+                        ],
+                        "headers": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "requestBody": {
+                            "mode": "json",
+                            "json": {
+                                "description": "An updated collection of reusable React components",
+                                "icon": "package-updated",
+                                "name": "Updated React Components"
+                            }
+                        }
+                    }
+                },
+                "defaultResponse": "200",
+                "responses": {
+                    "200": {
+                        "expectations": {
+                            "httpStatus": 200
+                        }
+                    },
+                    "400": {
+                        "expectations": {
+                            "httpStatus": 400
+                        }
+                    },
+                    "401": {
+                        "expectations": {
+                            "httpStatus": 401
+                        }
+                    },
+                    "404": {
+                        "expectations": {
+                            "httpStatus": 404
+                        }
+                    },
+                    "422": {
+                        "expectations": {
+                            "httpStatus": 422
+                        }
+                    },
+                    "500": {
+                        "expectations": {
+                            "httpStatus": 500
+                        }
+                    }
+                }
+            }
+        },
+        "/api/package:get": {
+            "operationId": "/api/package:get",
+            "scenarios": [
+                {
+                    "key": "happy.path",
+                    "fuzzing": true,
+                    "requests": [
+                        {
+                            "$ref": "#/operations/~1api~1package:get/request",
+                            "fuzzing": true
+                        }
+                    ]
+                }
+            ],
+            "request": {
+                "operationId": "/api/package:get",
+                "auth": [
+                    "SessionToken"
+                ],
+                "request": {
+                    "type": "42c",
+                    "details": {
+                        "url": "{{host}}/api/package",
+                        "method": "GET"
+                    }
+                },
+                "defaultResponse": "200",
+                "responses": {
+                    "200": {
+                        "expectations": {
+                            "httpStatus": 200
+                        }
+                    },
+                    "500": {
+                        "expectations": {
+                            "httpStatus": 500
+                        }
+                    }
+                }
+            }
+        },
+        "/api/package:post": {
+            "operationId": "/api/package:post",
+            "scenarios": [
+                {
+                    "key": "happy.path",
+                    "fuzzing": true,
+                    "requests": [
+                        {
+                            "$ref": "#/operations/~1api~1package:post/request",
+                            "fuzzing": true
+                        }
+                    ]
+                }
+            ],
+            "request": {
+                "operationId": "/api/package:post",
+                "auth": [
+                    "SessionToken"
+                ],
+                "request": {
+                    "type": "42c",
+                    "details": {
+                        "url": "{{host}}/api/package",
+                        "method": "POST",
+                        "headers": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "requestBody": {
+                            "mode": "json",
+                            "json": {
+                                "description": "A collection of reusable React components",
+                                "icon": "package",
+                                "name": "React Components"
+                            }
+                        }
+                    }
+                },
+                "defaultResponse": "201",
+                "responses": {
+                    "201": {
+                        "expectations": {
+                            "httpStatus": 201
+                        }
+                    },
+                    "400": {
+                        "expectations": {
+                            "httpStatus": 400
+                        }
+                    },
+                    "401": {
+                        "expectations": {
+                            "httpStatus": 401
+                        }
+                    },
+                    "500": {
+                        "expectations": {
+                            "httpStatus": 500
+                        }
+                    }
+                }
+            }
+        },
+        "/api/session/signin:post": {
+            "operationId": "/api/session/signin:post",
+            "scenarios": [
+                {
+                    "key": "happy.path",
+                    "fuzzing": true,
+                    "requests": [
+                        {
+                            "$ref": "#/operations/~1api~1session~1signin:post/request",
+                            "fuzzing": true
+                        }
+                    ]
+                }
+            ],
+            "request": {
+                "operationId": "/api/session/signin:post",
+                "request": {
+                    "type": "42c",
+                    "details": {
+                        "url": "{{host}}/api/session/signin",
+                        "method": "POST",
+                        "headers": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "requestBody": {
+                            "mode": "json",
+                            "json": {
+                                "address": "user@example.com"
+                            }
+                        }
+                    }
+                },
+                "defaultResponse": "200",
+                "responses": {
+                    "200": {
+                        "expectations": {
+                            "httpStatus": 200
+                        }
+                    },
+                    "400": {
+                        "expectations": {
+                            "httpStatus": 400
+                        }
+                    },
+                    "422": {
+                        "expectations": {
+                            "httpStatus": 422
+                        }
+                    },
+                    "500": {
+                        "expectations": {
+                            "httpStatus": 500
+                        }
+                    }
+                }
+            }
+        },
+        "/api/session/verify:post": {
+            "operationId": "/api/session/verify:post",
+            "scenarios": [
+                {
+                    "key": "happy.path",
+                    "fuzzing": true,
+                    "requests": [
+                        {
+                            "$ref": "#/operations/~1api~1session~1verify:post/request",
+                            "fuzzing": true
+                        }
+                    ]
+                }
+            ],
+            "request": {
+                "operationId": "/api/session/verify:post",
+                "request": {
+                    "type": "42c",
+                    "details": {
+                        "url": "{{host}}/api/session/verify",
+                        "method": "POST",
+                        "headers": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "requestBody": {
+                            "mode": "json",
+                            "json": {
+                                "address": "user@example.com",
+                                "code": "123456"
+                            }
+                        }
+                    }
+                },
+                "defaultResponse": "200",
+                "responses": {
+                    "200": {
+                        "expectations": {
+                            "httpStatus": 200
+                        }
+                    },
+                    "400": {
+                        "expectations": {
+                            "httpStatus": 400
+                        }
+                    },
+                    "422": {
+                        "expectations": {
+                            "httpStatus": 422
+                        }
+                    },
+                    "500": {
+                        "expectations": {
+                            "httpStatus": 500
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "environments": {
+        "default": {
+            "variables": {
+                "SessionToken": {
+                    "from": "environment",
+                    "name": "SCAN42C_SECURITY_SESSIONTOKEN",
+                    "required": true
+                },
+                "host": {
+                    "from": "environment",
+                    "name": "SCAN42C_HOST",
+                    "required": false,
+                    "default": "http://localhost:3000"
+                }
+            }
+        }
+    }
+}

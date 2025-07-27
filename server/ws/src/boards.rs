@@ -1,19 +1,61 @@
-use axum::{Json};
-use serde::{Deserialize, Serialize};
+use std::sync::{Arc};
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Board {
-    pub id: i32,
-    pub name: String,
-    pub description: Option<String>,
-    pub icon: Option<String>,
+use axum::{ extract::{ State, Path }, http::StatusCode, routing::{delete, get, post, put}, Json, Router };
+
+use crate::{api::{validation::ValidatedJson}, boards::board_types::{NewBoardItem, Board, PatchBoardItem}};
+
+pub mod board_types;
+mod board_store;
+mod board_service;
+
+struct RouteState {
+    service: board_service::BoardService,
 }
 
-pub async fn get_boards() -> Json<Vec<Board>> {
-    let boards = vec![
-        Board { id: 1, name: "Board 1".to_string(), description: Some("Description for Board 1".to_string()), icon: Some("icon1.png".to_string()) },
-        Board { id: 2, name: "Board 2".to_string(), description: Some("Description for Board 2".to_string()), icon: Some("icon2.png".to_string()) },
-    ];
+pub async fn get_router<'a>(connection: Arc<sqlx::Pool<sqlx::Sqlite>>) -> axum::Router {
+    let items_store = board_store::BoardStore::new(connection);
+    let board_service = board_service::BoardService::new(items_store);
 
-    Json(boards)
+    let state= Arc::new(RouteState {
+        service: board_service,
+    });
+
+    Router::new()
+        .route("/", get(get_items))
+        .route("/", post(add_item))
+        .route("/{id}", get(get_item)) 
+        .route("/{id}", put(update_item))
+        .route("/{id}", delete(delete_item))
+        .with_state(state)
+}
+
+// #[axum::debug_handler]
+async fn get_items(State(state): State<Arc<RouteState>>) -> Result<Json<Vec<Board>>, (StatusCode, String)> {
+    let result = state.service.get_items().await.map_err(|e| e.into())?;
+
+    Ok(Json(result))
+}
+
+// #[axum::debug_handler]
+async fn add_item(State(state): State<Arc<RouteState>>, ValidatedJson(item): ValidatedJson<NewBoardItem>) -> Result<Json<Board>, (StatusCode, String)> {
+    let result = state.service.add_item(&item).await.map_err(|e| e.into())?;
+    Ok(Json(result))
+}
+
+// #[axum::debug_handler]
+async fn get_item(State(state): State<Arc<RouteState>>, axum::extract::Path(id): Path<i32>) -> Result<Json<Board>, (StatusCode, String)> {
+    let result = state.service.get_item(id).await.map_err(|e| e.into())?;
+    Ok(Json(result))
+}
+
+// #[axum::debug_handler]
+async fn update_item(State(state): State<Arc<RouteState>>, axum::extract::Path(id): Path<i32>, ValidatedJson(item): ValidatedJson<PatchBoardItem>) -> Result<Json<Board>, (StatusCode, String)> {
+    let result = state.service.update_item(id, &item).await.map_err(|e| e.into())?;
+    Ok(Json(result))
+}
+
+// #[axum::debug_handler]
+async fn delete_item(State(state): State<Arc<RouteState>>, axum::extract::Path(id): Path<i32>) -> Result<Json<Board>, (StatusCode, String)> {
+    let result = state.service.delete_item(id).await.map_err(|e| e.into())?;
+    Ok(Json(result))
 }
