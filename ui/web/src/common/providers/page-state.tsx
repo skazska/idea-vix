@@ -3,6 +3,7 @@ import { createContext, createSignal, useContext, type Accessor, type ParentComp
 type TPageState = {
     title: string;
     sessionAddress?: string;
+    sessionOk: boolean;
     sessionExpiresAt?: number;
 }
 
