@@ -1,0 +1,8 @@
+-- Add up migration script here
+CREATE TABLE `package`(
+	`id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	`name` VARCHAR(100) NOT NULL,
+	`description` VARCHAR(500) DEFAULT NULL,
+	`icon` VARCHAR(255) DEFAULT NULL
+);
+
