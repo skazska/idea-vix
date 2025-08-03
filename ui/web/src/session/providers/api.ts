@@ -9,7 +9,7 @@ export async function signIn(backend: IBackend, request: TSignInRequest): Promis
         method: 'POST',
         body: JSON.stringify(request),
         headers: { 'Content-Type': 'application/json' }
-    }), (data) => true, '/api/session/signin');
+    }), (_data) => true, '/api/session/signin');
 }
 
 export async function verifyCode(backend: IBackend, request: TVerifyCodeRequest): Promise<TSessionData> {
@@ -18,6 +18,13 @@ export async function verifyCode(backend: IBackend, request: TVerifyCodeRequest)
         body: JSON.stringify(request),
         headers: { 'Content-Type': 'application/json' }
     }), (data) => data as TSessionData, '/api/session/verify');
+}
+
+export async function signOut(backend: IBackend): Promise<boolean> {
+    return getResponse(backend.fetchJson('/api/session/signout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    }), (_data) => true, '/api/session/signout');
 }
 
 export class SessionApi {
@@ -33,6 +40,7 @@ export class SessionApi {
 
     public signIn = query((request: TSignInRequest) => signIn(this.backend, request), "signIn")
     public verifyCode = query((request: TVerifyCodeRequest) => verifyCode(this.backend, request), "verifyCode")
+    public signOut = query(() => signOut(this.backend), "signOut")
 }
 
 let sessionApi: SessionApi | undefined;

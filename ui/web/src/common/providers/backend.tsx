@@ -19,19 +19,24 @@ import { createContext, useContext, type Accessor } from "solid-js";
 import { usePageState } from "./page-state";
 
 class Backend {
-    private userId: Accessor<string>
 
-    constructor(userId: Accessor<string>) {
-        this.userId = userId;
+    private sessionOk: Accessor<boolean>;
+
+    constructor(sessionOk: Accessor<boolean>) {
+        this.sessionOk = sessionOk;
     }
 
     private getFetchJSONOptions(options: RequestInit = {}): RequestInit {
+        const sessionOk = this.sessionOk();
         return {
             ...options,
+            // Include credentials to allow cookies to be sent in cross-origin requests
+            credentials: 'include',
             headers: {
                 "Content-Type": "application/json",
                 "Accept": "application/json",
-                "X-User-Id": this.userId(),
+                // Keep header for backward compatibility - now the token will primarily come from cookies
+                ...(sessionOk ? { "X-Authorized": `Bearer ${this.sessionOk()}` } : {}),
                 ...options.headers,
             },
         }
@@ -68,9 +73,9 @@ export async function getResponse<T>(
 }
 
 export const BackendProvider = (props: { children: any }) => {
-    const [{ userId }] = usePageState();
+    const [{ sessionOk }] = usePageState();
 
-    const backend: IBackend = new Backend(userId);
+    const backend: IBackend = new Backend(sessionOk);
 
     console.log("BackendProvider rendered");
 

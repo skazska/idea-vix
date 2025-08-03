@@ -31,7 +31,6 @@ pub struct SessionData {
     pub address: String,
     pub sent_at: u64,
     pub expires_at: u64,
-    pub token: String,
 }
 
 /// implements direct conversion from ConfirmSession to ConfirmSessionDb
@@ -118,18 +117,17 @@ impl SessionService {
     }
 
     /// Confirms a session by checking the address and code
-    pub async fn verify_session(&self, item: &ConfirmSession) -> Result<SessionData, ModelError> {
+    pub async fn verify_session(&self, item: &ConfirmSession) -> Result<(SessionData, String), ModelError> {
         let db_session = self.store.confirm_session(item.into()).await?;
         let session: Session = db_session.into();
         
         // Generate JWT token
         let token = self.jwt_adapter.generate_token(&SessionJWTData::new(&session))?;
 
-        Ok(SessionData {
+        Ok((SessionData {
             address: session.address,
             sent_at: session.sent_at,
-            expires_at: session.expires_at,
-            token,
-        })
+            expires_at: session.expires_at
+        }, token))
     }
 }

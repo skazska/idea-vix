@@ -20,5 +20,7 @@ export type TVerifyCodeRequest = v.InferOutput<typeof VerifyCodeSchema>;
 // type for session data
 export type TSessionData = {
     address: string;
-    token: string;
+    sent_at: number;
+    expires_at: number;
+    token?: string; // Now optional as it will be in the cookie
 };

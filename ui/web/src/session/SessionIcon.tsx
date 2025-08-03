@@ -13,7 +13,8 @@ export default function SessionIcon() {
   const [step, setStep] = createSignal<'signin' | 'verify' | 'info'>('signin');
   const [address, setAddress] = createSignal('');
 
-  const isSignedIn = () => pageState.sessionAddress() && pageState.sessionToken();
+  // Now we only check for the address since the token is securely stored in an HttpOnly cookie
+  const isSignedIn = () => !!pageState.sessionAddress();
 
   const handleIconClick = () => {
     if (isSignedIn()) {
@@ -24,15 +25,20 @@ export default function SessionIcon() {
     setShowModal(true);
   };
 
-  const handleSignInDone = (result: { step: 'verify', address: string }) => {
-    setAddress(result.address);
-    setStep('verify');
+  const handleSignInDone = (result: { step: 'verify', address: string } | undefined) => {
+    if (result) {
+      setAddress(result.address);
+      setStep('verify');
+    }
   };
 
-  const handleVerifyDone = (sessionData: TSessionData) => {
-    setPageState.setSessionAddress(sessionData.address);
-    setPageState.setSessionToken(sessionData.token);
-    setShowModal(false);
+  const handleVerifyDone = (sessionData: TSessionData | undefined) => {
+    if (sessionData) {
+      setPageState.setSessionAddress(sessionData.address);
+      setPageState.setSessionOk(true);
+      setPageState.setSessionExpiresAt(sessionData.expires_at);
+      setShowModal(false);
+    }
   };
 
   const handleCancel = () => {

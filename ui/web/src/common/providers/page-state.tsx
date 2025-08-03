@@ -3,21 +3,23 @@ import { createContext, createSignal, useContext, type Accessor, type ParentComp
 type TPageState = {
     title: string;
     sessionAddress?: string;
-    sessionToken?: string;
+    sessionExpiresAt?: number;
 }
 
 type TPageStateAccessor = {
     title: Accessor<string>;
+    sessionOk: Accessor<boolean>;
     sessionAddress: Accessor<string | undefined>;
-    sessionToken: Accessor<string | undefined>;
+    sessionExpiresAt: Accessor<number | undefined>;
 }
 
 type TPageStateModel = [
     TPageStateAccessor,
     {
         setTitle: Setter<string>;
+        setSessionOk: Setter<boolean>;
         setSessionAddress: Setter<string | undefined>;
-        setSessionToken: Setter<string | undefined>;
+        setSessionExpiresAt: Setter<number | undefined>;
     }
 ];
 
@@ -26,14 +28,16 @@ const PageStateContext = createContext<TPageStateModel>();
 export const PageStateProvider: ParentComponent<TPageState> = (props) => {
     const [title, setTitle] = createSignal(props.title);
     const [sessionAddress, setSessionAddress] = createSignal(props.sessionAddress);
-    const [sessionToken, setSessionToken] = createSignal(props.sessionToken);
+    const [sessionExpiresAt, setSessionExpiresAt] = createSignal(props.sessionExpiresAt);
+    const [sessionOk, setSessionOk] = createSignal(false);
 
     const model: TPageStateModel = [
-        { title, sessionAddress, sessionToken },
+        { title, sessionAddress, sessionExpiresAt, sessionOk },
         {
             setTitle,
             setSessionAddress,
-            setSessionToken
+            setSessionExpiresAt,
+            setSessionOk
         }
     ]
 
@@ -63,4 +67,9 @@ export function usePageState() {
 export function setTitle(title: string) {
     const [_, setPageState] = usePageState();
     setPageState.setTitle(title);
+}
+
+export function setSessionExpiresAt(expiresAt: number | undefined) {
+    const [_, setPageState] = usePageState();
+    setPageState.setSessionExpiresAt(expiresAt);
 }
