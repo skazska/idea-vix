@@ -1,10 +1,18 @@
+/// Feature unit of modules for boards in the application.
+/// List of boards
+/// CRUD operations for boards:
+/// - create board
+/// - read board
+/// - update board
+/// - delete board
+/// - manage board items [TODO]
+
 use std::sync::{Arc};
 
 use axum::{ extract::{ State, Path }, http::StatusCode, routing::{delete, get, post, put}, Json, Router };
 
-use crate::{api::{validation::ValidatedJson}, boards::board_types::{NewBoardItem, Board, PatchBoardItem}};
+use crate::{api::{validation::ValidatedJson}, boards::board_service::{NewBoardItem, Board, PatchBoardItem}};
 
-pub mod board_types;
 mod board_store;
 mod board_service;
 

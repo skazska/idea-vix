@@ -1,10 +1,18 @@
+/// Feature unit of modules for packages in the application.
+/// List of packages
+/// CRUD operations for packages:
+/// - create package
+/// - read package
+/// - update package
+/// - delete package
+/// - manage package items [TODO]
+
 use std::sync::{Arc};
 
 use axum::{ extract::{ State, Path }, http::StatusCode, routing::{delete, get, post, put}, Json, Router };
 
-use crate::{api::{validation::ValidatedJson}, package::package_types::{NewPackageItem, Package, PatchPackageItem}};
+use crate::{api::{validation::ValidatedJson}, package::package_service::{NewPackageItem, Package, PatchPackageItem}};
 
-pub mod package_types;
 mod package_store;
 mod package_service;
 

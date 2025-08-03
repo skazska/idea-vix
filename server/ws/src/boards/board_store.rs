@@ -2,7 +2,32 @@ use std::{ops::Deref, sync::Arc};
 
 use sqlx::Error;
 
-use crate::{db::models::{ NewBoardDb, PatchBoardDb, BoardDb }};
+// Board database content model
+#[derive(sqlx::FromRow, Debug)]
+pub struct BoardDb {
+    pub id: i32,
+    pub name: String,
+    pub description: Option<String>,
+    pub icon: Option<String>,
+}
+
+/// New board database model
+#[derive(Debug)]
+pub struct NewBoardDb<'a> {
+    pub name: &'a str,
+    pub description: Option<&'a str>,
+    pub icon: Option<&'a str>,
+}
+
+
+/// Patch board database model
+#[derive(Debug)]
+pub struct PatchBoardDb<'a> {
+    pub name: Option<&'a str>,
+    pub description: Option<Option<&'a str>>,
+    pub icon: Option<Option<&'a str>>,
+}
+
 
 /// A board store
 pub struct BoardStore {

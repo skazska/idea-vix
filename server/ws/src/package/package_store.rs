@@ -2,7 +2,30 @@ use std::{ops::Deref, sync::Arc};
 
 use sqlx::Error;
 
-use crate::{db::models::{ NewPackageDb, PatchPackageDb, PackageDb }};
+/// Package database content model
+#[derive(sqlx::FromRow, Debug)]
+pub struct PackageDb {
+    pub id: i32,
+    pub name: String,
+    pub description: Option<String>,
+    pub icon: Option<String>,
+}
+
+/// New package database model
+#[derive(Debug)]
+pub struct NewPackageDb<'a> {
+    pub name: &'a str,
+    pub description: Option<&'a str>,
+    pub icon: Option<&'a str>,
+}
+
+/// Patch package database model
+#[derive(Debug)]
+pub struct PatchPackageDb<'a> {
+    pub name: Option<&'a str>,
+    pub description: Option<Option<&'a str>>,
+    pub icon: Option<Option<&'a str>>,
+}
 
 /// A package store
 pub struct PackageStore {

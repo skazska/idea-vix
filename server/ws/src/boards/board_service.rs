@@ -1,6 +1,74 @@
 use crate::error::ModelError;
-use crate::boards::board_store::BoardStore;
-use crate::boards::board_types::{ NewBoardItem, PatchBoardItem, Board };
+use crate::boards::board_store::{BoardDb, BoardStore, NewBoardDb, PatchBoardDb};
+use serde::{Deserialize, Serialize};
+use validator::Validate;
+use crate::api::deserialize::deserialize_some;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Board {
+    pub id: i32,
+    pub name: String,
+    pub description: Option<String>,
+    pub icon: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+pub struct NewBoardItem {
+    #[validate(length(min = 3, max = 100))]
+    pub name: String,
+    #[validate(length(max = 500))]
+    pub description: Option<String>,
+    #[validate(length(max = 255))]
+    pub icon: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+pub struct PatchBoardItem {
+    #[validate(length(min = 3, max = 100))]
+    pub name: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_some")]
+    #[validate(length(max = 500))]
+    pub description: Option<Option<String>>,
+    #[serde(default, deserialize_with = "deserialize_some")]
+    #[validate(length(max = 255))]
+    pub icon: Option<Option<String>>,
+}
+
+/// implements direct conversion from NewBoardItem to NewBoardDb
+impl<'a> From<&'a NewBoardItem> for NewBoardDb<'a> {
+    fn from(item: &'a NewBoardItem) -> Self {
+        Self {
+            name: &item.name,
+            description: item.description.as_deref(),
+            icon: item.icon.as_deref(),
+        }
+    }
+}
+
+
+/// implements direct conversion from PatchBoardItem to PatchBoardDb
+impl<'a> From<&'a PatchBoardItem> for PatchBoardDb<'a> {
+    fn from(item: &'a PatchBoardItem) -> Self {
+        Self {
+            name: item.name.as_deref(),
+            description: item.description.as_ref().map(|d| d.as_deref()),
+            icon: item.icon.as_ref().map(|i| i.as_deref()),
+        }
+    }
+}
+
+/// implements direct conversion from BoardDb to Board
+impl From<BoardDb> for Board {
+    fn from(item: BoardDb) -> Self {
+        Self {
+            id: item.id,
+            name: item.name,
+            description: item.description,
+            icon: item.icon,
+        }
+    }
+}
+
 
 pub struct BoardService {
     items_store: BoardStore,

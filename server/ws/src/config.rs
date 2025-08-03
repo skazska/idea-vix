@@ -1,4 +1,4 @@
-///Configurations module for web server
+/// Common module for configurations
 use serde::{Deserialize};
 
 /// Configuration structure for the web server
@@ -14,6 +14,10 @@ pub struct Config {
     pub database_url: String,
     /// Number of connections in the pool
     pub database_pool: u8,
+    /// App JWT configuration
+    pub app_jwt_expiration_secs: u64,
+    /// App JWT secret
+    pub app_jwt_secret: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -45,6 +49,11 @@ const DEFAULT_DATABASE_URL: &str = "sqlite.db";
 /// Default database pool size
 const DEFAULT_DATABASE_POOL: u8 = 5;
 
+/// Default JWT expiration time in seconds
+const DEFAULT_JWT_EXPIRATION_SECS: u64 = 24 * 60 * 60; // 24 hours
+/// Default JWT secret
+const DEFAULT_JWT_SECRET: &str = "supersecretkey_for_dev_only";
+
 /// Configuration implementstion
 /// provides default values for the web server
 /// searches for a configuration .toml file in the current directory and loads it overriding defaults
@@ -57,6 +66,8 @@ impl Config {
             log_level: DEFAULT_LOG_LEVEL.to_string(),
             database_url: DEFAULT_DATABASE_URL.to_string(),
             database_pool: DEFAULT_DATABASE_POOL,
+            app_jwt_expiration_secs: DEFAULT_JWT_EXPIRATION_SECS,
+            app_jwt_secret: DEFAULT_JWT_SECRET.to_string(),
         };
 
         let config_file_fn = &std::env::var("WS_CONFIG_FILE").unwrap_or(DEFAULT_CONFIG_FN.to_string());
@@ -88,6 +99,20 @@ impl Config {
         }
         if let Ok(database_pool) = std::env::var("WS_DATABASE_POOL") {
             config.database_pool = database_pool.parse().unwrap_or(DEFAULT_DATABASE_POOL);
+        }
+
+        if let Ok(app_jwt_expiration_secs) = std::env::var("WS_APP_JWT_EXPIRATION_SECS") {
+            config.app_jwt_expiration_secs = app_jwt_expiration_secs.parse().unwrap_or(DEFAULT_JWT_EXPIRATION_SECS);
+        }
+        if let Ok(app_jwt_secret) = std::env::var("WS_APP_JWT_SECRET") {
+            config.app_jwt_secret = app_jwt_secret;
+        }
+
+        #[cfg(not(debug_assertions))]
+        {
+            if config.app_jwt_secret  == DEFAULT_JWT_SECRET {
+                panic!("App JWT secret must be set in production environment!");
+            }
         }
 
         config

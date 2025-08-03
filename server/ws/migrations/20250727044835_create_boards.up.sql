@@ -1,7 +1,7 @@
 -- Add up migration script here
 CREATE TABLE `board`(
 	`id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	`name` TEXT NOT NULL,
-	`description` TEXT DEFAULT NULL,
-	`icon` TEXT DEFAULT NULL
+	`name` VARCHAR(100) NOT NULL,
+	`description` VARCHAR(500) DEFAULT NULL,
+	`icon` VARCHAR(255) DEFAULT NULL
 );

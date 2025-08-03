@@ -391,8 +391,7 @@ components:
       properties:
         address:
           type: string
-          format: email
-          description: Email address for sign-in
+          description: address for sign-in
           example: "user@example.com"
     VerifyCodeRequest:
       type: object
@@ -402,12 +401,11 @@ components:
       properties:
         address:
           type: string
-          format: email
-          description: Email address used for sign-in
+          description: address used for sign-in
           example: "user@example.com"
         code:
           type: string
-          description: Verification code sent to email
+          description: Verification code sent to address
           minLength: 1
           example: "123456"
     SessionData:
@@ -418,9 +416,16 @@ components:
       properties:
         address:
           type: string
-          format: email
           description: Email address of the authenticated user
           example: "user@example.com"
+        sent_at:
+          type: integer
+          description: Timestamp when the session was created
+          example: 1633072800
+        expires_at:
+          type: integer
+          description: Timestamp when the session expires
+          example: 1633076400
         token:
           type: string
           description: Authentication token for subsequent requests

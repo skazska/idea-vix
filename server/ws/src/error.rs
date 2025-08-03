@@ -1,3 +1,6 @@
+/// Common modules for error handling in the application.
+
+/// Service level CRUD errors
 pub enum ModelError {
     BadRequest(String),
     BadResponse(String),

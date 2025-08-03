@@ -1,8 +1,10 @@
+use std::sync::Arc;
+
 use axum::{
     routing::{get}, Router
 };
 
-use ws::{boards, config::Config, package, db};
+use ws::{boards, config::Config, package, db, session};
 
 // #[tokio::main]
 #[tokio::main(flavor = "current_thread")]
@@ -15,20 +17,27 @@ async fn main() {
     println!("Starting server on {}:{}", config.host, config.port);
     println!("Using database: {} pool {}", config.database_url, config.database_pool);
 
-    let connection = db::pool::Pool::new(
+    let connection = db::SqlitePool::new(
         &config.database_url,
         config.database_pool,
     ).await;
 
+    let jwt_arc = Arc::new(ws::jwt_adapter::JwtAdapter::new(
+        &config.app_jwt_secret,
+        config.app_jwt_expiration_secs,
+    ));
+
     let package_router = package::get_router(connection.get()).await;
     let boards_router = boards::get_router(connection.get()).await;
+    let session_router = session::get_router(connection.get(), jwt_arc.clone()).await;
 
     let app = Router::new()
         .route("/", get(root))
         .route("/wait_async", get(wait_async))
         .route("/wait_sync", get(wait_sync))
         .nest("/api/board", boards_router)
-        .nest("/api/package", package_router);
+        .nest("/api/package", package_router)
+        .nest("/api/session", session_router);
 
     let listener = tokio::net::TcpListener::bind(format!("{}:{}", config.host, config.port))
         .await
