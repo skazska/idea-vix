@@ -13,7 +13,6 @@ export default function SessionInfo(props: { onClose: () => void }) {
   return (
     <div class="space-y-4">
       <Header text={() => "Session Info"}>
-        <Close onClick={props.onClose}>×</Close>
       </Header>
       
       <div>
@@ -24,6 +23,8 @@ export default function SessionInfo(props: { onClose: () => void }) {
           {pageState.sessionAddress()}
         </div>
       </div>
+
+      
 
       <div class="flex items-center justify-between pt-4 md:pt-5 border-t rounded-b dark:border-gray-600 border-gray-200">
         <Close onClick={props.onClose}>Close</Close>

@@ -19,7 +19,7 @@ const root = document.getElementById('root')
 
 
 render(() => (
-    <PageStateProvider title='Shapes' userId='' sessionAddress={undefined} sessionToken={undefined}>
+    <PageStateProvider title='Shapes' sessionAddress={undefined} sessionToken={undefined}>
         <BackendProvider>
             <Routing />
         </BackendProvider>

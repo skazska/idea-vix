@@ -2,14 +2,12 @@ import { createContext, createSignal, useContext, type Accessor, type ParentComp
 
 type TPageState = {
     title: string;
-    userId: string;
     sessionAddress?: string;
     sessionToken?: string;
 }
 
 type TPageStateAccessor = {
     title: Accessor<string>;
-    userId: Accessor<string>;
     sessionAddress: Accessor<string | undefined>;
     sessionToken: Accessor<string | undefined>;
 }
@@ -18,7 +16,6 @@ type TPageStateModel = [
     TPageStateAccessor,
     {
         setTitle: Setter<string>;
-        setUserId: Setter<string>;
         setSessionAddress: Setter<string | undefined>;
         setSessionToken: Setter<string | undefined>;
     }
@@ -28,15 +25,13 @@ const PageStateContext = createContext<TPageStateModel>();
 
 export const PageStateProvider: ParentComponent<TPageState> = (props) => {
     const [title, setTitle] = createSignal(props.title);
-    const [userId, setUserId] = createSignal(props.userId);
     const [sessionAddress, setSessionAddress] = createSignal(props.sessionAddress);
     const [sessionToken, setSessionToken] = createSignal(props.sessionToken);
 
     const model: TPageStateModel = [
-        { title, userId, sessionAddress, sessionToken },
+        { title, sessionAddress, sessionToken },
         {
             setTitle,
-            setUserId,
             setSessionAddress,
             setSessionToken
         }

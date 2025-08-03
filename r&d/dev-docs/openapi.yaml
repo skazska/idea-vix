@@ -68,6 +68,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
+      
   /api/package:
     get:
       tags:
@@ -210,7 +211,7 @@ paths:
       description: |
         Initiate the sign-in process by providing an email address. 
         A verification code will be sent to the provided email.
-      security: []
+      security: []  # No authentication required for signin
       requestBody:
         required: true
         content:
@@ -241,8 +242,10 @@ paths:
       summary: Verify code
       description: |
         Verify the code sent to the email address during sign-in. 
-        Returns session data including the authentication token.
-      security: []
+        Returns session data including the JWT authentication token that 
+        should be used in the Authorization header as a Bearer token for 
+        subsequent authenticated requests.
+      security: []  # No authentication required for verification
       requestBody:
         required: true
         content:
@@ -251,7 +254,7 @@ paths:
               $ref: '#/components/schemas/VerifyCodeRequest'
       responses:
         '200':
-          description: Code verified successfully, session data returned
+          description: Code verified successfully, session data with JWT token returned
           content:
             application/json:
               schema:
@@ -269,10 +272,10 @@ paths:
 components:
   securitySchemes:
     SessionToken:
-      type: apiKey
-      in: header
-      name: Authorization
-      description: Session token for authenticated requests
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authenticated requests, obtained through session verification
   responses:
     BadRequest:
       description: Bad request - invalid input data
@@ -281,7 +284,7 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
     Unauthorized:
-      description: Unauthorized - authentication required or invalid token
+      description: Unauthorized - authentication required or invalid/expired JWT token
       content:
         application/json:
           schema:
@@ -412,6 +415,8 @@ components:
       type: object
       required:
         - address
+        - sent_at
+        - expires_at
         - token
       properties:
         address:
@@ -420,15 +425,15 @@ components:
           example: "user@example.com"
         sent_at:
           type: integer
-          description: Timestamp when the session was created
+          description: Timestamp when the session was created (in seconds since epoch)
           example: 1633072800
         expires_at:
           type: integer
-          description: Timestamp when the session expires
+          description: Timestamp when the session expires (in seconds since epoch)
           example: 1633076400
         token:
           type: string
-          description: Authentication token for subsequent requests
+          description: JWT authentication token for subsequent requests (should be passed as Bearer token in Authorization header)
           example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
     Error:
       type: object
@@ -443,4 +448,26 @@ components:
           type: string
           description: Additional error details
           example: "The verification code has expired or is incorrect"
+    JwtTokenPayload:
+      type: object
+      description: |
+        The structure of the JWT token payload. This is for documentation purposes only
+        and not directly used in API requests/responses.
+      properties:
+        aud:
+          type: string
+          description: Audience - identifies the intended recipient of the token
+          example: "app"
+        sub:
+          type: string
+          description: Subject - typically the user's email address
+          example: "user@example.com"
+        exp:
+          type: integer
+          description: Expiration time (in seconds since epoch)
+          example: 1659458400
+        iat:
+          type: integer
+          description: Issued at time (in seconds since epoch)
+          example: 1659372000
 
