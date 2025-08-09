@@ -43,32 +43,75 @@ impl<'a> BoardStore {
 
     /// Adds an item to the store
     pub async fn add_item(&self, item: NewBoardDb<'a>) -> Result<BoardDb, Error> {
-        sqlx::query_as::<_, BoardDb>(
+        let connection = self.pool.deref();
+        let mut transaction = connection.begin().await?;
+
+        let result = match sqlx::query_as::<_, BoardDb>(
             "INSERT INTO board (name, description, icon) VALUES (?, ?, ?) RETURNING id, name, description, icon",
-        ).bind(item.name)
+        )
+        .bind(item.name)
         .bind(item.description)
         .bind(item.icon)
-        .fetch_one(self.pool.deref())
-        .await
+        .fetch_one(&mut *transaction)
+        .await {
+            Ok(r) => r,
+            Err(err) => {
+                let _ = transaction.rollback().await;
+                return Err(err);
+            }
+        };
+
+        match transaction.commit().await {
+            Ok(_) => Ok(result),
+            Err(err) => Err(err),
+        }
     }
 
     /// Retrieves all items from the store
     pub async fn get_items(&self) -> Result<Vec<BoardDb>, Error> {
-        sqlx::query_as::<_, BoardDb>(
+        let connection = self.pool.deref();
+        let mut transaction = connection.begin().await?;
+
+        let result = match sqlx::query_as::<_, BoardDb>(
             "SELECT id, name, description, icon FROM board"
         )
-        .fetch_all(self.pool.deref())
-        .await
+        .fetch_all(&mut *transaction)
+        .await {
+            Ok(rows) => rows,
+            Err(err) => {
+                let _ = transaction.rollback().await;
+                return Err(err);
+            }
+        };
+
+        match transaction.commit().await {
+            Ok(_) => Ok(result),
+            Err(err) => Err(err),
+        }
     }
 
     /// Retrieves a single item by its ID
     pub async fn get_item(&self, item_id: i32) -> Result<BoardDb, Error> {
-        sqlx::query_as::<_, BoardDb>(
+        let connection = self.pool.deref();
+        let mut transaction = connection.begin().await?;
+
+        let result = match sqlx::query_as::<_, BoardDb>(
             "SELECT id, name, description, icon FROM board WHERE id = ?"
         )
         .bind(item_id)
-        .fetch_one(self.pool.deref())
-        .await
+        .fetch_one(&mut *transaction)
+        .await {
+            Ok(row) => row,
+            Err(err) => {
+                let _ = transaction.rollback().await;
+                return Err(err);
+            }
+        };
+
+        match transaction.commit().await {
+            Ok(_) => Ok(result),
+            Err(err) => Err(err),
+        }
     }
 
     /// Updates an item in the store
@@ -79,8 +122,8 @@ impl<'a> BoardStore {
         let mut params = Vec::<&str>::new();
 
         if item.name.is_some() { params.push("name = ?");}
-        if item.description.is_some() { params.push("description = ? "); }
-        if item.icon.is_some() { params.push("icon = ? "); }
+        if item.description.is_some() { params.push("description = ?"); }
+        if item.icon.is_some() { params.push("icon = ?"); }
 
         if params.is_empty() {
             return Err(Error::InvalidArgument(
@@ -89,35 +132,64 @@ impl<'a> BoardStore {
         }
 
         query.push_str(&params.join(", "));
+        query.push_str(" WHERE id = ? RETURNING id, name, description, icon");
 
-        query.push_str("WHERE id = ? RETURNING id, name, description, icon");
+        let connection = self.pool.deref();
+        let mut transaction = connection.begin().await?;
 
-
-        println!("Executing query: {}", query);
+        // println!("Executing query: {}", query);
 
         let q = sqlx::query_as::<_, BoardDb>(&query);
         let q = match item.name {
             Some(name) => q.bind(name),
             _ => q,
         };
+        // Bind Option<&str> correctly when provided, including NULL
         let q = match item.description {
-            Some(Some(desc)) => q.bind(desc),
-            _ => q,
+            Some(desc_opt) => q.bind(desc_opt),
+            None => q,
         };
         let q = match item.icon {
-            Some(Some(icon)) => q.bind(icon),
-            _ => q,
+            Some(icon_opt) => q.bind(icon_opt),
+            None => q,
         };
 
-        q.bind(&id).fetch_one(self.pool.deref())
-            .await
+        let result = match q
+            .bind(&id)
+            .fetch_one(&mut *transaction)
+            .await {
+                Ok(row) => row,
+                Err(err) => {
+                    let _ = transaction.rollback().await;
+                    return Err(err);
+                }
+            };
+
+        match transaction.commit().await {
+            Ok(_) => Ok(result),
+            Err(err) => Err(err),
+        }
     }
 
     /// Deletes an item from the store
     pub async fn delete_item(&self, id: i32) -> Result<BoardDb, Error> {
-        sqlx::query_as::<_, BoardDb>("DELETE FROM board WHERE id = ? RETURNING id, name, description, icon")
+        let connection = self.pool.deref();
+        let mut transaction = connection.begin().await?;
+
+        let result = match sqlx::query_as::<_, BoardDb>("DELETE FROM board WHERE id = ? RETURNING id, name, description, icon")
             .bind(id)
-            .fetch_one(self.pool.deref())
-            .await
+            .fetch_one(&mut *transaction)
+            .await {
+                Ok(row) => row,
+                Err(err) => {
+                    let _ = transaction.rollback().await;
+                    return Err(err);
+                }
+            };
+
+        match transaction.commit().await {
+            Ok(_) => Ok(result),
+            Err(err) => Err(err),
+        }
     }
 }

@@ -359,6 +359,10 @@ components:
           type: string
           description: Optional icon identifier for the package
           example: "package"
+        is_public:
+          type: boolean
+          description: Whether the package is publicly accessible
+          example: false
     PackageNew:
       type: object
       required:
@@ -377,6 +381,10 @@ components:
           type: string
           description: Optional icon identifier for the package
           example: "package"
+        is_public:
+          type: boolean
+          description: Whether the package is publicly accessible (defaults to false)
+          example: false
     PackagePartial:
       type: object
       properties:
@@ -393,6 +401,10 @@ components:
           type: string
           description: Optional icon identifier for the package
           example: "package-updated"
+        is_public:
+          type: boolean
+          description: Whether the package is publicly accessible
+          example: true
     SignInRequest:
       type: object
       required:

@@ -7,7 +7,7 @@ CREATE TABLE `session`(
     `expires_at` DATETIME NOT NULL
 );
 
-CREATE INDEX `idx_session_address` ON `session` (`address`, `code`);
+CREATE INDEX `idx_session_address_code` ON `session` (`address`, `code`);
 
 CREATE TABLE `package_access` (
     package_id INTEGER NOT NULL,

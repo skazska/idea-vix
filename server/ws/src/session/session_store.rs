@@ -40,23 +40,53 @@ impl<'a> SessionStore {
 
     /// Initializes a session by storing the address, code, and sent time in the database
     pub async fn init_session(&self, item: InitSessionDb<'a>) -> Result<SessionDb, sqlx::Error> {
-        sqlx::query_as::<_, SessionDb>(
+        let connection = self.pool.deref();
+        let mut transaction = connection.begin().await?;
+
+        let result = match sqlx::query_as::<_, SessionDb>(
             "INSERT INTO session (address, code, sent_at, expires_at) VALUES (?, ?, ?, ?) RETURNING id, address, code, sent_at, expires_at",
-        ).bind(item.address)
+        )
+        .bind(item.address)
         .bind(item.code)
         .bind(item.sent_at)
         .bind(item.expires_at)
-        .fetch_one(self.pool.deref())
-        .await
+        .fetch_one(&mut *transaction)
+        .await {
+            Ok(row) => row,
+            Err(err) => {
+                let _ = transaction.rollback().await;
+                return Err(err);
+            }
+        };
+
+        match transaction.commit().await {
+            Ok(_) => Ok(result),
+            Err(err) => Err(err),
+        }
     }
 
     /// Confirms a session by checking the address and code
     pub async fn confirm_session(&self, item: ConfirmSessionDb<'a>) -> Result<SessionDb, sqlx::Error> {
-        sqlx::query_as::<_, SessionDb>(
+        let connection = self.pool.deref();
+        let mut transaction = connection.begin().await?;
+
+        let result = match sqlx::query_as::<_, SessionDb>(
             "SELECT id, address, sent_at, expires_at FROM session WHERE address = ? AND code = ?",
-        ).bind(item.address)
+        )
+        .bind(item.address)
         .bind(item.code)
-        .fetch_one(self.pool.deref())
-        .await
+        .fetch_one(&mut *transaction)
+        .await {
+            Ok(row) => row,
+            Err(err) => {
+                let _ = transaction.rollback().await;
+                return Err(err);
+            }
+        };
+
+        match transaction.commit().await {
+            Ok(_) => Ok(result),
+            Err(err) => Err(err),
+        }
     }
 }

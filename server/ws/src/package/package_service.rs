@@ -11,6 +11,7 @@ pub struct Package {
     pub name: String,
     pub description: Option<String>,
     pub icon: Option<String>,
+    pub is_public: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
@@ -21,6 +22,7 @@ pub struct NewPackageItem {
     pub description: Option<String>,
     #[validate(length(max = 255))]
     pub icon: Option<String>,
+    pub is_public: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
@@ -33,6 +35,7 @@ pub struct PatchPackageItem {
     #[serde(default, deserialize_with = "deserialize_some")]
     #[validate(length(max = 255))]
     pub icon: Option<Option<String>>,
+    pub is_public: Option<bool>,
 }
 
 /// implements direct conversion from NewPackageItem to NewPackageDb
@@ -42,6 +45,7 @@ impl<'a> From<&'a NewPackageItem> for NewPackageDb<'a> {
             name: &item.name,
             description: item.description.as_deref(),
             icon: item.icon.as_deref(),
+            is_public: item.is_public.unwrap_or(false),
         }
     }
 }
@@ -53,6 +57,7 @@ impl<'a> From<&'a PatchPackageItem> for PatchPackageDb<'a> {
             name: item.name.as_deref(),
             description: item.description.as_ref().map(|d| d.as_deref()),
             icon: item.icon.as_ref().map(|i| i.as_deref()),
+            is_public: item.is_public,
         }
     }
 }
@@ -65,6 +70,7 @@ impl From<PackageDb> for Package {
             name: item.name,
             description: item.description,
             icon: item.icon,
+            is_public: item.is_public,
         }
     }
 }
@@ -82,7 +88,7 @@ impl<'a> PackageService {
     }
 
     pub async fn add_item(&self, item: &'a NewPackageItem, session: &SessionData) -> Result<Package, ModelError> {
-        let result = self.items_store.add_item(item.into()).await?;
+        let result = self.items_store.add_item(item.into(), session).await?;
 
         Ok(result.into())
     }
