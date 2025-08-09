@@ -248,9 +248,7 @@ paths:
       summary: Verify code
       description: |
         Verify the code sent to the email address during sign-in. 
-        Returns session data including the JWT authentication token that 
-        should be used in the Authorization header as a Bearer token for 
-        subsequent authenticated requests.
+        Sets an HttpOnly cookie with the JWT and returns session data.
       security: []  # No authentication required for verification
       requestBody:
         required: true
@@ -260,7 +258,7 @@ paths:
               $ref: '#/components/schemas/VerifyCodeRequest'
       responses:
         '200':
-          description: Code verified successfully, session data with JWT token returned
+          description: Code verified successfully, session data returned
           content:
             application/json:
               schema:
@@ -275,13 +273,51 @@ paths:
                 $ref: '#/components/schemas/Error'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /api/session/me:
+    get:
+      tags:
+        - Session
+      summary: Get current session
+      description: Returns session data if a valid JWT cookie/header is present, otherwise null
+      security:
+        - SessionToken: []
+        - {}
+      responses:
+        '200':
+          description: Current session or null
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SessionData'
+                  - type: 'null'
+  /api/session/signout:
+    post:
+      tags:
+        - Session
+      summary: Sign out
+      description: Clears the HttpOnly JWT cookie
+      security:
+        - SessionToken: []
+        - {}
+      responses:
+        '200':
+          description: Sign-out request processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
 components:
   securitySchemes:
     SessionToken:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: JWT token for authenticated requests, obtained through session verification
+      description: JWT token for authenticated requests, obtained through session verification (also accepted via HttpOnly cookie)
   responses:
     BadRequest:
       description: Bad request - invalid input data

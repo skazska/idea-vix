@@ -15,19 +15,12 @@ export type OrError<T> = T | IError;
 export interface IBackend {
     fetchJson: (url: string, options?: RequestInit) => Promise<OrError<IResp>>;
 };
-import { createContext, useContext, type Accessor } from "solid-js";
+import { createContext, useContext, onMount } from "solid-js";
 import { usePageState } from "./page-state";
+import type { TSessionData } from "../../session/model";
 
 class Backend {
-
-    private sessionOk: Accessor<boolean>;
-
-    constructor(sessionOk: Accessor<boolean>) {
-        this.sessionOk = sessionOk;
-    }
-
     private getFetchJSONOptions(options: RequestInit = {}): RequestInit {
-        const sessionOk = this.sessionOk();
         return {
             ...options,
             // Include credentials to allow cookies to be sent in cross-origin requests
@@ -35,8 +28,7 @@ class Backend {
             headers: {
                 "Content-Type": "application/json",
                 "Accept": "application/json",
-                // Keep header for backward compatibility - now the token will primarily come from cookies
-                ...(sessionOk ? { "X-Authorized": `Bearer ${this.sessionOk()}` } : {}),
+                // Token is sent via HttpOnly cookie now
                 ...options.headers,
             },
         }
@@ -73,11 +65,29 @@ export async function getResponse<T>(
 }
 
 export const BackendProvider = (props: { children: any }) => {
-    const [{ sessionOk }] = usePageState();
+    const [_pageState, setPageState] = usePageState();
 
-    const backend: IBackend = new Backend(sessionOk);
+    const backend: IBackend = new Backend();
 
-    console.log("BackendProvider rendered");
+    // Initialize session state from cookie on mount
+    onMount(async () => {
+        try {
+            const resp = await backend.fetchJson('/api/session/me');
+            if (!('ok' in resp) || !resp.ok) return;
+            const data = resp.data as TSessionData | null;
+            if (data && typeof (data as any).address === 'string') {
+                setPageState.setSessionAddress(data.address);
+                setPageState.setSessionExpiresAt(data.expires_at);
+                setPageState.setSessionOk(true);
+            } else {
+                setPageState.setSessionAddress(undefined);
+                setPageState.setSessionExpiresAt(undefined);
+                setPageState.setSessionOk(false);
+            }
+        } catch (e) {
+            console.warn('Failed to init session from cookie', e);
+        }
+    });
 
     return (
         <BackendContext.Provider value={backend}>
@@ -100,4 +110,4 @@ export function useBackend(): IBackend {
     }
 
     return context;
-}   
+}

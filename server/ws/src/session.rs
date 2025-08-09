@@ -19,7 +19,7 @@ use axum::{
     Router 
 };
 
-use crate::{api::{results::Success, validation::ValidatedJson}, ext_comm, jwt_adapter::JwtAdapter, session::{session_jwt::SessionJWTService, session_service::{ConfirmSession, InitSession, SessionService}}};
+use crate::{api::{results::Success, validation::ValidatedJson, deserialize::AuthToken}, ext_comm, session::{session_jwt::SessionJWTService, session_service::{ConfirmSession, InitSession, SessionService}}};
 
 mod session_store;
 pub mod session_service;
@@ -27,22 +27,25 @@ pub mod session_jwt;
 
 struct RouteState {
     service: SessionService,
+    jwt_service: Arc<SessionJWTService>,
 }
 
 /// Get the session router
 pub async fn get_router<'a>(connection: Arc<sqlx::Pool<sqlx::Sqlite>>, jwt_service: Arc<SessionJWTService>) -> axum::Router {
     let session_store = session_store::SessionStore::new(connection);
     let ext_comm = ext_comm::ExtComm::new();
-    let session_service = SessionService::new(session_store, ext_comm, jwt_service);
+    let session_service = SessionService::new(session_store, ext_comm, jwt_service.clone());
 
     let state = Arc::new(RouteState {
         service: session_service,
+        jwt_service,
     });
 
     Router::new()
         .route("/signin", post(signin_session))
         .route("/verify", post(verify_session))
         .route("/signout", post(signout_session))
+        .route("/me", axum::routing::get(get_session))
         .with_state(state)
 }
 
@@ -77,6 +80,18 @@ async fn verify_session(
     headers.insert(SET_COOKIE, cookie.parse().unwrap());
 
     Ok((headers, json))
+}
+
+/// Get current session (if any) from cookie/header token
+async fn get_session(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+) -> Result<Json<Option<crate::session::session_service::SessionData>>, (StatusCode, String)> {
+    let session = state
+        .jwt_service
+        .get_optional_session_data(&token)
+        .map_err(|e| e.into())?;
+    Ok(Json(session))
 }
 
 /// Sign out by clearing the session cookie
