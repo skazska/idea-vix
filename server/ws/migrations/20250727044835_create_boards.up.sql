@@ -4,7 +4,7 @@ CREATE TABLE `board`(
 	`name` VARCHAR(100) NOT NULL,
 	`description` VARCHAR(500) DEFAULT NULL,
 	`icon` VARCHAR(255) DEFAULT NULL,
-	`is_public` BOOLEAN NOT NULL DEFAULT FALSE,
+	`is_public` BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE `board_package` (
