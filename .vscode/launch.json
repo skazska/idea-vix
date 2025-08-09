@@ -1,16 +1,63 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug",
-            "program": "${workspaceFolder}/<executable file>",
+            "name": "Debug Rust Server",
+            "cwd": "${workspaceFolder}/server/ws",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--manifest-path=${workspaceFolder}/server/ws/Cargo.toml",
+                    "--bin=ws",
+                    "--package=ws"
+                ],
+                "cwd": "${workspaceFolder}/server/ws",
+                "filter": {
+                    "name": "ws",
+                    "kind": "bin"
+                }
+            },
+            // "program": "${workspaceFolder}/server/target/debug/ws",
             "args": [],
-            "cwd": "${workspaceFolder}"
-        }
+            // "env": {
+            //     "DATABASE_URL": "sqlite:sqlite.db",
+            //     "RUST_LOG": "debug"
+            // },
+            "console": "externalTerminal",
+            "sourceLanguages": ["rust"],
+            // "preLaunchTask": "cargo-build"
+        },
+        // {
+        //     "type": "lldb",
+        //     "request": "launch",
+        //     "name": "Run Rust Server",
+        //     "program": "${workspaceFolder}/server/target/debug/ws",
+        //     "args": [],
+        //     "cwd": "${workspaceFolder}/server/ws",
+        //     "env": {
+        //         "DATABASE_URL": "sqlite:sqlite.db",
+        //         "RUST_LOG": "info"
+        //     },
+        //     "console": "integratedTerminal",
+        //     "sourceLanguages": ["rust"],
+        //     "preLaunchTask": "cargo-build"
+        // },
+        // {
+        //     "type": "lldb",
+        //     "request": "launch",
+        //     "name": "Debug Unit Tests",
+        //     "program": "${workspaceFolder}/server/target/debug/deps/ws-*",
+        //     "args": [],
+        //     "cwd": "${workspaceFolder}/server/ws",
+        //     "env": {
+        //         "DATABASE_URL": "sqlite:sqlite.db",
+        //         "RUST_LOG": "debug"
+        //     },
+        //     "console": "integratedTerminal",
+        //     "sourceLanguages": ["rust"],
+        //     "preLaunchTask": "cargo-test-build"
+        // }
     ]
 }

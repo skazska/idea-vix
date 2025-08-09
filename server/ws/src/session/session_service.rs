@@ -1,16 +1,15 @@
-use std::{sync::Arc, time::{SystemTime}};
+use std::{sync::Arc, time::SystemTime};
 
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 use crate::{
-    api::results::Success, 
+    api::results::Success,
     db::to_unix_timestamp,
     error::ModelError,
     ext_comm,
-    jwt_adapter::JwtAdapter,
     session::{
-        jwt::SessionJWTData,
+        session_jwt::{SessionJWTData, SessionJWTService},
         session_store::{ConfirmSessionDb, InitSessionDb, SessionDb, SessionStore},
     },
 };
@@ -42,6 +41,31 @@ pub struct SessionData {
     pub sent_at: u64,
     pub expires_at: u64,
 }
+
+/// implements direct conversion from SessionJWTData to SessionData
+impl From<SessionJWTData> for SessionData {
+    fn from(item: SessionJWTData) -> Self {
+        Self {
+            address: item.sub,
+            sent_at: item.iat,
+            expires_at: item.exp,
+        }
+    }
+}
+
+/// implements direct conversion from Session to SessionData
+impl From<Session> for SessionData {
+    fn from(item: Session) -> Self {
+        Self {
+            address: item.address,
+            sent_at: item.sent_at,
+            expires_at: item.expires_at,
+        }
+    }
+    
+}
+
+/// implements direct conversion from 
 
 /// implements direct conversion from ConfirmSession to ConfirmSessionDb
 impl<'a> From<&'a ConfirmSession> for ConfirmSessionDb<'a> {
@@ -88,18 +112,18 @@ impl SessionJWTData {
 pub struct SessionService {
     store: SessionStore,
     ext_comm: ext_comm::ExtComm,
-    jwt_adapter: Arc<JwtAdapter>,
+    jwt_service: Arc<SessionJWTService>,
 }
 
 impl SessionService {
-    pub fn new(store: SessionStore, ext_comm: ext_comm::ExtComm, jwt_adapter: Arc<JwtAdapter>) -> Self {
-        Self { store, ext_comm, jwt_adapter }
+    pub fn new(store: SessionStore, ext_comm: ext_comm::ExtComm, jwt_service: Arc<SessionJWTService>) -> Self {
+        Self { store, ext_comm, jwt_service }
     }
 
     /// Initializes a session by storing the address, code, and sent time in the database
     pub async fn signin_session(&self, item: InitSession) -> Result<Success, ModelError> {
         let sent_at: i64 = to_unix_timestamp(SystemTime::now()).try_into().unwrap_or(0);
-        let expires_at = sent_at + (self.jwt_adapter.exp_secs as i64);
+        let expires_at = sent_at + (self.jwt_service.jwt_adapter.exp_secs as i64);
         let code: String = "some_code".to_string(); // This should be generated or provided
 
         self.ext_comm.send(&format!("Code to initialize session for {} is {}", item.address, code)).await?;
@@ -120,14 +144,7 @@ impl SessionService {
     pub async fn verify_session(&self, item: &ConfirmSession) -> Result<(SessionData, String), ModelError> {
         let db_session = self.store.confirm_session(item.into()).await?;
         let session: Session = db_session.into();
-        
-        // Generate JWT token
-        let token = self.jwt_adapter.generate_token(&SessionJWTData::new(&session))?;
 
-        Ok((SessionData {
-            address: session.address,
-            sent_at: session.sent_at,
-            expires_at: session.expires_at
-        }, token))
+        self.jwt_service.generate_token(session)
     }
 }

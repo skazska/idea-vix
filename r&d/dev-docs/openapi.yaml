@@ -96,6 +96,8 @@ paths:
         - Packages
       summary: Add a new package
       description: Create a new package (requires authentication)
+      security:
+        - SessionToken: []
       requestBody:
         required: true
         content:
@@ -150,6 +152,8 @@ paths:
         - Packages
       summary: Update an existing package
       description: Update details of an existing package (requires authentication)
+      security:
+        - SessionToken: []
       parameters:
         - name: id
           in: path
@@ -186,6 +190,8 @@ paths:
         - Packages
       summary: Remove a package
       description: Delete a package by its ID (requires authentication)
+      security:
+        - SessionToken: []
       parameters:
         - name: id
           in: path

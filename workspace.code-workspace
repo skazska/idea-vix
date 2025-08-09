@@ -3,5 +3,16 @@
 		{
 			"path": "."
 		}
-	]
+	],
+	"settings": {
+		"lldb.cargo": "/home/ska/.cargo/bin/cargo",
+		"rust-analyzer.sou"
+		// "rust-analyzer.linkedProjects": ["${workspaceFolder}/server"],
+
+		// "rust-analyzer.cargo.extraEnv": {
+        // 	"PATH": "/home/ska/.cargo/bin",
+		// 	"RUSTUP_HOME": "/home/ska/.cargo/bin",
+		// 	"CARGO_HOME": "/home/ska/.cargo/bin"
+    	// },
+	}
 }

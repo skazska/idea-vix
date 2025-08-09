@@ -19,21 +19,21 @@ use axum::{
     Router 
 };
 
-use crate::{api::{results::Success, validation::ValidatedJson}, ext_comm, jwt_adapter::JwtAdapter, session::session_service::{ConfirmSession, InitSession, SessionService}};
+use crate::{api::{results::Success, validation::ValidatedJson}, ext_comm, jwt_adapter::JwtAdapter, session::{session_jwt::SessionJWTService, session_service::{ConfirmSession, InitSession, SessionService}}};
 
 mod session_store;
-mod session_service;
-pub mod jwt;
+pub mod session_service;
+pub mod session_jwt;
 
 struct RouteState {
     service: SessionService,
 }
 
 /// Get the session router
-pub async fn get_router<'a>(connection: Arc<sqlx::Pool<sqlx::Sqlite>>, jwt_adapter: Arc<JwtAdapter>) -> axum::Router {
+pub async fn get_router<'a>(connection: Arc<sqlx::Pool<sqlx::Sqlite>>, jwt_service: Arc<SessionJWTService>) -> axum::Router {
     let session_store = session_store::SessionStore::new(connection);
     let ext_comm = ext_comm::ExtComm::new();
-    let session_service = SessionService::new(session_store, ext_comm, jwt_adapter);
+    let session_service = SessionService::new(session_store, ext_comm, jwt_service);
 
     let state = Arc::new(RouteState {
         service: session_service,

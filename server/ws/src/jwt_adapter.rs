@@ -11,7 +11,6 @@ pub struct JwtAdapter {
     encoding_key: EncodingKey,
     decoding_key: DecodingKey,
     header: Header,
-    validation: Validation,
     pub exp_secs: u64,
 }
 
@@ -21,7 +20,6 @@ impl JwtAdapter {
             encoding_key: EncodingKey::from_secret(secret.as_bytes()),
             decoding_key: DecodingKey::from_secret(secret.as_bytes()),
             header: Header::new(Algorithm::HS256),
-            validation: Validation::new(Algorithm::HS256),
             exp_secs,
         }
     }
@@ -31,18 +29,21 @@ impl JwtAdapter {
             &self.header,
             data,
             &self.encoding_key
-        ).map_err(|_| ModelError::Unexpected("Failed to generate JWT token".to_owned()))?;
-        
+        ).map_err(|e| ModelError::Unexpected(format!("Failed to generate JWT token: {}", e)))?;
+
         Ok(token)
     }
 
-    pub fn decode_token<T: serde::de::DeserializeOwned>(&self, token: &str) -> Result<T, ModelError> {
+    pub fn decode_token<T: serde::de::DeserializeOwned>(&self, token: &str, validation: &Validation) -> Result<T, ModelError> {
         let decoded = jsonwebtoken::decode::<T>(
             token,
             &self.decoding_key,
-            &self.validation
-        ).map_err(|_| ModelError::Unexpected("Failed to decode JWT token".to_owned()))?;
-        
+            validation
+        ).map_err(|e| {
+            eprintln!("Failed to decode JWT token: {:?}", e);
+            ModelError::Unexpected(format!("Failed to decode JWT token"))
+        })?;
+
         Ok(decoded.claims)
     }
 }

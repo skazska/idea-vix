@@ -22,14 +22,16 @@ async fn main() {
         config.database_pool,
     ).await;
 
-    let jwt_arc = Arc::new(ws::jwt_adapter::JwtAdapter::new(
+    let jwt_adapter = ws::jwt_adapter::JwtAdapter::new(
         &config.app_jwt_secret,
         config.app_jwt_expiration_secs,
-    ));
+    );
 
-    let package_router = package::get_router(connection.get(), jwt_arc.clone()).await;
-    let boards_router = boards::get_router(connection.get(), jwt_arc.clone()).await;
-    let session_router = session::get_router(connection.get(), jwt_arc.clone()).await;
+    let jwt_service = Arc::new(session::session_jwt::SessionJWTService::new(jwt_adapter));
+
+    let package_router = package::get_router(connection.get(), jwt_service.clone()).await;
+    let boards_router = boards::get_router(connection.get(), jwt_service.clone()).await;
+    let session_router = session::get_router(connection.get(), jwt_service.clone()).await;
 
     let app = Router::new()
         .route("/", get(root))
