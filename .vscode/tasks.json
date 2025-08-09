@@ -1,0 +1,80 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "cargo-build",
+            "command": "cargo",
+            "args": [
+                "build",
+                "--bin=ws"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/server/ws"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": ["$rustc"]
+        },
+        {
+            "type": "shell",
+            "label": "cargo-test-build",
+            "command": "cargo",
+            "args": [
+                "test",
+                "--no-run",
+                "--bin=ws"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/server/ws"
+            },
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": ["$rustc"]
+        },
+        {
+            "type": "shell",
+            "label": "cargo-run",
+            "command": "cargo",
+            "args": [
+                "run",
+                "--bin=ws"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/server/ws",
+                "env": {
+                    "DATABASE_URL": "sqlite:sqlite.db",
+                    "RUST_LOG": "info"
+                }
+            },
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": ["$rustc"],
+            "isBackground": true
+        }
+    ]
+}
