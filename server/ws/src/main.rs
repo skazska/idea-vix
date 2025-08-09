@@ -27,8 +27,8 @@ async fn main() {
         config.app_jwt_expiration_secs,
     ));
 
-    let package_router = package::get_router(connection.get()).await;
-    let boards_router = boards::get_router(connection.get()).await;
+    let package_router = package::get_router(connection.get(), jwt_arc.clone()).await;
+    let boards_router = boards::get_router(connection.get(), jwt_arc.clone()).await;
     let session_router = session::get_router(connection.get(), jwt_arc.clone()).await;
 
     let app = Router::new()

@@ -1,4 +1,4 @@
-use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
+use jsonwebtoken::{encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::Serialize;
 
 use crate::{error::ModelError};
@@ -8,26 +8,42 @@ use crate::{error::ModelError};
 /// Provides methods to generate JWT tokens
 /// Holds secret to sign tokens
 pub struct JwtAdapter {
-    secret: String,
+    encoding_key: EncodingKey,
+    decoding_key: DecodingKey,
+    header: Header,
+    validation: Validation,
     pub exp_secs: u64,
 }
 
 impl JwtAdapter {
     pub fn new(secret: &str, exp_secs: u64) -> Self {
         Self {
-            secret: secret.to_owned(),
+            encoding_key: EncodingKey::from_secret(secret.as_bytes()),
+            decoding_key: DecodingKey::from_secret(secret.as_bytes()),
+            header: Header::new(Algorithm::HS256),
+            validation: Validation::new(Algorithm::HS256),
             exp_secs,
         }
     }
-
+    
     pub fn generate_token<T: Serialize>(&self, data: &T) -> Result<String, ModelError> {
         let token = encode(
-            &Header::new(Algorithm::HS256),
+            &self.header,
             data,
-            &EncodingKey::from_secret(self.secret.as_bytes())
+            &self.encoding_key
         ).map_err(|_| ModelError::Unexpected("Failed to generate JWT token".to_owned()))?;
         
         Ok(token)
+    }
+
+    pub fn decode_token<T: serde::de::DeserializeOwned>(&self, token: &str) -> Result<T, ModelError> {
+        let decoded = jsonwebtoken::decode::<T>(
+            token,
+            &self.decoding_key,
+            &self.validation
+        ).map_err(|_| ModelError::Unexpected("Failed to decode JWT token".to_owned()))?;
+        
+        Ok(decoded.claims)
     }
 }
 

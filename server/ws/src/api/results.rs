@@ -1,4 +1,4 @@
-use axum::http::StatusCode;
+use axum::{http::StatusCode, response::IntoResponse};
 use serde::{Deserialize, Serialize};
 
 use crate::error::ModelError;
@@ -15,6 +15,13 @@ impl Into<(StatusCode, String)> for ModelError {
             ModelError::Timeout(msg) => (StatusCode::GATEWAY_TIMEOUT, msg),
             ModelError::Unavailable(msg) => (StatusCode::SERVICE_UNAVAILABLE, msg),
         }
+    }
+}
+
+impl IntoResponse for ModelError {
+    fn into_response(self) -> axum::response::Response {
+        let (status, message) = self.into();
+        (status, message).into_response()
     }
 }
 

@@ -417,7 +417,6 @@ components:
         - address
         - sent_at
         - expires_at
-        - token
       properties:
         address:
           type: string
@@ -431,10 +430,6 @@ components:
           type: integer
           description: Timestamp when the session expires (in seconds since epoch)
           example: 1633076400
-        token:
-          type: string
-          description: JWT authentication token for subsequent requests (should be passed as Bearer token in Authorization header)
-          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
     Error:
       type: object
       required:

@@ -3,7 +3,17 @@ use std::{sync::Arc, time::{SystemTime}};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-use crate::{api::results::Success, db::to_unix_timestamp, error::ModelError, ext_comm, jwt_adapter::JwtAdapter, session::session_store::{ConfirmSessionDb, InitSessionDb, SessionDb, SessionStore}};
+use crate::{
+    api::results::Success, 
+    db::to_unix_timestamp,
+    error::ModelError,
+    ext_comm,
+    jwt_adapter::JwtAdapter,
+    session::{
+        jwt::SessionJWTData,
+        session_store::{ConfirmSessionDb, InitSessionDb, SessionDb, SessionStore},
+    },
+};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Session {
@@ -58,15 +68,6 @@ impl From<SessionDb> for Session {
     }
 }
 
-/// Session data to be encoded in the JWT
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SessionJWTData {
-    pub aud: String,
-    pub sub: String,
-    pub exp: u64, // Expiration time in seconds since epoch
-    pub iat: u64, // Issued at time in seconds since epoch
-}
-
 impl SessionJWTData {
     pub fn new(session: &Session) -> Self {
         let now = SystemTime::now();
@@ -83,7 +84,6 @@ impl SessionJWTData {
         }
     }
 }
-
 
 pub struct SessionService {
     store: SessionStore,

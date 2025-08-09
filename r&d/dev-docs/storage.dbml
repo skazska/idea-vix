@@ -1,0 +1,148 @@
+Project sqlite {
+    database_type: "sqlite"
+    database_name: "storage.db"
+}
+
+// VARCHAR(20)
+Enum role {
+    owner
+    edit
+    view
+    manage
+}
+
+
+table shape {
+    id integer [pk, increment]
+    name VARCHAR(100) [not null]
+}
+
+table line {
+    id integer [pk, increment]
+    name VARCHAR(100) [not null]
+}
+
+table rule {
+    id integer [pk, increment]
+    name VARCHAR(100) [not null]
+}
+
+// Package
+table package {
+    id integer [not null, pk, increment] 
+    name VARCHAR(100) [not null]
+    description VARCHAR(500)
+    icon VARCHAR(255)
+    is_public boolean [not null, default: false]
+}
+
+table package_access {
+    package_id integer [not null, ref: > package.id]
+    address VARCHAR(255) [not null]
+    role role [not null]
+
+    indexes {
+        (package_id, address) [pk, unique]
+    }
+}
+
+table package_shape {
+    package_id integer [ref: > package.id]
+    shape_id integer [ref: > shape.id]
+    name: VARCHAR(100)
+
+    indexes {
+        (package_id, shape_id) [pk, unique]
+    }
+}
+
+table package_line {
+    package_id integer [ref: > package.id]
+    line_id integer [ref: > line.id]
+    name: VARCHAR(100)
+
+    indexes {
+        (package_id, line_id) [pk, unique]
+    }
+}
+
+table package_rule {
+    package_id integer [ref: > package.id]
+    rule_id integer [ref: > rule.id]
+
+    indexes {
+        (package_id, rule_id) [pk, unique]
+    }
+}
+
+
+// Board
+table board {
+    id integer [not null, pk, increment]
+    name VARCHAR(100) [not null]
+    description VARCHAR(500) 
+    icon VARCHAR(255)
+    is_public boolean [not null, default: false]
+}
+
+table board_access {
+    board_id integer [not null, ref: > board.id]
+    address VARCHAR(255) [not null]
+    role role [not null]
+
+    indexes {
+        (board_id, address) [pk, unique]
+    }
+}
+
+table board_package {
+    board_id integer [not null, ref: > board.id]
+    package_id integer [not null, ref: > package.id]
+
+    indexes {
+        (board_id, package_id) [pk, unique]
+    }
+}
+
+table board_shape {
+    board_id integer [not null, ref: > board.id]
+    shape_id integer [not null, ref: > shape.id]
+    package_id integer [null, ref: > package.id]
+    name: VARCHAR(100)
+
+    indexes {
+        (board_id, shape_id, package_id) [pk, unique]
+    }
+}
+
+table board_line {
+    board_id integer [not null, ref: > board.id]
+    line_id integer [not null, ref: > line.id]
+    package_id integer [null, ref: > package.id]
+    name: VARCHAR(100)
+
+    indexes {
+        (board_id, line_id, package_id) [pk, unique]
+    }
+}
+
+table board_rule {
+    board_id integer [not null, ref: > board.id]
+    rule_id integer [not null, ref: > rule.id]
+    package_id integer [null, ref: > package.id]
+
+    indexes {
+        (board_id, rule_id, package_id) [pk, unique]
+    }
+}
+
+// session
+table session {
+    id integer [pk, increment]
+    address VARCHAR(255) [not null]
+    code VARCHAR(255) [not null]
+    sent_at datetime [not null]
+    expires_at datetime [not null]
+}
+
+

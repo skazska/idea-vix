@@ -15,5 +15,6 @@ toml = { version = "0.8.23", features=["parse"] }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 validator = { version = "0.20", features = ["derive"] }
 jsonwebtoken = "9.2.0"
+axum-extra = { version = "0.10.1", features = ["typed-header"] }
 
 

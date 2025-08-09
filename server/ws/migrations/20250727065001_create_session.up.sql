@@ -9,16 +9,18 @@ CREATE TABLE `session`(
 
 CREATE INDEX `idx_session_address` ON `session` (`address`, `code`);
 
-CREATE TABLE `package_rel` (
+CREATE TABLE `package_access` (
     package_id INTEGER NOT NULL,
     address VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL CHECK (role IN ('owner', 'manage', 'view', 'edit')),
     PRIMARY KEY (package_id, address),
     FOREIGN KEY (package_id) REFERENCES package(id) ON DELETE CASCADE
 );
 
-CREATE TABLE `board_rel` (
+CREATE TABLE `board_access` (
     board_id INTEGER NOT NULL,
     address VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL CHECK (role IN ('owner', 'manage', 'view', 'edit')),
     PRIMARY KEY (board_id, address),
     FOREIGN KEY (board_id) REFERENCES board(id) ON DELETE CASCADE
 );

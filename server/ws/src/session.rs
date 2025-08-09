@@ -23,7 +23,7 @@ use crate::{api::{results::Success, validation::ValidatedJson}, ext_comm, jwt_ad
 
 mod session_store;
 mod session_service;
-mod jwt;
+pub mod jwt;
 
 struct RouteState {
     service: SessionService,
