@@ -89,20 +89,40 @@ impl<'a> PackageStore {
         }
     }
 
-    /// Retrieves all items from the store
-    pub async fn get_items(&self) -> Result<Vec<PackageDb>, Error> {
+    /// Retrieves all items from the store, enforcing access (public or has access)
+    pub async fn get_items(&self, session: &Option<SessionData>) -> Result<Vec<PackageDb>, Error> {
         let connection = self.pool.deref();
         let mut transaction = connection.begin().await?;
 
-        let result = match sqlx::query_as::<_, PackageDb>(
-            "SELECT id, name, description, icon, is_public FROM package"
-        )
-        .fetch_all(&mut *transaction)
-        .await {
-            Ok(rows) => rows,
-            Err(err) => {
-                let _ = transaction.rollback().await;
-                return Err(err);
+        let result = if let Some(session) = session {
+            match sqlx::query_as::<_, PackageDb>(
+                "SELECT p.id, p.name, p.description, p.icon, p.is_public
+                 FROM package p
+                 WHERE p.is_public = 1 OR EXISTS (
+                   SELECT 1 FROM package_access pa
+                   WHERE pa.package_id = p.id AND pa.address = ?
+                 )",
+            )
+            .bind(&session.address)
+            .fetch_all(&mut *transaction)
+            .await {
+                Ok(rows) => rows,
+                Err(err) => {
+                    let _ = transaction.rollback().await;
+                    return Err(err);
+                }
+            }
+        } else {
+            match sqlx::query_as::<_, PackageDb>(
+                "SELECT id, name, description, icon, is_public FROM package WHERE is_public = 1",
+            )
+            .fetch_all(&mut *transaction)
+            .await {
+                Ok(rows) => rows,
+                Err(err) => {
+                    let _ = transaction.rollback().await;
+                    return Err(err);
+                }
             }
         };
 
@@ -112,21 +132,42 @@ impl<'a> PackageStore {
         }
     }
 
-    /// Retrieves a single item by its ID
-    pub async fn get_item(&self, item_id: i32) -> Result<PackageDb, Error> {
+    /// Retrieves a single item by its ID, enforcing access (public or has access)
+    pub async fn get_item(&self, item_id: i32, session: &Option<SessionData>) -> Result<PackageDb, Error> {
         let connection = self.pool.deref();
         let mut transaction = connection.begin().await?;
 
-        let result = match sqlx::query_as::<_, PackageDb>(
-            "SELECT id, name, description, icon, is_public FROM package WHERE id = ?"
-        )
-        .bind(item_id)
-        .fetch_one(&mut *transaction)
-        .await {
-            Ok(row) => row,
-            Err(err) => {
-                let _ = transaction.rollback().await;
-                return Err(err);
+        let result = if let Some(session) = session {
+            match sqlx::query_as::<_, PackageDb>(
+                "SELECT p.id, p.name, p.description, p.icon, p.is_public
+                 FROM package p
+                 WHERE p.id = ? AND (p.is_public = 1 OR EXISTS (
+                   SELECT 1 FROM package_access pa
+                   WHERE pa.package_id = p.id AND pa.address = ?
+                 ))",
+            )
+            .bind(item_id)
+            .bind(&session.address)
+            .fetch_one(&mut *transaction)
+            .await {
+                Ok(row) => row,
+                Err(err) => {
+                    let _ = transaction.rollback().await;
+                    return Err(err);
+                }
+            }
+        } else {
+            match sqlx::query_as::<_, PackageDb>(
+                "SELECT id, name, description, icon, is_public FROM package WHERE id = ? AND is_public = 1",
+            )
+            .bind(item_id)
+            .fetch_one(&mut *transaction)
+            .await {
+                Ok(row) => row,
+                Err(err) => {
+                    let _ = transaction.rollback().await;
+                    return Err(err);
+                }
             }
         };
 
@@ -136,8 +177,8 @@ impl<'a> PackageStore {
         }
     }
 
-    /// Updates an item in the store
-    pub async fn update_item(&self, id: i32, item: PatchPackageDb<'a>) -> Result<PackageDb, Error> {
+    /// Updates an item in the store (owner or manage)
+    pub async fn update_item(&self, id: i32, item: PatchPackageDb<'a>, session: &SessionData) -> Result<PackageDb, Error> {
         let mut query = String::from("UPDATE package SET ");
 
         //params strings
@@ -155,13 +196,11 @@ impl<'a> PackageStore {
         }
 
         query.push_str(&params.join(", "));
-        // Ensure a space before WHERE
-        query.push_str(" WHERE id = ? RETURNING id, name, description, icon, is_public");
+        // Ensure a space before WHERE and add access check
+        query.push_str(" WHERE id = ? AND EXISTS (SELECT 1 FROM package_access WHERE package_id = ? AND address = ? AND role IN ('owner','manage')) RETURNING id, name, description, icon, is_public");
 
         let connection = self.pool.deref();
         let mut transaction = connection.begin().await?;
-
-        // println!("Executing query: {}", query);
 
         let q = sqlx::query_as::<_, PackageDb>(&query);
         let q = match item.name {
@@ -184,6 +223,8 @@ impl<'a> PackageStore {
 
         let result = match q
             .bind(&id)
+            .bind(&id)
+            .bind(&session.address)
             .fetch_one(&mut *transaction)
             .await {
                 Ok(row) => row,
@@ -199,13 +240,15 @@ impl<'a> PackageStore {
         }
     }
 
-    /// Deletes an item from the store
-    pub async fn delete_item(&self, id: i32) -> Result<PackageDb, Error> {
+    /// Deletes an item from the store (owner only)
+    pub async fn delete_item(&self, id: i32, session: &SessionData) -> Result<PackageDb, Error> {
         let connection = self.pool.deref();
         let mut transaction = connection.begin().await?;
 
-        let result = match sqlx::query_as::<_, PackageDb>("DELETE FROM package WHERE id = ? RETURNING id, name, description, icon, is_public")
+        let result = match sqlx::query_as::<_, PackageDb>("DELETE FROM package WHERE id = ? AND EXISTS (SELECT 1 FROM package_access WHERE package_id = ? AND address = ? AND role = 'owner') RETURNING id, name, description, icon, is_public")
             .bind(id)
+            .bind(id)
+            .bind(&session.address)
             .fetch_one(&mut *transaction)
             .await {
                 Ok(row) => row,

@@ -83,31 +83,31 @@ impl<'a> BoardService {
     }
 
     pub async fn add_item(&self, item: &'a NewBoardItem, session: &SessionData) -> Result<Board, ModelError> {
-        let result = self.items_store.add_item(item.into()).await?;
+        let result = self.items_store.add_item(item.into(), session).await?;
 
         Ok(result.into())
     }
 
-    pub async fn get_items(&self, _session: &Option<SessionData>) -> Result<Vec<Board>, ModelError> {
-        let items = self.items_store.get_items().await?;
+    pub async fn get_items(&self, session: &Option<SessionData>) -> Result<Vec<Board>, ModelError> {
+        let items = self.items_store.get_items(session).await?;
 
         Ok(items.into_iter().map(|item| item.into()).collect())
     }
 
-    pub async fn get_item(&self, item_id: i32, _session: &Option<SessionData>) -> Result<Board, ModelError> {
-        let item = self.items_store.get_item(item_id).await?;
+    pub async fn get_item(&self, item_id: i32, session: &Option<SessionData>) -> Result<Board, ModelError> {
+        let item = self.items_store.get_item(item_id, session).await?;
 
         Ok(item.into())
     }
 
-    pub async fn update_item(&self, id: i32, item: &'a PatchBoardItem, _session: &SessionData) -> Result<Board, ModelError> {
-        let updated_item = self.items_store.update_item(id, item.into()).await?;
+    pub async fn update_item(&self, id: i32, item: &'a PatchBoardItem, session: &SessionData) -> Result<Board, ModelError> {
+        let updated_item = self.items_store.update_item(id, item.into(), session).await?;
 
         Ok(updated_item.into())
     }
 
-    pub async fn delete_item(&self, id: i32, _session: &SessionData) -> Result<Board, ModelError> {
-        let result = self.items_store.delete_item(id).await?;
+    pub async fn delete_item(&self, id: i32, session: &SessionData) -> Result<Board, ModelError> {
+        let result = self.items_store.delete_item(id, session).await?;
 
         Ok(result.into())
     }

@@ -93,26 +93,26 @@ impl<'a> PackageService {
         Ok(result.into())
     }
 
-    pub async fn get_items(&self, _session: &Option<SessionData>) -> Result<Vec<Package>, ModelError> {
-        let items = self.items_store.get_items().await?;
+    pub async fn get_items(&self, session: &Option<SessionData>) -> Result<Vec<Package>, ModelError> {
+        let items = self.items_store.get_items(session).await?;
 
         Ok(items.into_iter().map(|item| item.into()).collect())
     }
 
-    pub async fn get_item(&self, item_id: i32, _session: &Option<SessionData>) -> Result<Package, ModelError> {
-        let item = self.items_store.get_item(item_id).await?;
+    pub async fn get_item(&self, item_id: i32, session: &Option<SessionData>) -> Result<Package, ModelError> {
+        let item = self.items_store.get_item(item_id, session).await?;
 
         Ok(item.into())
     }
 
-    pub async fn update_item(&self, id: i32, item: &'a PatchPackageItem, _session: &SessionData) -> Result<Package, ModelError> {
-        let updated_item = self.items_store.update_item(id, item.into()).await?;
+    pub async fn update_item(&self, id: i32, item: &'a PatchPackageItem, session: &SessionData) -> Result<Package, ModelError> {
+        let updated_item = self.items_store.update_item(id, item.into(), session).await?;
 
         Ok(updated_item.into())
     }
 
-    pub async fn delete_item(&self, id: i32, _session: &SessionData) -> Result<Package, ModelError> {
-        let result = self.items_store.delete_item(id).await?;
+    pub async fn delete_item(&self, id: i32, session: &SessionData) -> Result<Package, ModelError> {
+        let result = self.items_store.delete_item(id, session).await?;
 
         Ok(result.into())
     }
