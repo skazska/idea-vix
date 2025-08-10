@@ -11,6 +11,7 @@ pub struct Board {
     pub name: String,
     pub description: Option<String>,
     pub icon: Option<String>,
+    pub is_public: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
@@ -21,6 +22,7 @@ pub struct NewBoardItem {
     pub description: Option<String>,
     #[validate(length(max = 255))]
     pub icon: Option<String>,
+    pub is_public: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
@@ -33,6 +35,7 @@ pub struct PatchBoardItem {
     #[serde(default, deserialize_with = "deserialize_some")]
     #[validate(length(max = 255))]
     pub icon: Option<Option<String>>,
+    pub is_public: Option<bool>,
 }
 
 /// implements direct conversion from NewBoardItem to NewBoardDb
@@ -42,6 +45,7 @@ impl<'a> From<&'a NewBoardItem> for NewBoardDb<'a> {
             name: &item.name,
             description: item.description.as_deref(),
             icon: item.icon.as_deref(),
+            is_public: item.is_public.unwrap_or(false),
         }
     }
 }
@@ -54,6 +58,7 @@ impl<'a> From<&'a PatchBoardItem> for PatchBoardDb<'a> {
             name: item.name.as_deref(),
             description: item.description.as_ref().map(|d| d.as_deref()),
             icon: item.icon.as_ref().map(|i| i.as_deref()),
+            is_public: item.is_public,
         }
     }
 }
@@ -66,6 +71,7 @@ impl From<BoardDb> for Board {
             name: item.name,
             description: item.description,
             icon: item.icon,
+            is_public: item.is_public,
         }
     }
 }

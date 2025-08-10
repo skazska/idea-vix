@@ -49,7 +49,7 @@ table package_access {
 table package_shape {
     package_id integer [ref: > package.id]
     shape_id integer [ref: > shape.id]
-    name: VARCHAR(100)
+    name VARCHAR(100)
 
     indexes {
         (package_id, shape_id) [pk, unique]
@@ -59,7 +59,7 @@ table package_shape {
 table package_line {
     package_id integer [ref: > package.id]
     line_id integer [ref: > line.id]
-    name: VARCHAR(100)
+    name VARCHAR(100)
 
     indexes {
         (package_id, line_id) [pk, unique]
@@ -108,7 +108,7 @@ table board_shape {
     board_id integer [not null, ref: > board.id]
     shape_id integer [not null, ref: > shape.id]
     package_id integer [null, ref: > package.id]
-    name: VARCHAR(100)
+    name VARCHAR(100)
 
     indexes {
         (board_id, shape_id, package_id) [pk, unique]
@@ -119,7 +119,7 @@ table board_line {
     board_id integer [not null, ref: > board.id]
     line_id integer [not null, ref: > line.id]
     package_id integer [null, ref: > package.id]
-    name: VARCHAR(100)
+    name VARCHAR(100)
 
     indexes {
         (board_id, line_id, package_id) [pk, unique]

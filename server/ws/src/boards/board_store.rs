@@ -11,6 +11,7 @@ pub struct BoardDb {
     pub name: String,
     pub description: Option<String>,
     pub icon: Option<String>,
+    pub is_public: bool,
 }
 
 /// New board database model
@@ -19,6 +20,7 @@ pub struct NewBoardDb<'a> {
     pub name: &'a str,
     pub description: Option<&'a str>,
     pub icon: Option<&'a str>,
+    pub is_public: bool,
 }
 
 
@@ -28,6 +30,7 @@ pub struct PatchBoardDb<'a> {
     pub name: Option<&'a str>,
     pub description: Option<Option<&'a str>>,
     pub icon: Option<Option<&'a str>>,
+    pub is_public: Option<bool>,
 }
 
 
@@ -49,11 +52,12 @@ impl<'a> BoardStore {
         let mut transaction = connection.begin().await?;
 
         let result = match sqlx::query_as::<_, BoardDb>(
-            "INSERT INTO board (name, description, icon) VALUES (?, ?, ?) RETURNING id, name, description, icon",
+            "INSERT INTO board (name, description, icon, is_public) VALUES (?, ?, ?, ?) RETURNING id, name, description, icon, is_public",
         )
         .bind(item.name)
         .bind(item.description)
         .bind(item.icon)
+        .bind(item.is_public)
         .fetch_one(&mut *transaction)
         .await {
             Ok(r) => r,
@@ -91,7 +95,7 @@ impl<'a> BoardStore {
         let result = if let Some(session) = session {
             // Authenticated: public or has access
             match sqlx::query_as::<_, BoardDb>(
-                "SELECT b.id, b.name, b.description, b.icon
+                "SELECT b.id, b.name, b.description, b.icon, b.is_public
                  FROM board b
                  WHERE b.is_public = 1 OR EXISTS (
                    SELECT 1 FROM board_access ba
@@ -110,7 +114,7 @@ impl<'a> BoardStore {
         } else {
             // Unauthenticated: only public
             match sqlx::query_as::<_, BoardDb>(
-                "SELECT id, name, description, icon FROM board WHERE is_public = 1",
+                "SELECT id, name, description, icon, is_public FROM board WHERE is_public = 1",
             )
             .fetch_all(&mut *transaction)
             .await {
@@ -135,7 +139,7 @@ impl<'a> BoardStore {
 
         let result = if let Some(session) = session {
             match sqlx::query_as::<_, BoardDb>(
-                "SELECT b.id, b.name, b.description, b.icon
+                "SELECT b.id, b.name, b.description, b.icon, b.is_public
                  FROM board b
                  WHERE b.id = ? AND (b.is_public = 1 OR EXISTS (
                    SELECT 1 FROM board_access ba
@@ -154,7 +158,7 @@ impl<'a> BoardStore {
             }
         } else {
             match sqlx::query_as::<_, BoardDb>(
-                "SELECT id, name, description, icon FROM board WHERE id = ? AND is_public = 1",
+                "SELECT id, name, description, icon, is_public FROM board WHERE id = ? AND is_public = 1",
             )
             .bind(item_id)
             .fetch_one(&mut *transaction)
@@ -183,6 +187,7 @@ impl<'a> BoardStore {
         if item.name.is_some() { params.push("name = ?");}
         if item.description.is_some() { params.push("description = ?"); }
         if item.icon.is_some() { params.push("icon = ?"); }
+        if item.is_public.is_some() { params.push("is_public = ?"); }
 
         if params.is_empty() {
             return Err(Error::InvalidArgument(
@@ -191,7 +196,7 @@ impl<'a> BoardStore {
         }
 
         query.push_str(&params.join(", "));
-        query.push_str(" WHERE id = ? AND EXISTS (SELECT 1 FROM board_access WHERE board_id = ? AND address = ? AND role IN ('owner','manage')) RETURNING id, name, description, icon");
+        query.push_str(" WHERE id = ? AND EXISTS (SELECT 1 FROM board_access WHERE board_id = ? AND address = ? AND role IN ('owner','manage')) RETURNING id, name, description, icon, is_public");
 
         let connection = self.pool.deref();
         let mut transaction = connection.begin().await?;
@@ -208,6 +213,10 @@ impl<'a> BoardStore {
         };
         let q = match item.icon {
             Some(icon_opt) => q.bind(icon_opt),
+            None => q,
+        };
+        let q = match item.is_public {
+            Some(is_public) => q.bind(is_public),
             None => q,
         };
 
@@ -236,7 +245,7 @@ impl<'a> BoardStore {
         let connection = self.pool.deref();
         let mut transaction = connection.begin().await?;
 
-        let result = match sqlx::query_as::<_, BoardDb>("DELETE FROM board WHERE id = ? AND EXISTS (SELECT 1 FROM board_access WHERE board_id = ? AND address = ? AND role = 'owner') RETURNING id, name, description, icon")
+        let result = match sqlx::query_as::<_, BoardDb>("DELETE FROM board WHERE id = ? AND EXISTS (SELECT 1 FROM board_access WHERE board_id = ? AND address = ? AND role = 'owner') RETURNING id, name, description, icon, is_public")
             .bind(id)
             .bind(id)
             .bind(&session.address)

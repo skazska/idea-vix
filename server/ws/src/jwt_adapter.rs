@@ -39,9 +39,9 @@ impl JwtAdapter {
             token,
             &self.decoding_key,
             validation
-        ).map_err(|e| {
-            eprintln!("Failed to decode JWT token: {:?}", e);
-            ModelError::Unexpected(format!("Failed to decode JWT token"))
+        ).map_err(|_e| {
+            // Map all validation/decoding errors to Unauthorized for protected endpoints
+            ModelError::Unauthorized("Invalid or expired token".to_string())
         })?;
 
         Ok(decoded.claims)

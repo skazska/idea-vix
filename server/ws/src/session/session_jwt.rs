@@ -41,6 +41,9 @@ impl SessionJWTService {
     /// returns session data from token
     /// If token is not valid, returns Error
     pub fn get_session_data(&self, token: &str) -> Result<SessionData, ModelError> {
+        if token.is_empty() {
+            return Err(ModelError::Unauthorized("No token provided".to_string()));
+        }
         let mut validation = jsonwebtoken::Validation::new(Algorithm::HS256);
         validation.set_audience(&["app".to_string()]);
 
