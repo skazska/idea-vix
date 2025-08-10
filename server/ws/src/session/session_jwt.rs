@@ -1,5 +1,3 @@
-use std::{sync::Arc};
-
 use jsonwebtoken::Algorithm;
 use serde::{Deserialize, Serialize};
 

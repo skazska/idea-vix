@@ -18,7 +18,7 @@ use crate::{
     package::package_service::{
         NewPackageItem, Package, PatchPackageItem
     },
-    session::session_jwt::{self, SessionJWTService}
+    session::session_jwt::SessionJWTService
 };
 
 mod package_store;

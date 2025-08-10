@@ -2,7 +2,7 @@ use std::{ops::Deref, sync::Arc};
 
 use sqlx::Error;
 
-use crate::session::session_service::{Session, SessionData};
+use crate::session::session_service::SessionData;
 
 /// Package database content model
 #[derive(sqlx::FromRow, Debug)]
