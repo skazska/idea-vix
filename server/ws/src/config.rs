@@ -154,9 +154,34 @@ impl Config {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Mutex, OnceLock};
+
+    // Serialize access to process-wide env during tests. Acquire in each test only.
+    static ENV_MUTEX: OnceLock<Mutex<()>> = OnceLock::new();
+    fn env_guard() -> std::sync::MutexGuard<'static, ()> {
+        ENV_MUTEX.get_or_init(|| Mutex::new(())).lock().unwrap()
+    }
+
+    fn clear_ws_env() {
+        for (k, _) in [
+            ("WS_HOST", ""),
+            ("WS_PORT", ""),
+            ("WS_LOG_LEVEL", ""),
+            ("WS_DATABASE_URL", ""),
+            ("WS_DATABASE_POOL", ""),
+            ("WS_APP_JWT_EXPIRATION_SECS", ""),
+            ("WS_APP_JWT_SECRET", ""),
+            ("WS_CONFIG_FILE", ""),
+        ] {
+            unsafe { std::env::remove_var(k); }
+        }
+    }
 
     #[test]
     fn test_default_config() {
+        let _g = env_guard();
+        clear_ws_env();
+
         let config = Config::new();
         assert_eq!(config.host, DEFAULT_HOST);
         assert_eq!(config.port, DEFAULT_PORT);
@@ -164,25 +189,34 @@ mod tests {
     }
 
     fn get_from_config_file(pref: &str, config_str: &str) -> Config {
+        // ensure clean state
+        clear_ws_env();
+
         // Create a temporary config file
         let temp_file_path = &format!("{}_temp_config.toml", pref);
         std::fs::write(temp_file_path, config_str).unwrap();
 
         // Set the environment variable to point to the temp file
-        unsafe {
-            std::env::set_var("WS_CONFIG_FILE", temp_file_path);
-        }
+        let prev = std::env::var("WS_CONFIG_FILE").ok();
+        unsafe { std::env::set_var("WS_CONFIG_FILE", temp_file_path); }
 
         let config = Config::new();
 
         // Clean up the temporary file
         std::fs::remove_file(temp_file_path).unwrap();
 
+        // Restore previous WS_CONFIG_FILE
+        unsafe {
+            if let Some(v) = prev { std::env::set_var("WS_CONFIG_FILE", v); } else { std::env::remove_var("WS_CONFIG_FILE"); }
+        }
+
         config
     }
 
     #[test]
     fn test_config_from_file() {
+        let _g = env_guard();
+        clear_ws_env();
         // Create a temporary config file
         let temp_config = r#"
             host = "host.example.com"
@@ -208,12 +242,15 @@ mod tests {
 
     #[test]
     fn test_config_from_env() {
+        let _g = env_guard();
+        clear_ws_env();
         // Set environment variables
         unsafe {
             std::env::set_var("WS_HOST", "env.example.com");
             std::env::set_var("WS_PORT", "9090");
             std::env::set_var("WS_LOG_LEVEL", "warn");
         }
+
         let config = Config::new();
 
         assert_eq!(config.host, "env.example.com");
@@ -221,11 +258,7 @@ mod tests {
         assert_eq!(config.log_level, "warn");
 
         // Clean up environment variables
-        unsafe {
-            std::env::remove_var("WS_HOST");
-            std::env::remove_var("WS_PORT");
-            std::env::remove_var("WS_LOG_LEVEL");
-        }
+        clear_ws_env();
     }
 }
 

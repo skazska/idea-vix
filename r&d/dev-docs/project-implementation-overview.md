@@ -41,6 +41,8 @@ Crate `server/ws/src/` modules and roles:
 - API helpers: `api/{validation,results,deserialize}.rs`
 - Error type: `error.rs`
 
+Testing (high-level): Integration tests exercise routers → services → stores against SQLite using in-process requests. See Testing section and `testing_overview.md` for details.
+
 Mounted endpoints (see routers):
 
 - `/api/board`: list, create, get, update, delete
@@ -61,6 +63,8 @@ Folder `ui/web/src/`:
 Key deps:
 
 - `solid-js`, `@solidjs/router`, `@modular-forms/solid`, `valibot`, `lucide-solid`, `vite`, `vite-plugin-solid`, `tailwindcss`
+
+Testing (high-level): Playwright E2E tests run critical UI flows against a running backend. See Testing section and `testing_overview.md` for commands/setup.
 
 ## 5) Request lifecycle
 
@@ -131,6 +135,11 @@ Frontend (npm scripts):
 
 - `npm run dev`, `npm run build`, `npm run preview`
 
+Testing (quick commands):
+
+- Backend integration tests: `cd server/ws && cargo test`
+- Frontend E2E tests: `cd ui/web && npm install && npx playwright install && npm run test:e2e`
+
 ## 11) Security & validation
 
 - JWT tokens issued by `SessionJWTService` using `JwtAdapter`
@@ -148,4 +157,16 @@ Frontend (npm scripts):
 - Add role-based permissions per route/entity
 - OpenAPI-first contracts and typed clients
 - Integration/e2e tests
+
+## 14) Testing
+
+For full testing instructions and scope, see Testing Overview:
+
+- r&d/dev-docs/testing/testing_overview.md
+- Direct link: `./testing/testing_overview.md`
+
+Summary:
+
+- Backend integration tests live in `server/ws/tests/` and run the Axum router in-process with a temporary SQLite database and migrations.
+- Frontend E2E tests live in `ui/web/tests-e2e/` and use Playwright to drive the SPA against a running backend.
 

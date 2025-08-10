@@ -52,10 +52,10 @@ async fn get_items(AuthToken(token): AuthToken, State(state): State<Arc<RouteSta
 }
 
 // #[axum::debug_handler]
-async fn add_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>, ValidatedJson(item): ValidatedJson<NewBoardItem>) -> Result<Json<Board>, (StatusCode, String)> {
+async fn add_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>, ValidatedJson(item): ValidatedJson<NewBoardItem>) -> Result<(StatusCode, Json<Board>), (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
     let result = state.service.add_item(&item, &session).await.map_err(|e| e.into())?;
-    Ok(Json(result))
+    Ok((StatusCode::CREATED, Json(result)))
 }
 
 // #[axum::debug_handler]
@@ -73,8 +73,9 @@ async fn update_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteS
 }
 
 // #[axum::debug_handler]
-async fn delete_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>, axum::extract::Path(id): Path<i32>) -> Result<Json<Board>, (StatusCode, String)> {
+async fn delete_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>, axum::extract::Path(id): Path<i32>) -> Result<StatusCode, (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    let result = state.service.delete_item(id, &session).await.map_err(|e| e.into())?;
-    Ok(Json(result))
+    // perform deletion, ignore returned entity for API contract
+    let _ = state.service.delete_item(id, &session).await.map_err(|e| e.into())?;
+    Ok(StatusCode::NO_CONTENT)
 }
