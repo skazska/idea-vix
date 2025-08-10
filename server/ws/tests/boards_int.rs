@@ -22,16 +22,16 @@ async fn boards_crud_ok() {
     let cookie_hdr = resp.headers().get("set-cookie").unwrap().to_str().unwrap().to_string();
 
     // create board
-    let req = Request::post("/api/board/")
+    let req = Request::post("/api/board")
         .header("content-type", "application/json")
         .header("cookie", &cookie_hdr)
         .body(Body::from(r#"{"name":"Demo Board","description":"desc","is_public":true}"#))
         .unwrap();
     let resp = app.router.clone().oneshot(req).await.unwrap();
-    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(resp.status(), StatusCode::CREATED);
 
     // list boards (no auth) should include public
-    let req = Request::get("/api/board/")
+    let req = Request::get("/api/board")
         .body(Body::empty())
         .unwrap();
     let resp = app.router.clone().oneshot(req).await.unwrap();

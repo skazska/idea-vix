@@ -22,7 +22,7 @@ async fn packages_crud_ok() {
     let cookie_hdr = resp.headers().get("set-cookie").unwrap().to_str().unwrap().to_string();
 
     // create package (body shape may differ; using minimal fields)
-    let req = Request::post("/api/package/")
+    let req = Request::post("/api/package")
         .header("content-type", "application/json")
         .header("cookie", &cookie_hdr)
         .body(Body::from(r#"{"name":"Demo Package","description":"desc"}"#))
@@ -31,7 +31,7 @@ async fn packages_crud_ok() {
     assert_eq!(resp.status(), StatusCode::CREATED);
 
     // list packages
-    let req = Request::get("/api/package/")
+    let req = Request::get("/api/package")
         .body(Body::empty())
         .unwrap();
     let resp = app.router.clone().oneshot(req).await.unwrap();
