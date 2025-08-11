@@ -19,7 +19,6 @@ import { getPackageApi } from './package/providers/api.ts'
 import { ROUTE as BOARD_ROUTE } from './boards/const.ts'
 import { ROUTE as PACKAGE_ROUTE } from './package/const.ts'
 
-const Learn = lazy(() => import('./learn/App.tsx'))
 const Home = lazy(() => import('./home/App.tsx'))
 const Package = lazy(() => import('./package/Package.tsx'))
 const Packages = lazy(() => import('./package/Packages.tsx'))
@@ -69,7 +68,6 @@ const Routing: Component = () => {
                 <Route path="/" component={Boards} preload={preloadBoards} />
                 <Route path="/:id" component={Board} preload={preloadBoard}/>
             </Route>
-            <Route path="/learn" component={Learn} />
             <Route path="*404" component={NotFound} />
         </Router>
     );

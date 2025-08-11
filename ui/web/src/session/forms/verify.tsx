@@ -35,7 +35,7 @@ export const VerifyCodeForm: TFormComponent<TVerifyCodeRequest, TSessionData> = 
     const onSubmit = useAction(verifyCode);
 
     return (
-        <Form onSubmit={onSubmit} onCancel={props.onCancel} class="space-y-4">
+        <Form id="session-verify-form" onSubmit={onSubmit} onCancel={props.onCancel} class="space-y-4">
             <Header text={() => "Verify Code"} pending={loading}></Header>
             <div class="text-sm text-gray-600 mb-4">
                 We've sent a verification code to <strong>{props.initialValues?.address}</strong>

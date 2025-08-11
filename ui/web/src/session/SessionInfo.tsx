@@ -29,7 +29,7 @@ export default function SessionInfo(props: { onClose: () => void }) {
   };
 
   return (
-    <div class="space-y-4">
+    <div class="space-y-4" id="session-info-modal">
       <Header text={() => "Session Info"}>
       </Header>
       
@@ -54,6 +54,7 @@ export default function SessionInfo(props: { onClose: () => void }) {
       <div class="flex items-center justify-between pt-4 md:pt-5 border-t rounded-b dark:border-gray-600 border-gray-200">
         <Close onClick={props.onClose}>Close</Close>
         <button
+          id="session-signout-button"
           type="button"
           class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
           onClick={handleSignOut}
