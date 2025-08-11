@@ -21,7 +21,12 @@ const BoardsItems: Component = () => {
                             <img src={item.icon} alt={item.name} />
                         </ListItemRowContainer>
                         <ListItemRowContainer class="w-26 flex-none">
-                            <h3>{item.name}</h3>
+                            <h3 class="flex items-center gap-2">
+                                {item.name}
+                                <span class={`text-xxs px-1 py-0.5 rounded ${item.is_public ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}`}>
+                                    {item.is_public ? 'Public' : 'Private'}
+                                </span>
+                            </h3>
                         </ListItemRowContainer>
                         <ListItemRowContainer class="flex-grow">
                             <p>{item.description}</p>

@@ -1,5 +1,5 @@
 import { createForm, valiForm } from "@modular-forms/solid";
-import { getError, getLabel, getInput, getString, getText, type TFormComponent } from "../../common/gen/forms";
+import { getError, getLabel, getInput, getString, getText, type TFormComponent, getBoolean } from "../../common/gen/forms";
 import { NewPackageSchema, type TPackage, type TPackageNew } from "../model";
 import { Footer, Header } from "../../common/forms";
 import { usePackageData } from "../providers/items";
@@ -44,7 +44,10 @@ export const NewPackageForm: TFormComponent<TPackageNew, TPackage> = (props) => 
         </Field>
         <Field name="icon">
             {(field, props) => getInput(getLabel(field), getString(field, field, props), getError(field))}
-        </Field> 
+        </Field>
+        <Field name="is_public" type="boolean">
+            {(field, props) => getInput(getBoolean({ ...field, label: 'Public' }, field, props), getError(field))}
+        </Field>
         <Footer onCancel={props.onCancel} error={error}>
         </Footer>
     </Form>)

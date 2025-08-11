@@ -4,6 +4,7 @@ const newPackageSchemaFields = {
     name: v.pipe(v.string(), v.nonEmpty('Name is required')),
     description: v.optional(v.string()),
     icon: v.optional(v.string()),
+    is_public: v.optional(v.boolean()),
 }
 
 // schema for new package item form validation

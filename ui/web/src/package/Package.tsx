@@ -1,5 +1,5 @@
 import { useParams, A, useNavigate } from "@solidjs/router";
-import { createSignal, Show, ErrorBoundary, Suspense, createEffect, type Component } from "solid-js";
+import { createSignal, Show, ErrorBoundary, Suspense, createEffect } from "solid-js";
 import { setTitle } from "../common/providers/page-state";
 import { PackageItemProvider, usePackageItem } from "./providers/item";
 import { Portal } from "solid-js/web";
@@ -23,6 +23,7 @@ function PackageContent() {
     const [editName, setEditName] = createSignal("");
     const [editDescription, setEditDescription] = createSignal("");
     const [editIcon, setEditIcon] = createSignal("");
+    const [editIsPublic, setEditIsPublic] = createSignal(false);
     
     const handleEdit = () => {
         // Initialize edit form with current values
@@ -31,6 +32,7 @@ function PackageContent() {
             setEditName(currentPkg.name);
             setEditDescription(currentPkg.description || "");
             setEditIcon(currentPkg.icon || "");
+            setEditIsPublic(!!currentPkg.is_public);
         }
         setEditMode(true);
     };
@@ -44,6 +46,7 @@ function PackageContent() {
                 name: editName().trim(),
                 description: editDescription().trim(),
                 icon: editIcon().trim() || undefined,
+                is_public: editIsPublic(),
             };
             
             await actions.update(packageId, updates);
@@ -63,6 +66,7 @@ function PackageContent() {
         setEditName("");
         setEditDescription("");
         setEditIcon("");
+        setEditIsPublic(false);
     };
     
     const handleDelete = async () => {
@@ -171,6 +175,18 @@ function PackageContent() {
                                 placeholder="description"
                             />
                         </div>
+
+                        <div class="mb-4">
+                            <label class="inline-flex items-center gap-2 select-none">
+                                <input
+                                    type="checkbox"
+                                    class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    checked={editIsPublic()}
+                                    onChange={(e) => setEditIsPublic(e.currentTarget.checked)}
+                                />
+                                <span class="text-gray-700">Public</span>
+                            </label>
+                        </div>
                         
                         <Show when={saving()}>
                             <div class="text-blue-500 mb-4">Saving changes...</div>
@@ -184,7 +200,12 @@ function PackageContent() {
                                     <img src={pkg.latest?.icon} alt={pkg.latest?.name} class="w-16 h-16 rounded" />
                                 </Show>
                                 <div>
-                                    <h2 class="text-xl font-semibold">{pkg.latest?.name}</h2>
+                                    <h2 class="text-xl font-semibold flex items-center gap-2">
+                                        {pkg.latest?.name}
+                                        <span class={`text-xs px-2 py-1 rounded ${pkg.latest?.is_public ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}`}>
+                                            {pkg.latest?.is_public ? 'Public' : 'Private'}
+                                        </span>
+                                    </h2>
                                     {/* <p class="text-gray-600">ID: {pkg.latest?.id}</p> */}
                                 </div>
                             </div>

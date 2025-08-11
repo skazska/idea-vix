@@ -32,6 +32,8 @@ export type TFieldStringEditorGetter = (field: IFieldProps, state: IFieldState<s
 export type TFieldTextEditorGetter = (field: IFieldProps, state: IFieldState<string>, props:IFieldElementProps<HTMLTextAreaElement>) => JSXElement;
 // form field number editor element getter type
 export type TFieldNumberEditorGetter = (field: IFieldProps, state: IFieldState<number>, props:IFieldElementProps<HTMLInputElement>) => JSXElement;
+// form field boolean editor element getter type
+export type TFieldBooleanEditorGetter = (field: IFieldProps, state: IFieldState<boolean>, props:IFieldElementProps<HTMLInputElement>) => JSXElement;
 
 
 // form Component type
@@ -80,6 +82,19 @@ export const getNumber: TFieldNumberEditorGetter = (field, state, props): JSXEle
         placeholder={field.placeholder}
         value={state.value || 0} // default to 0 if no value
     />;
+}
+
+// returns a checkbox input for boolean
+export const getBoolean: TFieldBooleanEditorGetter = (field, state, props): JSXElement => {
+    return (
+        <label class="inline-flex items-center gap-2 select-none">
+            <input {...props} type="checkbox"
+                class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                checked={!!state.value}
+            />
+            <span class="text-gray-700">{field.label || field.name.charAt(0).toUpperCase() + field.name.slice(1)}</span>
+        </label>
+    );
 }
 
 // returns field contents

@@ -23,6 +23,7 @@ function BoardContent() {
     const [editName, setEditName] = createSignal("");
     const [editDescription, setEditDescription] = createSignal("");
     const [editIcon, setEditIcon] = createSignal("");
+    const [editIsPublic, setEditIsPublic] = createSignal(false);
     
     const handleEdit = () => {
         // Initialize edit form with current values
@@ -31,6 +32,7 @@ function BoardContent() {
             setEditName(currentBrd.name);
             setEditDescription(currentBrd.description || "");
             setEditIcon(currentBrd.icon || "");
+            setEditIsPublic(!!currentBrd.is_public);
         }
         setEditMode(true);
     };
@@ -44,6 +46,7 @@ function BoardContent() {
                 name: editName().trim(),
                 description: editDescription().trim(),
                 icon: editIcon().trim() || undefined,
+                is_public: editIsPublic(),
             };
             
             await actions.update(boardId, updates);
@@ -63,6 +66,7 @@ function BoardContent() {
         setEditName("");
         setEditDescription("");
         setEditIcon("");
+        setEditIsPublic(false);
     };
     
     const handleDelete = async () => {
@@ -171,6 +175,18 @@ function BoardContent() {
                                 placeholder={`description`}
                             />
                         </div>
+
+                        <div class="mb-4">
+                            <label class="inline-flex items-center gap-2 select-none">
+                                <input
+                                    type="checkbox"
+                                    class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    checked={editIsPublic()}
+                                    onChange={(e) => setEditIsPublic(e.currentTarget.checked)}
+                                />
+                                <span class="text-gray-700">Public</span>
+                            </label>
+                        </div>
                         
                         <Show when={saving()}>
                             <div class="text-blue-500 mb-4">Saving changes...</div>
@@ -184,7 +200,12 @@ function BoardContent() {
                                     <img src={brd.latest?.icon} alt={brd.latest?.name} class="w-16 h-16 rounded" />
                                 </Show>
                                 <div>
-                                    <h2 class="text-xl font-semibold">{brd.latest?.name}</h2>
+                                    <h2 class="text-xl font-semibold flex items-center gap-2">
+                                        {brd.latest?.name}
+                                        <span class={`text-xs px-2 py-1 rounded ${brd.latest?.is_public ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}`}>
+                                            {brd.latest?.is_public ? 'Public' : 'Private'}
+                                        </span>
+                                    </h2>
                                 </div>
                             </div>
                         </div>
