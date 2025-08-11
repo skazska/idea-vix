@@ -1,3 +1,5 @@
+# https://dbdiagram.io/
+
 Project sqlite {
     database_type: "sqlite"
     database_name: "storage.db"

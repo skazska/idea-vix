@@ -20,7 +20,9 @@ Notes:
 
 ---
 
-## Backend Integration Tests (Rust)
+## Backend Tests (Rust)
+
+### Integration Tests
 
 Location:
 
@@ -34,28 +36,26 @@ How it works:
 - Temp SQLite file per test for isolation; migrations run automatically
 - JWT service is initialized with a test secret; session flow uses stub code `some_code`
 
-Run all integration tests:
+### Unit Tests
+
+Location:
+  in source files, e.g. `server/ws/src/config.rs`
+
+### Run Tests
+
+Run all tests:
 
 ```bash
-cd server/ws
+cd server
 cargo test
 ```
 
-Compile tests only (faster feedback):
-
-```bash
-cd server/ws
-cargo test --no-run
-```
-
-Run a single test (example):
-
-```bash
-cd server/ws
-cargo test sessions_flow_ok -- --nocapture
-```
-
----
+Compile tests without running: `bash cargo test --no-run`
+Run lib unit tests: `bash cargo test --lib`
+Run bin unit tests: `bash cargo test --bin ws`
+Run a single integration test: `bash cargo test --test sessions_int`
+Run all integration tests: `bash cargo test --tests`
+Run tests filtered by name: `bash cargo test <test_name>`
 
 ## Frontend E2E Tests (Playwright)
 
@@ -79,12 +79,7 @@ npx playwright install
 npm run test:e2e
 ```
 
-Headed mode (for debugging):
-
-```bash
-cd ui/web
-npm run test:e2e:headed
-```
+Headed mode (for debugging): `bash npm run test:e2e:headed`
 
 Optional:
 

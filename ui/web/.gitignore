@@ -27,6 +27,5 @@ dist-ssr
 Cargo.lock
 target
 
-# learning
-learn-rs
-learn
+#playwright
+test-results
