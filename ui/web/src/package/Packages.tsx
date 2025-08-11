@@ -32,7 +32,7 @@ export default function Packages() {
             <Portal mount={document.getElementById("sub-menu")!}>
             
                 <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-m"
-                        onClick={() => showFormNew(true)}>
+                        onClick={() => showFormNew(true)} data-testid="package-add-button">
                     <Plus/>
                 </button>
             </Portal>

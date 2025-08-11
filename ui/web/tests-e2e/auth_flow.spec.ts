@@ -1,100 +1,95 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Locator } from '@playwright/test';
 import { apiSignInAndApplyCookie } from './helpers/auth';
 
-// NOTE: Backend must be running (cargo-run) for this demo test.
+type SessionLocators = {
+  sessionIcon: Locator;
+  modal: Locator;
+  signinForm: Locator;
+  verifyForm: Locator;
+  sessionInfo: Locator;
+  signoutButton: Locator;
+};
 
-// test('auth flow: signin -> verify -> me', async ({ page, request, context }) => {
-//   // Trigger signin via API to keep UI test short
-//   const signin = await request.post('http://localhost:7878/api/session/signin', {
-//     headers: { 'content-type': 'application/json' },
-//     data: { address: 'e2e@example.com' },
-//   });
-//   expect(signin.ok()).toBeTruthy();
+test.describe('Authentication Flow', () => {
+  let locators: SessionLocators;
 
-//   const verify = await request.post('http://localhost:7878/api/session/verify', {
-//     headers: { 'content-type': 'application/json' },
-//     data: { address: 'e2e@example.com', code: 'some_code' },
-//   });
-//   expect(verify.ok()).toBeTruthy();
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
 
-//   const setCookie = verify.headers()['set-cookie'];
-//   expect(setCookie).toBeTruthy();
+    locators = {
+      sessionIcon: page.getByTestId('session-icon'),
+      modal: page.getByTestId('modal-centered'),
+      signinForm: page.getByTestId('session-signin-form'),
+      verifyForm: page.getByTestId('session-verify-form'),
+      sessionInfo: page.getByTestId('session-info-modal'),
+      signoutButton: page.getByTestId('session-signout-button'),
+    };
+  });
 
-//   // Apply cookie to browser context
-//   await context.addCookies([
-//     {
-//       name: 'Authorization',
-//       value: setCookie.split('Authorization=')[1].split(';')[0].replace('Bearer%20', 'Bearer%20'),
-//       domain: 'localhost',
-//       path: '/',
-//       httpOnly: true,
-//     },
-//   ]);
+  test('auth flow via UI: open modal, signin, verify, user is signed in', async ({ page }) => {
+   const { sessionIcon, modal, signinForm, verifyForm, sessionInfo } = locators;
 
-//   await page.goto('/');
-//   await expect(page).toHaveURL(/\//);
-// });
+    await expect(modal).toBeHidden();
+    await expect(signinForm).toBeHidden();
+    await expect(verifyForm).toBeHidden();
 
-test('auth flow via UI: open modal, signin, verify, user is signed in', async ({ page }) => {
-  await page.goto('/');
+    // Ensure session icon is present and not signed in
+    await expect(sessionIcon).toBeVisible();
+    await expect(sessionIcon).toHaveAttribute('title', 'Sign in');
 
-  let sessionIcon = page.locator('#session-icon');
-  await expect(sessionIcon).toBeVisible();
+    // Open session modal via the user icon
+    await sessionIcon.click();
+    await expect(signinForm).toBeVisible();
+    await expect(modal).toBeVisible();
 
-  // Open session modal via the user icon
-  await sessionIcon.click();
-  const modal = page.locator('#new-package-item-modal');
-  await expect(modal).toBeVisible();
-  await expect(page.locator('#session-signin-form')).toBeVisible();
+    // Fill email and submit
+    await signinForm.locator('input[name="address"]').fill('e2e@example.com');
+    await signinForm.locator('button[type="submit"]').click();
 
-  // Fill email and submit
-  await page.locator('input[name="address"]').fill('e2e@example.com');
-  await page.locator('button[type="submit"]').click();
+    await expect(signinForm).toBeHidden();
+    
+    // Verify code step
+    await expect(verifyForm).toBeVisible();
+    await verifyForm.locator('input[name="code"]').fill('some_code');
+    await verifyForm.locator('button[type="submit"]').click();
 
-  // Verify code step
-  await expect(page.locator('#session-verify-form')).toBeVisible();
-  await page.locator('input[name="code"]').fill('some_code');
-  await page.locator('button[type="submit"]').click();
+    await expect(verifyForm).toBeHidden();
+    await expect(modal).toBeHidden();
+    await expect(sessionIcon).toHaveAttribute('title', 'Signed in as e2e@example.com');
 
-  // Modal closes and icon shows signed-in state
-  await expect(modal).toBeHidden();
-  await expect(sessionIcon).toHaveAttribute('title', 'Signed in as e2e@example.com');
+    page.reload();
+    await expect(sessionIcon).toHaveAttribute('title', 'Signed in as e2e@example.com');
 
-  page.reload();
-  sessionIcon = page.locator('#session-icon');
-  await expect(sessionIcon).toHaveAttribute('title', 'Signed in as e2e@example.com');
+    // Optional: open session info and verify it shows
+    await sessionIcon.click();
+    await expect(sessionInfo).toBeVisible();
+  });
 
-  // Optional: open session info and verify it shows
-  await sessionIcon.click();
-  await expect(page.locator('#session-info-modal')).toBeVisible();
-});
+  test('auth flow via UI: sign out clears session', async ({ page, context, request }) => {
+    const { sessionIcon, modal, sessionInfo, signoutButton } = locators;
+    // Pre-authenticate via API to focus this test on the logout UI only
+    await apiSignInAndApplyCookie(request, context, 'e2e@example.com', 'some_code');
+    await page.reload();
 
-test('auth flow via UI: sign out clears session', async ({ page, context, request }) => {
-  await page.goto('/');
+    await expect(sessionIcon).toHaveAttribute('title', 'Signed in as e2e@example.com');
 
-  // Pre-authenticate via API to focus this test on the logout UI only
-  await apiSignInAndApplyCookie(request, context, 'e2e@example.com', 'some_code');
-  await page.reload();
+    await expect(modal).toBeHidden();
 
-  const sessionIcon = page.locator('#session-icon');
-  await expect(sessionIcon).toHaveAttribute('title', 'Signed in as e2e@example.com');
+    // Cookie should be present before signout
+    const cookiesBefore = await context.cookies();
+    expect(cookiesBefore.some(c => c.name === 'Authorization')).toBeTruthy();
 
-  const modal = page.locator('#new-package-item-modal');
+    // Open session info and sign out
+    await sessionIcon.click();
+    await expect(sessionInfo).toBeVisible();
+    await signoutButton.click();
 
-  // Cookie should be present before signout
-  const cookiesBefore = await context.cookies();
-  expect(cookiesBefore.some(c => c.name === 'Authorization')).toBeTruthy();
+    // Modal closes and icon shows signed-out state
+    await expect(modal).toBeHidden();
+    await expect(sessionIcon).toHaveAttribute('title', 'Sign in');
 
-  // Open session info and sign out
-  await sessionIcon.click();
-  await expect(page.locator('#session-info-modal')).toBeVisible();
-  await page.locator('#session-signout-button').click();
-
-  // Modal closes and icon shows signed-out state
-  await expect(modal).toBeHidden();
-  await expect(sessionIcon).toHaveAttribute('title', 'Sign in');
-
-  // Cookie should be cleared after signout
-  const cookiesAfter = await context.cookies();
-  expect(cookiesAfter.some(c => c.name === 'Authorization')).toBeFalsy();
+    // Cookie should be cleared after signout
+    const cookiesAfter = await context.cookies();
+    expect(cookiesAfter.some(c => c.name === 'Authorization')).toBeFalsy();
+  });
 });

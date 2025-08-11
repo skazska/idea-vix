@@ -35,7 +35,7 @@ export const SignInForm: TFormComponent<TSignInRequest, { step: 'verify', addres
     const onSubmit = useAction(signIn);
 
     return (
-        <Form id="session-signin-form" onSubmit={onSubmit} onCancel={props.onCancel} class="space-y-4">
+        <Form onSubmit={onSubmit} onCancel={props.onCancel} class="space-y-4" data-testid="session-signin-form">
             <Header text={() => "Sign In"} pending={loading}></Header>
             <Field name="address">
                 {(field, props) => getInput(

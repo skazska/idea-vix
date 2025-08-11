@@ -11,6 +11,7 @@ pub enum ModelError {
     Unexpected(String),
     Timeout(String),
     Unavailable(String),
+    Forbidden(String),
 }
 
 impl std::fmt::Display for ModelError {
@@ -24,6 +25,7 @@ impl std::fmt::Display for ModelError {
             ModelError::Unexpected(msg) => write!(f, "Unexpected Error: {}", msg),
             ModelError::Timeout(msg) => write!(f, "Timeout Error: {}", msg),
             ModelError::Unavailable(msg) => write!(f, "Service Unavailable: {}", msg),
+            ModelError::Forbidden(msg) => write!(f, "Forbidden: {}", msg),
         }
     }
     

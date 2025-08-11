@@ -50,10 +50,10 @@ export default function SessionIcon() {
   return (
     <>
       <button
-        id="session-icon"
         onClick={handleIconClick}
         class="p-2 rounded hover:bg-gray-700 transition-colors"
         title={isSignedIn() ? `Signed in as ${pageState.sessionAddress()}` : "Sign in"}
+        data-testid="session-icon"
       >
         {isSignedIn() ? (
           <UserCheck size={20} class="text-green-400" />

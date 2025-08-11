@@ -2,7 +2,7 @@ use std::{ops::Deref, sync::Arc};
 
 use sqlx::Error;
 
-use crate::session::session_service::SessionData;
+use crate::{session::session_service::SessionData};
 
 /// Package database content model
 #[derive(sqlx::FromRow, Debug)]
@@ -30,6 +30,28 @@ pub struct PatchPackageDb<'a> {
     pub description: Option<Option<&'a str>>,
     pub icon: Option<Option<&'a str>>,
     pub is_public: Option<bool>,
+}
+
+/// Package access database model
+#[derive(sqlx::FromRow, Debug)]
+pub struct PackageAccessRoleDb {
+    pub role: String,
+}
+
+/// New Package access database model
+#[derive(Debug)]
+pub struct NewPackageAccessDb<'a> {
+    pub package_id: i32,
+    pub address: &'a str,
+    pub role: &'a str,
+}
+
+/// Package access roles database model
+#[derive(sqlx::FromRow, Debug)]
+pub struct PackageAccessRolesDb {
+    pub package_id: i32,
+    pub address: String,
+    pub role: String,
 }
 
 /// returns function 
@@ -241,17 +263,26 @@ impl<'a> PackageStore {
     }
 
     /// Deletes an item from the store (owner only)
-    pub async fn delete_item(&self, id: i32, session: &SessionData) -> Result<PackageDb, Error> {
+    pub async fn delete_item(&self, id: i32) -> Result<PackageDb, Error> {
         let connection = self.pool.deref();
         let mut transaction = connection.begin().await?;
 
-        let result = match sqlx::query_as::<_, PackageDb>("DELETE FROM package WHERE id = ? AND EXISTS (SELECT 1 FROM package_access WHERE package_id = ? AND address = ? AND role = 'owner') RETURNING id, name, description, icon, is_public")
+        let result = match sqlx::query_as::<_, PackageDb>("DELETE FROM package WHERE id = ? RETURNING id, name, description, icon, is_public")
             .bind(id)
-            .bind(id)
-            .bind(&session.address)
             .fetch_one(&mut *transaction)
             .await {
                 Ok(row) => row,
+                Err(err) => {
+                    let _ = transaction.rollback().await;
+                    return Err(err);
+                }
+            };
+
+        match sqlx::query("DELETE FROM package_access WHERE package_id = ?")
+            .bind(id)
+            .execute(&mut *transaction)
+            .await {
+                Ok(_) => {}
                 Err(err) => {
                     let _ = transaction.rollback().await;
                     return Err(err);
@@ -262,5 +293,42 @@ impl<'a> PackageStore {
             Ok(_) => Ok(result),
             Err(err) => Err(err),
         }
+    }
+
+    pub async fn get_access_roles(&self, id: i32, session: &SessionData) -> Result<Vec<PackageAccessRoleDb>, Error> {
+        let connection = self.pool.deref();
+
+        let access = sqlx::query_as::<_, PackageAccessRoleDb>("SELECT role FROM package_access WHERE package_id = ? AND address = ?")
+            .bind(id)
+            .bind(&session.address)
+            .fetch_all(connection)
+            .await?;
+
+        Ok(access)
+    }
+
+    pub async fn add_access_role(&self, item: NewPackageAccessDb<'a>) -> Result<PackageAccessRolesDb, Error> {
+        let connection = self.pool.deref();
+
+        let result = sqlx::query_as::<_, PackageAccessRolesDb>("INSERT INTO package_access (package_id, address, role) VALUES (?, ?, ?) RETURNING package_id, address, role")
+            .bind(item.package_id)
+            .bind(item.address)
+            .bind(item.role)
+            .fetch_one(connection)
+            .await?;
+
+        Ok(result)
+    }
+
+    pub async fn revoke_access_role(&self, package_id: i32, address: &str, role: &str) -> Result<PackageAccessRolesDb, Error> {
+        let connection = self.pool.deref();
+
+        let result = sqlx::query_as::<_, PackageAccessRolesDb>("DELETE FROM package_access WHERE package_id = ? AND address = ? RETURNING package_id, address, role")
+            .bind(package_id)
+            .bind(address)
+            .fetch_one(connection)
+            .await?;
+
+        Ok(result)
     }
 }

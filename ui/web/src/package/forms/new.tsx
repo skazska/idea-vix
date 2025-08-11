@@ -34,7 +34,7 @@ export const NewPackageForm: TFormComponent<TPackageNew, TPackage> = (props) => 
     // const submission = useSubmission(add);
     const onSubmit = useAction(add);
 
-    return (<Form onSubmit={onSubmit} onCancel={props.onCancel} class="space-y-4" >
+    return (<Form onSubmit={onSubmit} onCancel={props.onCancel} class="space-y-4" data-testid="package-new-form">
         <Header text={() => `New ${ENTITY_NAME}`} pending={loading}></Header>
         <Field name="name">
             {(field, props) => getInput(getLabel(field), getString(field, field, props), getError(field))}

@@ -14,6 +14,7 @@ impl Into<(StatusCode, String)> for ModelError {
             ModelError::Unexpected(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
             ModelError::Timeout(msg) => (StatusCode::GATEWAY_TIMEOUT, msg),
             ModelError::Unavailable(msg) => (StatusCode::SERVICE_UNAVAILABLE, msg),
+            ModelError::Forbidden(msg) => (StatusCode::FORBIDDEN, msg),
         }
     }
 }

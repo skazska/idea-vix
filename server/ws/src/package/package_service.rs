@@ -1,5 +1,5 @@
 use crate::error::ModelError;
-use crate::package::package_store::{NewPackageDb, PackageDb, PackageStore, PatchPackageDb};
+use crate::package::package_store::{NewPackageDb, PackageAccessRoleDb, PackageDb, PackageStore, PatchPackageDb};
 use crate::session::session_service::SessionData;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
@@ -75,6 +75,48 @@ impl From<PackageDb> for Package {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum PackageAccess {
+    Owner,
+    Manage,
+    Read,
+}
+
+impl From<String> for PackageAccess {
+    fn from(role: String) -> Self {
+        match role.as_str() {
+            "owner" => PackageAccess::Owner,
+            "manage" => PackageAccess::Manage,
+            "read" => PackageAccess::Read,
+            _ => panic!("Unknown package access role: {}", role),
+        }
+    }
+}
+
+impl Into<String> for PackageAccess {
+    fn into(self) -> String {
+        match self {
+            PackageAccess::Owner => "owner".to_string(),
+            PackageAccess::Manage => "manage".to_string(),
+            PackageAccess::Read => "read".to_string(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+pub struct PackageAccessRole {
+    pub role: PackageAccess,
+}
+
+impl From<PackageAccessRoleDb> for PackageAccessRole {
+    fn from(item: PackageAccessRoleDb) -> Self {
+        Self {
+            role: item.role.into(),
+        }
+    }
+}
+
+
 
 pub struct PackageService {
     items_store: PackageStore,
@@ -112,7 +154,13 @@ impl<'a> PackageService {
     }
 
     pub async fn delete_item(&self, id: i32, session: &SessionData) -> Result<Package, ModelError> {
-        let result = self.items_store.delete_item(id, session).await?;
+        let roles = self.items_store.get_access_roles(id, session).await?;
+
+        if !roles.iter().any(|r| r.role == "owner" || r.role == "manage") {
+            return Err(ModelError::Forbidden("You are not allowed to delete this package".to_string()));
+        }
+
+        let result = self.items_store.delete_item(id).await?;
 
         Ok(result.into())
     }
