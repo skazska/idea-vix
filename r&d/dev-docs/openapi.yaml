@@ -151,7 +151,7 @@ paths:
       tags:
         - Packages
       summary: Update an existing package
-      description: Update details of an existing package (requires authentication)
+      description: Update details of an existing package (requires authentication; owner or manage role required)
       security:
         - SessionToken: []
       parameters:
@@ -179,6 +179,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '422':
@@ -189,7 +191,7 @@ paths:
       tags:
         - Packages
       summary: Remove a package
-      description: Delete a package by its ID (requires authentication)
+      description: Delete a package by its ID (requires authentication; owner or manage role required)
       security:
         - SessionToken: []
       parameters:
@@ -205,6 +207,8 @@ paths:
           description: Package deleted successfully
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -327,6 +331,12 @@ components:
             $ref: '#/components/schemas/Error'
     Unauthorized:
       description: Unauthorized - authentication required or invalid/expired JWT token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Forbidden - insufficient permissions (owner or manage role required)
       content:
         application/json:
           schema:
