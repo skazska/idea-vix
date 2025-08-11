@@ -103,6 +103,7 @@ function PackageContent() {
                         <Show when={!editMode()} fallback={
                             <>
                                 <button 
+                                    data-testid="package-save-button"
                                     class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-m"
                                     onClick={handleSave}
                                     disabled={saving()}
@@ -110,6 +111,7 @@ function PackageContent() {
                                     <Save size={'1rem'}/>
                                 </button>
                                 <button 
+                                    data-testid="package-cancel-button"
                                     class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-1 px-2 rounded text-m"
                                     onClick={handleCancelEdit}
                                     disabled={saving()}
@@ -119,12 +121,14 @@ function PackageContent() {
                             </>
                         }>
                             <button 
+                                data-testid="package-edit-button"
                                 class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-m"
                                 onClick={handleEdit}
                             >
                                 <Edit size={'1rem'}/>
                             </button>
                             <button 
+                                data-testid="package-delete-button"
                                 class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-m"
                                 onClick={confirmDelete}
                             >
@@ -138,59 +142,65 @@ function PackageContent() {
             <div class="bg-white rounded-lg shadow p-6 mb-6">
                 <Show when={!editMode()} fallback={
                     <>
-                        <div class="mb-4">
-                            <h3 class="text-lg font-semibold mb-2">Name</h3>
-                            <input 
-                                type="text"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                value={editName()}
-                                onInput={(e) => setEditName(e.target.value)}
-                                placeholder="name"
-                            />
-                        </div>
-                        
-                        <div class="mb-4">
-                            <h3 class="text-lg font-semibold mb-2">Icon URL</h3>
-                            <input 
-                                type="text"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                value={editIcon()}
-                                onInput={(e) => setEditIcon(e.target.value)}
-                                placeholder="Icon URL (optional)"
-                            />
-                            <Show when={editIcon()}>
-                                <div class="mt-2">
-                                    <img src={editIcon()} alt="Icon preview" class="w-16 h-16 rounded" />
-                                </div>
+                        <div data-testid="package-edit-form">
+                            <div class="mb-4">
+                                <h3 class="text-lg font-semibold mb-2">Name</h3>
+                                <input 
+                                    name="name"
+                                    type="text"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    value={editName()}
+                                    onInput={(e) => setEditName(e.target.value)}
+                                    placeholder="name"
+                                />
+                            </div>
+                            
+                            <div class="mb-4">
+                                <h3 class="text-lg font-semibold mb-2">Icon URL</h3>
+                                <input 
+                                    name="icon"
+                                    type="text"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    value={editIcon()}
+                                    onInput={(e) => setEditIcon(e.target.value)}
+                                    placeholder="Icon URL (optional)"
+                                />
+                                <Show when={editIcon()}>
+                                    <div class="mt-2">
+                                        <img src={editIcon()} alt="Icon preview" class="w-16 h-16 rounded" />
+                                    </div>
+                                </Show>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <h3 class="text-lg font-semibold mb-2">Description</h3>
+                                <textarea 
+                                    name="description"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    rows="4"
+                                    value={editDescription()}
+                                    onInput={(e) => setEditDescription(e.target.value)}
+                                    placeholder="description"
+                                />
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="inline-flex items-center gap-2 select-none">
+                                    <input
+                                        name="is_public"
+                                        type="checkbox"
+                                        class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        checked={editIsPublic()}
+                                        onChange={(e) => setEditIsPublic(e.currentTarget.checked)}
+                                    />
+                                    <span class="text-gray-700">Public</span>
+                                </label>
+                            </div>
+                            
+                            <Show when={saving()}>
+                                <div class="text-blue-500 mb-4">Saving changes...</div>
                             </Show>
                         </div>
-                        
-                        <div class="mb-4">
-                            <h3 class="text-lg font-semibold mb-2">Description</h3>
-                            <textarea 
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                rows="4"
-                                value={editDescription()}
-                                onInput={(e) => setEditDescription(e.target.value)}
-                                placeholder="description"
-                            />
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="inline-flex items-center gap-2 select-none">
-                                <input
-                                    type="checkbox"
-                                    class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                    checked={editIsPublic()}
-                                    onChange={(e) => setEditIsPublic(e.currentTarget.checked)}
-                                />
-                                <span class="text-gray-700">Public</span>
-                            </label>
-                        </div>
-                        
-                        <Show when={saving()}>
-                            <div class="text-blue-500 mb-4">Saving changes...</div>
-                        </Show>
                     </>
                 }>
                     <>
@@ -200,9 +210,9 @@ function PackageContent() {
                                     <img src={pkg.latest?.icon} alt={pkg.latest?.name} class="w-16 h-16 rounded" />
                                 </Show>
                                 <div>
-                                    <h2 class="text-xl font-semibold flex items-center gap-2">
+                                    <h2 data-testid="package-detail-name" class="text-xl font-semibold flex items-center gap-2">
                                         {pkg.latest?.name}
-                                        <span class={`text-xs px-2 py-1 rounded ${pkg.latest?.is_public ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}`}>
+                                        <span data-testid="package-detail-visibility" class={`text-xs px-2 py-1 rounded ${pkg.latest?.is_public ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}`}>
                                             {pkg.latest?.is_public ? 'Public' : 'Private'}
                                         </span>
                                     </h2>
@@ -213,7 +223,7 @@ function PackageContent() {
                         
                         <div class="mb-4">
                             <h3 class="text-lg font-semibold mb-2">Description</h3>
-                            <p class="text-gray-700">{pkg.latest?.description || 'No description provided'}</p>
+                            <p data-testid="package-detail-description" class="text-gray-700">{pkg.latest?.description || 'No description provided'}</p>
                         </div>
                     </>
                 </Show>
@@ -268,12 +278,14 @@ function PackageContent() {
                             <p class="mb-4">Are you sure you want to delete the ${ENTITY_NAME} "{pkg.latest?.name}"? This action cannot be undone.</p>
                             <div class="flex gap-2 justify-end">
                                 <button 
+                                    data-testid="modal-cancel-button"
                                     class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
                                     onClick={cancelDelete}
                                 >
                                     Cancel
                                 </button>
                                 <button 
+                                    data-testid="modal-delete-button"
                                     class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
                                     onClick={handleDelete}
                                 >

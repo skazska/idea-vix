@@ -148,7 +148,13 @@ impl<'a> PackageService {
     }
 
     pub async fn update_item(&self, id: i32, item: &'a PatchPackageItem, session: &SessionData) -> Result<Package, ModelError> {
-        let updated_item = self.items_store.update_item(id, item.into(), session).await?;
+        // access check moved to service: require owner or manage
+        let roles = self.items_store.get_access_roles(id, session).await?;
+        if !roles.iter().any(|r| r.role == "owner" || r.role == "manage") {
+            return Err(ModelError::Forbidden("You are not allowed to update this package".to_string()));
+        }
+
+        let updated_item = self.items_store.update_item(id, item.into()).await?;
 
         Ok(updated_item.into())
     }

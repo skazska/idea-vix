@@ -199,8 +199,8 @@ impl<'a> PackageStore {
         }
     }
 
-    /// Updates an item in the store (owner or manage)
-    pub async fn update_item(&self, id: i32, item: PatchPackageDb<'a>, session: &SessionData) -> Result<PackageDb, Error> {
+    /// Updates an item in the store (access checked in service layer)
+    pub async fn update_item(&self, id: i32, item: PatchPackageDb<'a>) -> Result<PackageDb, Error> {
         let mut query = String::from("UPDATE package SET ");
 
         //params strings
@@ -218,8 +218,8 @@ impl<'a> PackageStore {
         }
 
         query.push_str(&params.join(", "));
-        // Ensure a space before WHERE and add access check
-        query.push_str(" WHERE id = ? AND EXISTS (SELECT 1 FROM package_access WHERE package_id = ? AND address = ? AND role IN ('owner','manage')) RETURNING id, name, description, icon, is_public");
+        // only filter by id; access is validated in service
+        query.push_str(" WHERE id = ? RETURNING id, name, description, icon, is_public");
 
         let connection = self.pool.deref();
         let mut transaction = connection.begin().await?;
@@ -245,8 +245,6 @@ impl<'a> PackageStore {
 
         let result = match q
             .bind(&id)
-            .bind(&id)
-            .bind(&session.address)
             .fetch_one(&mut *transaction)
             .await {
                 Ok(row) => row,
@@ -320,7 +318,7 @@ impl<'a> PackageStore {
         Ok(result)
     }
 
-    pub async fn revoke_access_role(&self, package_id: i32, address: &str, role: &str) -> Result<PackageAccessRolesDb, Error> {
+    pub async fn revoke_access_role(&self, package_id: i32, address: &str) -> Result<PackageAccessRolesDb, Error> {
         let connection = self.pool.deref();
 
         let result = sqlx::query_as::<_, PackageAccessRolesDb>("DELETE FROM package_access WHERE package_id = ? AND address = ? RETURNING package_id, address, role")

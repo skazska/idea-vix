@@ -64,6 +64,26 @@ function queryItemByName(locators: PackageLocators, name: string): Locator {
   return locators.list.getByRole('listitem').filter({ hasText: name });
 }
 
+async function openItemDetailFromRow(row: Locator) {
+  await expect(row.getByTestId('open-package-item')).toBeVisible();
+  await row.getByTestId('open-package-item').click();
+}
+
+function getEditFormLocators(page: Page) {
+  const form = page.getByTestId('package-edit-form');
+  return {
+    form,
+    nameInput: form.locator('input[name="name"]'),
+    descriptionInput: form.locator('textarea[name="description"]'),
+    iconInput: form.locator('input[name="icon"]'),
+    isPublicCheckbox: form.locator('input[name="is_public"]'),
+    saveButton: page.getByTestId('package-save-button'),
+    editButton: page.getByTestId('package-edit-button'),
+    deleteButton: page.getByTestId('package-delete-button'),
+    cancelButton: page.getByTestId('package-cancel-button'),
+  };
+}
+
 // Tests
 
 test.describe('Package flow', () => {
@@ -112,5 +132,143 @@ test.describe('Package flow', () => {
     const visibility = row.getByTestId('package-item-visibility');
     await expect(visibility).toBeVisible();
     await expect(visibility).toHaveText('Public');
+  });
+
+  test('update private package (make it public and change fields)', async ({ page }) => {
+    const locators = getNewPackageLocators(page);
+    await openPackages(page);
+    await openNewPackageModal(locators);
+
+    const name = `pkg-upd-private-${Date.now()}`;
+    await fillPackageForm(locators, {
+      name,
+      description: 'before update (private)',
+      icon: '',
+      isPublic: false,
+    });
+    await submitPackageForm(locators);
+
+    const row = queryItemByName(locators, name);
+    await expect(row).toBeVisible();
+    await openItemDetailFromRow(row);
+
+    const edit = getEditFormLocators(page);
+    await edit.editButton.click();
+
+    await edit.nameInput.fill(`${name}-edited`);
+    await edit.iconInput.fill('');
+    await edit.descriptionInput.fill('after update (public)');
+
+    const checked = await edit.isPublicCheckbox.isChecked();
+    if (!checked) await edit.isPublicCheckbox.click();
+
+    await edit.saveButton.click();
+
+    await expect(page.getByTestId('package-detail-name')).toContainText(`${name}-edited`);
+    await expect(page.getByTestId('package-detail-visibility')).toHaveText('Public');
+    await expect(page.getByTestId('package-detail-description')).toHaveText('after update (public)');
+
+    await page.goto('/package');
+    const updatedRow = queryItemByName(locators, `${name}-edited`);
+    await expect(updatedRow).toBeVisible();
+    await expect(updatedRow.getByTestId('package-item-visibility')).toHaveText('Public');
+  });
+
+  test('update public package (make it private and change fields)', async ({ page }) => {
+    const locators = getNewPackageLocators(page);
+    await openPackages(page);
+    await openNewPackageModal(locators);
+
+    const name = `pkg-upd-public-${Date.now()}`;
+    await fillPackageForm(locators, {
+      name,
+      description: 'before update (public)',
+      icon: '',
+      isPublic: true,
+    });
+    await submitPackageForm(locators);
+
+    const row = queryItemByName(locators, name);
+    await expect(row).toBeVisible();
+    await openItemDetailFromRow(row);
+
+    const edit = getEditFormLocators(page);
+    await edit.editButton.click();
+
+    await edit.nameInput.fill(`${name}-edited`);
+    await edit.iconInput.fill('');
+    await edit.descriptionInput.fill('after update (private)');
+
+    const checked = await edit.isPublicCheckbox.isChecked();
+    if (checked) await edit.isPublicCheckbox.click();
+
+    await edit.saveButton.click();
+
+    await expect(page.getByTestId('package-detail-name')).toContainText(`${name}-edited`);
+    await expect(page.getByTestId('package-detail-visibility')).toHaveText('Private');
+    await expect(page.getByTestId('package-detail-description')).toHaveText('after update (private)');
+
+    await page.goto('/package');
+    const updatedRow = queryItemByName(locators, `${name}-edited`);
+    await expect(updatedRow).toBeVisible();
+    await expect(updatedRow.getByTestId('package-item-visibility')).toHaveText('Private');
+  });
+
+  test('delete private package', async ({ page }) => {
+    const locators = getNewPackageLocators(page);
+    await openPackages(page);
+    await openNewPackageModal(locators);
+
+    const name = `pkg-del-private-${Date.now()}`;
+    await fillPackageForm(locators, {
+      name,
+      description: 'to be deleted (private)',
+      icon: '',
+      isPublic: false,
+    });
+    await submitPackageForm(locators);
+
+    const row = queryItemByName(locators, name);
+    await expect(row).toBeVisible();
+    await openItemDetailFromRow(row);
+
+    const edit = getEditFormLocators(page);
+    await edit.deleteButton.click();
+
+    const modal = page.getByTestId('modal-centered');
+    await expect(modal).toBeVisible();
+    await page.getByTestId('modal-delete-button').click();
+
+    await expect(page).toHaveURL(/\/package$/);
+    await expect(queryItemByName(locators, name)).toHaveCount(0);
+  });
+
+  test('delete public package', async ({ page }) => {
+    const locators = getNewPackageLocators(page);
+    await openPackages(page);
+    await openNewPackageModal(locators);
+
+    const name = `pkg-del-public-${Date.now()}`;
+    await fillPackageForm(locators, {
+      name,
+      description: 'to be deleted (public)',
+      icon: '',
+      isPublic: true,
+    });
+    await submitPackageForm(locators);
+
+    const row = queryItemByName(locators, name);
+    await expect(row).toBeVisible();
+    await openItemDetailFromRow(row);
+
+    const edit = getEditFormLocators(page);
+    await edit.deleteButton.click();
+
+    const modal = page.getByTestId('modal-centered');
+    await expect(modal).toBeVisible();
+    await page.getByTestId('modal-delete-button').click();
+
+    await expect(page).toHaveURL(/\/package$/);
+    await expect(queryItemByName(locators, name)).toHaveCount(0);
   });
 });
