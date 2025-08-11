@@ -30,7 +30,7 @@ export async function updatePackage(backend: IBackend, id: string, item: Partial
 }
 
 export async function removePackage(backend: IBackend, id: string): Promise<boolean> {
-    return getResponse(backend.fetchJson(`${REST_PATH}/${id}`, { method: 'DELETE' }), (data) => data as boolean, `${REST_PATH}/${id}`);
+    return getResponse(backend.fetchJson(`${REST_PATH}/${id}`, { method: 'DELETE' }), (_data) => true, `${REST_PATH}/${id}`);
 }
 
 export class PackageApi {

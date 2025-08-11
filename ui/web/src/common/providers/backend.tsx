@@ -36,11 +36,23 @@ class Backend {
 
     public async fetchJson(url: string, options?: RequestInit): Promise<OrError<IResp>> {
         const response = await fetch(url, this.getFetchJSONOptions(options));
+        const contentType = response.headers.get('content-type') || '';
+        const noContent = response.status === 204 || response.status === 205;
         try {
-            const data = response.ok ? await response.json() : await response.text();
+            if (noContent) {
+                return { data: undefined, status: response.status, headers: response.headers, ok: response.ok };
+            }
+            // Prefer JSON if indicated, otherwise return text
+            const data = contentType.includes('application/json')
+                ? await response.json()
+                : await response.text();
             return { data, status: response.status, headers: response.headers, ok: response.ok};
         } catch (error) {
-            console.error("Failed to parse JSON response:", error);
+            // If parsing failed but request was successful (e.g., empty body), still return ok with undefined data
+            if (response.ok) {
+                return { data: undefined, status: response.status, headers: response.headers, ok: response.ok };
+            }
+            console.error("Failed to parse response:", error);
             return { error: new Error(`Failed to parse JSON response from ${url}`), ok: false };
         }
     }
