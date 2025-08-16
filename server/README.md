@@ -14,13 +14,24 @@ The server workspace is located in the `server/` directory. The main application
 
 ## Configurations
 
-Runtime configuration <- config file <- environment variables
+The application can be configured through a TOML file or environment variables. Environment variables take precedence over the configuration file.
 
-config file is `server/ws/config.toml`.
-environment variables are also can be defined in a `.env` file.
+The path to the configuration file can be specified with the `WS_CONFIG_FILE` environment variable. It defaults to `config.toml` in the `server/ws` directory.
 
-configurations:
-`WS_CONFIG_FILE` - The path to the configuration file. Defaults to `server/ws/config.toml`.
+A `.env` file can also be used to set environment variables.
+
+Here are the available configuration options:
+
+| Environment Variable          | TOML Property               | Description                                  | Default Value                  |
+| ----------------------------- | --------------------------- | -------------------------------------------- | ------------------------------ |
+| `WS_HOST`                     | `host`                      | Server host address.                         | `0.0.0.0`                      |
+| `WS_PORT`                     | `port`                      | Server port.                                 | `7878`                         |
+| `WS_LOG_LEVEL`                | `log_level`                 | Logging level.                               | `info`                         |
+| `WS_DATABASE_URL`             | `database_url`              | Database connection URL.                     | `sqlite.db`                    |
+| `WS_DATABASE_POOL`            | `database_pool`             | Database connection pool size.               | `5`                            |
+| `WS_APP_JWT_EXPIRATION_SECS`  | -                           | JWT expiration time in seconds.              | `86400` (24 hours)             |
+| `WS_APP_JWT_SECRET`           | -                           | Secret key for signing JWTs.                 | `supersecretkey_for_dev_only`  |
+| `WS_CONFIG_FILE`              | -                           | Path to the configuration file.              | `config.toml`                  |
 
 
 ## Migrations
