@@ -152,4 +152,96 @@ mod tests {
             },
         );
     }
+
+    // --- AuthToken::from_request_parts tests ---
+
+    async fn auth_token_probe(headers: HeaderMap, expected_token: &str) {
+        let (mut parts, _) = axum::http::Request::builder()
+            .method("GET")
+            .uri("/")
+            .body(())
+            .unwrap()
+            .into_parts();
+        parts.headers = headers;
+
+        let state = ();
+        let result = AuthToken::from_request_parts(&mut parts, &state).await;
+        assert_eq!(result.unwrap().0, expected_token);
+    }
+
+    #[tokio::test]
+    async fn auth_token_from_authorization_header() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            axum::http::header::AUTHORIZATION,
+            "Bearer test_token_123".parse().unwrap(),
+        );
+
+        auth_token_probe(headers, "test_token_123").await;
+    }
+
+    #[tokio::test]
+    async fn auth_token_from_cookie() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            axum::http::header::COOKIE,
+            "Authorization=Bearer cookie_token_456; other=value".parse().unwrap(),
+        );
+
+        auth_token_probe(headers, "cookie_token_456").await;
+    }
+
+    #[tokio::test]
+    async fn auth_token_cookie_takes_precedence_over_header() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            axum::http::header::AUTHORIZATION,
+            "Bearer header_token".parse().unwrap(),
+        );
+        headers.insert(
+            axum::http::header::COOKIE,
+            "Authorization=Bearer cookie_token".parse().unwrap(),
+        );
+
+        auth_token_probe(headers, "cookie_token").await;
+    }
+
+    #[tokio::test]
+    async fn auth_token_no_token_returns_empty() {
+        let headers = HeaderMap::new();
+        auth_token_probe(headers, "").await;
+    }
+
+    #[tokio::test]
+    async fn auth_token_invalid_authorization_header() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            axum::http::header::AUTHORIZATION,
+            "Basic invalid_format".parse().unwrap(),
+        );
+
+        auth_token_probe(headers, "").await;
+    }
+
+    #[tokio::test]
+    async fn auth_token_invalid_cookie_format() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            axum::http::header::COOKIE,
+            "session=value; other=another".parse().unwrap(),
+        );
+
+        auth_token_probe(headers, "").await;
+    }
+
+    #[tokio::test]
+    async fn auth_token_empty_cookie_header() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            axum::http::header::COOKIE,
+            "".parse().unwrap(),
+        );
+
+        auth_token_probe(headers, "").await;
+    }
 }
