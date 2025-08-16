@@ -7,19 +7,20 @@ Board represented by:
 1. name [done]
 2. description [done]
 3. icon [done]
-4. tags
+4. is public [done]
+5. tags [tbd]
 
 Board identified by numeric id.
 
 Board holds:
 
-1. config of used packages, their
+1. config of used packages, their  [tbd]
 1.1. node shapes
 1.2. connection lines
 1.3. connection rules
 1.4. etc.
-2. config of own sets of items (along with packaged) (shapes, lines, rules, etc.) i.e. internal package.
-3. instances of shapes, lines, etc. artefacts as board content
+2. config of own sets of items (along with packaged) (shapes, lines, rules, etc.) i.e. internal package. [tbd]
+3. instances of shapes, lines, etc. artefacts as board content [tbd]
 
 ## Page structure
 
@@ -31,8 +32,8 @@ Allows:
 
 1. List boards [done]
 2. Add board [done]
-3. Edit board properties
-4. Manage items of board
+3. Edit board properties [done]
+4. Manage items of board [tbd]
 
 Contains:
 
@@ -45,12 +46,12 @@ Cases:
 
 1. View board list
     - see items [part]
-    - turn or scroll pages
-    - search board
+    - turn or scroll pages [tbd]
+    - search board [tbd]
 2. Submit board
-    - name, description, icon [done]
+    - name, description, icon, is public [done]
 3. Manage items
-    - navigate to pachage view
+    - navigate to package view [done]
 
 ### Board view
 
@@ -58,18 +59,18 @@ Cases:
 
 Allows:
 
-1. View board details
-2. Edit board properties
-3. Manage items of board
-4. Delete board
+1. View board details [done]
+2. Edit board properties [done]
+3. Manage items of board [tbd]
+4. Delete board [done]
 
 Contains:
 
 1. Title of page with board name in header
-2. Board properties (name, description, icon, tags)
-3. Buttons for edit, delete, and navigation
-4. Lists of items in the board (node shapes, connection lines, connection rules, etc.) in blocks
-5. Forms to add new items of diferent types
+2. Board properties (name, description, icon, is public, tags)
+3. Buttons for edit, delete, and navigation [done]
+4. Lists of items in the board (node shapes, connection lines, connection rules, etc.) in blocks [tbd]
+5. Forms to add new items of diferent types [tbd]
 
 Cases:
 
@@ -77,7 +78,7 @@ Cases:
     - see all properties and items
     - navigate back to board list
 2. Edit board properties
-    - update name, description, icon, tags
+    - update name, description, icon, is public, tags
 3. Manage items
     - view
     - add

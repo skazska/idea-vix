@@ -240,6 +240,11 @@ test.describe('Package flow', () => {
     await page.getByTestId('modal-delete-button').click();
 
     await expect(page).toHaveURL(/\/package$/);
+
+    // TODO looks like race conditions may happen when deleting items
+    // when delete manually sometimes it not requesting list wher navigate back...
+    // it could cause failures of test...
+
     await expect(queryItemByName(locators, name)).toHaveCount(0);
   });
 
