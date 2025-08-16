@@ -33,7 +33,6 @@ Here are the available configuration options:
 | `WS_APP_JWT_SECRET`           | -                           | Secret key for signing JWTs.                 | `supersecretkey_for_dev_only`  |
 | `WS_CONFIG_FILE`              | -                           | Path to the configuration file.              | `config.toml`                  |
 
-
 ## Migrations
 
 using sqlx-cli

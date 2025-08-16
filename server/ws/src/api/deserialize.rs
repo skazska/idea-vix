@@ -3,7 +3,9 @@ use serde::{Deserialize, Deserializer};
 
 use crate::error::ModelError;
 
-// Any value that is present is considered Some value, including null.
+/// Deserialize an optional value from the request body.
+/// Any value that is present is considered Some value, including null.
+/// to be used for struct field annotation for serde deserialization
 pub fn deserialize_some<'de, T, D>(deserializer: D) -> Result<Option<T>, D::Error>
     where T: Deserialize<'de>,
           D: Deserializer<'de>
@@ -69,4 +71,85 @@ impl<S: Send + Sync> FromRequestParts<S> for AuthToken {
             Ok(Self("".to_string())) // Return empty token if not found
         }
    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde::Deserialize;
+
+    // Test struct that mirrors the actual usage pattern in PatchPackageItem
+    #[derive(Deserialize, Debug, PartialEq)]
+    struct TestPatchStruct {
+        pub name: Option<String>,
+        #[serde(default, deserialize_with = "deserialize_some")]
+        pub description: Option<Option<String>>,
+        #[serde(default, deserialize_with = "deserialize_some")]
+        pub icon: Option<Option<String>>,
+    }
+
+    fn deserialize_some_probe(json: &str, expected: TestPatchStruct) -> () {
+        let result: TestPatchStruct = serde_json::from_str(json).unwrap();
+        assert_eq!(result, expected)
+    }
+
+    #[test]
+    fn deserialize_some_missing_field() {
+        deserialize_some_probe(
+            r#"{"name": "test"}"#,
+            TestPatchStruct {
+                name: Some("test".to_string()),
+                description: None,
+                icon: None,
+            },
+        );
+    }
+
+    #[test]
+    fn deserialize_some_null_field() {
+        deserialize_some_probe(
+            r#"{"name": "test", "description": null, "icon": null}"#,
+            TestPatchStruct {
+                name: Some("test".to_string()),
+                description: Some(None),
+                icon: Some(None),
+            },
+        );
+    }
+
+    #[test]
+    fn deserialize_some_with_value() {
+        deserialize_some_probe(
+            r#"{"name": "test", "description": "A description", "icon": "icon.png"}"#,
+            TestPatchStruct {
+                name: Some("test".to_string()),
+                description: Some(Some("A description".to_string())),
+                icon: Some(Some("icon.png".to_string())),
+            },
+        );
+    }
+
+    #[test]
+    fn deserialize_some_mixed_fields() {
+        deserialize_some_probe(
+            r#"{"name": "test", "description": null}"#,
+            TestPatchStruct {
+                name: Some("test".to_string()),
+                description: Some(None),
+                icon: None,
+            },
+        );
+    }
+
+    #[test]
+    fn deserialize_some_empty_object() {
+        deserialize_some_probe(
+            r#"{}"#,
+            TestPatchStruct {
+                name: None,
+                description: None,
+                icon: None,
+            },
+        );
+    }
 }
