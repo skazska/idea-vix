@@ -35,7 +35,6 @@ use crate::package::package_store::{NewPackageAccessDb, NewPackageDb, PackageAcc
 use crate::session::session_service::SessionData;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
-use crate::{api::deserialize::deserialize_some};
 
 /// API representation of a package.
 ///
@@ -55,52 +54,18 @@ pub struct Package {
     pub is_public: bool,
 }
 
-/// Payload to create a new package.
-///
-/// Validation:
-/// - `name`: 3..=100 chars
-/// - `description`: up to 500 chars
-/// - `icon`: up to 255 chars
-/// - `is_public`: defaults to `false` if omitted
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
 pub struct NewPackageItem {
-    #[validate(length(min = 3, max = 100))]
-    /// Package name (3..=100 chars).
-    pub name: String,
-    #[validate(length(max = 500))]
-    /// Optional description (<= 500 chars).
-    pub description: Option<String>,
-    #[validate(length(max = 255))]
-    /// Optional icon URL or identifier (<= 255 chars).
-    pub icon: Option<String>,
-    /// Public visibility flag. Defaults to `false` when omitted.
-    pub is_public: Option<bool>,
+    #[serde(flatten)]
+    #[validate(nested)]
+    pub base: crate::common::item_fields::NewItemFields,
 }
 
-/// Payload to partially update an existing package.
-///
-/// Semantics for optional nested options:
-/// - `description`: `None` -> not provided; `Some(None)` -> set to NULL; `Some(Some(v))` -> set to value
-/// - `icon`: same as `description`
-///
-/// Examples:
-/// - Update name only: `{ "name": "New Name" }`
-/// - Clear description: `{ "description": null }`
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
 pub struct PatchPackageItem {
-    #[validate(length(min = 3, max = 100))]
-    /// Optional new name (3..=100 chars).
-    pub name: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_some")]
-    #[validate(length(max = 500))]
-    /// Optional new description; `null` clears it.
-    pub description: Option<Option<String>>,
-    #[serde(default, deserialize_with = "deserialize_some")]
-    #[validate(length(max = 255))]
-    /// Optional new icon; `null` clears it.
-    pub icon: Option<Option<String>>,
-    /// Optional new public flag.
-    pub is_public: Option<bool>,
+    #[serde(flatten)]
+    #[validate(nested)]
+    pub base: crate::common::item_fields::PatchItemFields,
 }
 
 /// Conversion: `&NewPackageItem` -> storage model `NewPackageDb`.
@@ -109,10 +74,10 @@ pub struct PatchPackageItem {
 impl<'a> From<&'a NewPackageItem> for NewPackageDb<'a> {
     fn from(item: &'a NewPackageItem) -> Self {
         Self {
-            name: &item.name,
-            description: item.description.as_deref(),
-            icon: item.icon.as_deref(),
-            is_public: item.is_public.unwrap_or(false),
+            name: &item.base.name,
+            description: item.base.description.as_deref(),
+            icon: item.base.icon.as_deref(),
+            is_public: item.base.is_public.unwrap_or(false),
         }
     }
 }
@@ -123,10 +88,10 @@ impl<'a> From<&'a NewPackageItem> for NewPackageDb<'a> {
 impl<'a> From<&'a PatchPackageItem> for PatchPackageDb<'a> {
     fn from(item: &'a PatchPackageItem) -> Self {
         Self {
-            name: item.name.as_deref(),
-            description: item.description.as_ref().map(|d| d.as_deref()),
-            icon: item.icon.as_ref().map(|i| i.as_deref()),
-            is_public: item.is_public,
+            name: item.base.name.as_deref(),
+            description: item.base.description.as_ref().map(|d| d.as_deref()),
+            icon: item.base.icon.as_ref().map(|i| i.as_deref()),
+            is_public: item.base.is_public,
         }
     }
 }

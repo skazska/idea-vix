@@ -35,7 +35,6 @@ use crate::boards::board_store::{BoardDb, BoardStore, NewBoardDb, PatchBoardDb, 
 use crate::session::session_service::SessionData;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
-use crate::api::deserialize::deserialize_some;
 
 /// API representation of a board.
 ///
@@ -50,50 +49,28 @@ pub struct Board {
     pub is_public: bool,
 }
 
-/// Payload to create a new board.
-///
-/// Validation:
-/// - `name`: 3..=100 chars
-/// - `description`: up to 500 chars
-/// - `icon`: up to 255 chars
-/// - `is_public`: defaults to `false` if omitted
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
 pub struct NewBoardItem {
-    #[validate(length(min = 3, max = 100))]
-    pub name: String,
-    #[validate(length(max = 500))]
-    pub description: Option<String>,
-    #[validate(length(max = 255))]
-    pub icon: Option<String>,
-    pub is_public: Option<bool>,
+    #[serde(flatten)]
+    #[validate(nested)]
+    pub base: crate::common::item_fields::NewItemFields,
 }
 
-/// Payload to partially update an existing board.
-///
-/// Semantics for optional nested options:
-/// - `description`: `None` -> not provided; `Some(None)` -> set to NULL; `Some(Some(v))` -> set to value
-/// - `icon`: same as `description`
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
 pub struct PatchBoardItem {
-    #[validate(length(min = 3, max = 100))]
-    pub name: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_some")]
-    #[validate(length(max = 500))]
-    pub description: Option<Option<String>>,
-    #[serde(default, deserialize_with = "deserialize_some")]
-    #[validate(length(max = 255))]
-    pub icon: Option<Option<String>>,
-    pub is_public: Option<bool>,
+    #[serde(flatten)]
+    #[validate(nested)]
+    pub base: crate::common::item_fields::PatchItemFields,
 }
 
 /// implements direct conversion from NewBoardItem to NewBoardDb
 impl<'a> From<&'a NewBoardItem> for NewBoardDb<'a> {
     fn from(item: &'a NewBoardItem) -> Self {
         Self {
-            name: &item.name,
-            description: item.description.as_deref(),
-            icon: item.icon.as_deref(),
-            is_public: item.is_public.unwrap_or(false),
+            name: &item.base.name,
+            description: item.base.description.as_deref(),
+            icon: item.base.icon.as_deref(),
+            is_public: item.base.is_public.unwrap_or(false),
         }
     }
 }
@@ -103,10 +80,10 @@ impl<'a> From<&'a NewBoardItem> for NewBoardDb<'a> {
 impl<'a> From<&'a PatchBoardItem> for PatchBoardDb<'a> {
     fn from(item: &'a PatchBoardItem) -> Self {
         Self {
-            name: item.name.as_deref(),
-            description: item.description.as_ref().map(|d| d.as_deref()),
-            icon: item.icon.as_ref().map(|i| i.as_deref()),
-            is_public: item.is_public,
+            name: item.base.name.as_deref(),
+            description: item.base.description.as_ref().map(|d| d.as_deref()),
+            icon: item.base.icon.as_ref().map(|i| i.as_deref()),
+            is_public: item.base.is_public,
         }
     }
 }
