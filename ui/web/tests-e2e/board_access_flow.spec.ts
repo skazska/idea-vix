@@ -28,6 +28,10 @@ test.describe('Board access management', () => {
     const name = `brd-access-${Date.now()}`;
     await createBoard(page, name, true);
 
+  // Open the Access section (expandable defaults to closed now)
+  await page.getByTestId('package-section-access-toggle').click();
+  await expect(page.getByTestId('package-section-access-content')).toBeVisible();
+
     const form = page.getByTestId('board-access-form');
     await expect(form).toBeVisible();
 

@@ -28,6 +28,10 @@ test.describe('Package access management', () => {
     const name = `pkg-access-${Date.now()}`;
     await createPackage(page, name, true);
 
+  // Open the Access section (expandable defaults to closed now)
+  await page.getByTestId('package-section-access-toggle').click();
+  await expect(page.getByTestId('package-section-access-content')).toBeVisible();
+
     const form = page.getByTestId('package-access-form');
     await expect(form).toBeVisible();
 
