@@ -27,7 +27,7 @@
 use std::sync::{Arc};
 
 use axum::{
-    extract::{ Path, State }, http::StatusCode, routing::{delete, get, post, put}, Json, Router
+    extract::{ Path, State }, http::StatusCode, Json
  };
 
 use crate::{
@@ -75,16 +75,16 @@ pub async fn get_router<'a>(connection: Arc<sqlx::Pool<sqlx::Sqlite>>, jwt_servi
         jwt_service
     });
 
-    Router::new()
-        .route("/", get(get_items))
-        .route("/", post(add_item))
-        .route("/{id}", get(get_item))
-        .route("/{id}", put(update_item))
-        .route("/{id}", delete(delete_item))
-    .route("/{id}/access", post(add_access))
-    .route("/{id}/access", get(list_access))
-    .route("/{id}/access/{address}", delete(revoke_access))
-        .with_state(state)
+    crate::resource_routes!(
+        get_items,
+        add_item,
+        get_item,
+        update_item,
+        delete_item,
+        add_access,
+        list_access,
+        revoke_access
+    ).with_state(state)
 }
 
 // #[axum::debug_handler]

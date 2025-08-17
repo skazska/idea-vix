@@ -222,7 +222,17 @@ impl<'a> PackageStore {
     }
 
     /// Update a package row. Access is validated by the service layer.
-    /// Dynamically builds the SQL to bind only provided fields, including NULL for cleared values.
+    ///
+    /// Notes:
+    /// - Builds the SQL `SET` clause with `crate::sqlx_build_set!`, adding columns only
+    ///   for fields that are `Some(..)`.
+    /// - Bind values must follow the exact same order as the `SET` fragments above.
+    ///   We bind each provided field in sequence, then bind `id` for the `WHERE`.
+    /// - For `Option<Option<&str>>` fields like `description` and `icon`:
+    ///   - `Some(Some(v))` sets the value to `v`.
+    ///   - `Some(None)` sets the column to `NULL`.
+    ///   - `None` means "do not update this column".
+    /// - If no fields are provided, returns `Error::InvalidArgument`.
     pub async fn update_item(&self, id: i32, item: PatchPackageDb<'a>) -> Result<PackageDb, Error> {
         let set = crate::sqlx_build_set!(
             item.name.is_some() => "name = ?",
