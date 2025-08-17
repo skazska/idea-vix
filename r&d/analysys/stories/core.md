@@ -206,12 +206,12 @@ Restrictions:
 
 #### Change package properties
 
-Status [~]
+Status [v]
 
 Who:
 
 - package owner [v]
-- user invited to package with "manage" permission []
+- user invited to package with "manage" permission [v]
 
 How:
 
@@ -274,15 +274,17 @@ package and board ownership is defined by address used for identification.
 
 ### Invite user to board or package
 
-Status []
+Status [~]
 
-Who: board or package owner []
+Who: board or package owner [~]
 
 How:
 
-1. Activate "Invite User" in board or package view []
-2. Fill in user address and permissions []
-3. Submit invitation []
+1. Activate "Invite User" in package view [v]
+2. Fill in user address and permissions [v]
+3. Submit invitation [v]
+4. Revoke invitation [v]
+5. Board UI pending []
 
 Explanation:
 The invited user will receive a notification and when identified by this address will have access and permissions defined in invitation.

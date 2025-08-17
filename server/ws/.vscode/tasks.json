@@ -1,0 +1,16 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "cargo-test-build",
+			"type": "shell",
+			"command": "cargo",
+			"args": [
+				"test",
+				"--no-run",
+				"--bin=ws"
+			],
+			"group": "build"
+		}
+	]
+}

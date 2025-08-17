@@ -6,7 +6,7 @@ use validator::Validate;
 /// A wrapper for validated form data
 /// to be used in request handling to get validated form payloads
 /// example usage:
-/// ```
+/// ```ignore
 /// async fn handler(ValidatedForm(payload): ValidatedForm<MyStruct>) {
 ///     // Handle the validated form payload
 /// }
@@ -32,7 +32,7 @@ where
 /// A wrapper for validated JSON data
 /// to be used in request handling to get validated JSON payloads
 /// example usage:
-/// ```
+/// ```ignore
 /// async fn handler(ValidatedJson(payload): ValidatedJson<MyStruct>) {
 ///     // Handle the validated JSON payload
 /// }

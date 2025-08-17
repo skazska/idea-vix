@@ -55,8 +55,8 @@ paths:
           required: true
           description: The unique identifier of the board
           schema:
-            type: string
-            example: "board-123"
+            type: integer
+            example: 1
       responses:
         '200':
           description: A board object
@@ -123,8 +123,8 @@ paths:
         - Packages
       summary: Retrieve a specific package
       description: |
-        Get details of a specific package by its ID. Public packages are accessible to all users (read-only), 
-        while private packages require authentication.
+        Get details of a specific package by its ID. Public packages are accessible to all users (read-only),
+        while private packages require authentication or an invitation (access role).
       security:
         - SessionToken: []
         - {} # Allow unauthenticated access for public packages
@@ -134,8 +134,8 @@ paths:
           required: true
           description: The unique identifier of the package
           schema:
-            type: string
-            example: "pkg-123"
+            type: integer
+            example: 1
       responses:
         '200':
           description: A package object
@@ -160,8 +160,8 @@ paths:
           required: true
           description: The unique identifier of the package
           schema:
-            type: string
-            example: "pkg-123"
+            type: integer
+            example: 1
       requestBody:
         required: true
         content:
@@ -200,11 +200,67 @@ paths:
           required: true
           description: The unique identifier of the package
           schema:
-            type: string
-            example: "pkg-123"
+            type: integer
+            example: 1
       responses:
         '204':
-          description: Package deleted successfully
+          description: Package deleted
+  /api/package/{id}/access:
+    post:
+      tags:
+        - Packages
+      summary: Grant access to a package
+      description: Owner grants a role (view, edit, manage) to an address
+      security:
+        - SessionToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Package id
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PackageAccessGrant'
+      responses:
+        '200':
+          description: Granted mapping
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackageAccessMapping'
+  /api/package/{id}/access/{address}:
+    delete:
+      tags:
+        - Packages
+      summary: Revoke access to a package
+      description: Owner revokes access for an address
+      security:
+        - SessionToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Package id
+          schema:
+            type: integer
+        - name: address
+          in: path
+          required: true
+          description: Address to revoke
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Revoked mapping
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackageAccessMapping'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -529,4 +585,41 @@ components:
           type: integer
           description: Issued at time (in seconds since epoch)
           example: 1659372000
+
+    PackageAccessGrant:
+      type: object
+      required:
+        - address
+        - role
+      properties:
+        address:
+          type: string
+          description: Address to grant access to
+          example: user@example.com
+        role:
+          type: string
+          description: Role to grant (view, edit, manage)
+          enum: [view, edit, manage]
+          example: view
+
+    PackageAccessMapping:
+      type: object
+      required:
+        - package_id
+        - address
+        - role
+      properties:
+        package_id:
+          type: integer
+          description: Package id
+          example: 1
+        address:
+          type: string
+          description: Address with access
+          example: user@example.com
+        role:
+          type: string
+          description: Granted role
+          enum: [view, edit, manage, owner]
+          example: view
 

@@ -1,39 +1,71 @@
-use axum::{body::Body, http::{Request, StatusCode}};
-use tower::ServiceExt;
+use axum::http::StatusCode;
 
 mod test_app;
+mod helpers;
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+struct PackageResp { id: i32, name: String }
 
 #[tokio::test]
 async fn packages_crud_ok() {
     let app = test_app::TestApp::new().await;
 
-    // signin + verify to get cookie
-    let req = Request::post("/api/session/signin")
-        .header("content-type", "application/json")
-        .body(Body::from(r#"{"address":"user@example.com"}"#))
-        .unwrap();
-    let _ = app.router.clone().oneshot(req).await.unwrap();
-
-    let req = Request::post("/api/session/verify")
-        .header("content-type", "application/json")
-        .body(Body::from(r#"{"address":"user@example.com", "code":"some_code"}"#))
-        .unwrap();
-    let resp = app.router.clone().oneshot(req).await.unwrap();
-    let cookie_hdr = resp.headers().get("set-cookie").unwrap().to_str().unwrap().to_string();
+    let cookie_hdr = helpers::auth_cookie_for(&app.router, "user@example.com").await;
 
     // create package (body shape may differ; using minimal fields)
-    let req = Request::post("/api/package")
-        .header("content-type", "application/json")
-        .header("cookie", &cookie_hdr)
-        .body(Body::from(r#"{"name":"Demo Package","description":"desc"}"#))
-        .unwrap();
-    let resp = app.router.clone().oneshot(req).await.unwrap();
+    let resp = helpers::post_json(&app.router, "/api/package", r#"{"name":"Demo Package","description":"desc"}"#, Some(&cookie_hdr)).await;
     assert_eq!(resp.status(), StatusCode::CREATED);
 
     // list packages
-    let req = Request::get("/api/package")
-        .body(Body::empty())
-        .unwrap();
-    let resp = app.router.clone().oneshot(req).await.unwrap();
+    let resp = helpers::get(&app.router, "/api/package", None).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn package_access_invite_and_permissions() {
+    let app = test_app::TestApp::new().await;
+
+    // Owner session
+    let owner_cookie = helpers::auth_cookie_for(&app.router, "owner@example.com").await;
+
+    // Create a private package
+    let resp = helpers::post_json(&app.router, "/api/package", r#"{"name":"Secret","description":"hidden","is_public":false}"#, Some(&owner_cookie)).await;
+    assert_eq!(resp.status(), StatusCode::CREATED);
+    let (_status, created): (StatusCode, PackageResp) = helpers::read_json(resp).await;
+    let pkg_id = created.id;
+
+    // Unauthenticated cannot access
+    let resp = helpers::get(&app.router, &format!("/api/package/{}", pkg_id), None).await;
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+
+    // Grant view to guest
+    let resp = helpers::post_json(&app.router, &format!("/api/package/{}/access", pkg_id), r#"{"address":"guest@example.com","role":"view"}"#, Some(&owner_cookie)).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    // Owner can list access and should see guest mapping
+    let resp = helpers::get(&app.router, &format!("/api/package/{}/access", pkg_id), Some(&owner_cookie)).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    // Guest session
+    let guest_cookie = helpers::auth_cookie_for(&app.router, "guest@example.com").await;
+
+    // Guest can GET the package now
+    let resp = helpers::get(&app.router, &format!("/api/package/{}", pkg_id), Some(&guest_cookie)).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    // Guest cannot update with view
+    let resp = helpers::put_json(&app.router, &format!("/api/package/{}", pkg_id), r#"{"name":"New name"}"#, Some(&guest_cookie)).await;
+    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+
+    // Owner revokes then grants manage
+    let resp = helpers::delete(&app.router, &format!("/api/package/{}/access/{}", pkg_id, "guest@example.com"), Some(&owner_cookie)).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    let resp = helpers::post_json(&app.router, &format!("/api/package/{}/access", pkg_id), r#"{"address":"guest@example.com","role":"manage"}"#, Some(&owner_cookie)).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    // Guest can update now
+    let resp = helpers::put_json(&app.router, &format!("/api/package/{}", pkg_id), r#"{"name":"Managed name"}"#, Some(&guest_cookie)).await;
     assert_eq!(resp.status(), StatusCode::OK);
 }

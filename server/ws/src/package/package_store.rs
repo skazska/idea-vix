@@ -355,4 +355,18 @@ impl<'a> PackageStore {
 
         Ok(result)
     }
+
+    /// List all access mappings for a package id.
+    pub async fn list_access_roles(&self, package_id: i32) -> Result<Vec<PackageAccessRolesDb>, Error> {
+        let connection = self.pool.deref();
+
+        let rows = sqlx::query_as::<_, PackageAccessRolesDb>(
+            "SELECT package_id, address, role FROM package_access WHERE package_id = ? ORDER BY address"
+        )
+        .bind(package_id)
+        .fetch_all(connection)
+        .await?;
+
+        Ok(rows)
+    }
 }

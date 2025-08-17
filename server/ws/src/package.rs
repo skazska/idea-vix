@@ -33,7 +33,7 @@ use axum::{
 use crate::{
     api::{deserialize::AuthToken, validation::ValidatedJson},
     package::package_service::{
-        NewPackageItem, Package, PatchPackageItem
+    NewPackageItem, Package, PatchPackageItem, NewPackageAccessItem, PackageAccessRoles
     },
     session::session_jwt::SessionJWTService
 };
@@ -57,6 +57,9 @@ struct RouteState {
 /// - `GET /{id}` – Get a package by id; accessible if public or user has access
 /// - `PUT /{id}` – Update a package (owner/manage)
 /// - `DELETE /{id}` – Delete a package (owner/manage)
+/// - `POST /{id}/access` – Grant access to an address (owner)
+/// - `DELETE /{id}/access/{address}` – Revoke access for an address (owner)
+/// - `GET /{id}/access` – List all access mappings (owner)
 ///
 /// Parameters:
 /// - `connection`: SQLx Sqlite pool wrapped in `Arc`
@@ -78,6 +81,9 @@ pub async fn get_router<'a>(connection: Arc<sqlx::Pool<sqlx::Sqlite>>, jwt_servi
         .route("/{id}", get(get_item))
         .route("/{id}", put(update_item))
         .route("/{id}", delete(delete_item))
+    .route("/{id}/access", post(add_access))
+    .route("/{id}/access", get(list_access))
+    .route("/{id}/access/{address}", delete(revoke_access))
         .with_state(state)
 }
 
@@ -147,5 +153,52 @@ async fn delete_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteS
     // perform deletion, ignore returned entity for API contract
     let _ = state.service.delete_item(id, &session).await.map_err(|e| e.into())?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+// #[axum::debug_handler]
+/// Handler: grant access to a package (owner only).
+/// - Authenticates via JWT
+/// - Requires `owner` role on the package
+/// - Body: { address, role: "view"|"edit"|"manage" }
+/// - Returns created mapping
+async fn add_access(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    axum::extract::Path(id): Path<i32>,
+    ValidatedJson(item): ValidatedJson<NewPackageAccessItem>,
+) -> Result<Json<PackageAccessRoles>, (StatusCode, String)> {
+    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    let result = state.service.add_access_role(id, &item, &session).await.map_err(|e| e.into())?;
+    Ok(Json(result))
+}
+
+// #[axum::debug_handler]
+/// Handler: revoke access to a package (owner only).
+/// - Authenticates via JWT
+/// - Requires `owner` role on the package
+/// - Path: /{id}/access/{address}
+async fn revoke_access(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    Path((id, address)): Path<(i32, String)>,
+) -> Result<Json<PackageAccessRoles>, (StatusCode, String)> {
+    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    let result = state.service.revoke_access_role(id, &address, &session).await.map_err(|e| e.into())?;
+    Ok(Json(result))
+}
+
+// #[axum::debug_handler]
+/// Handler: list access mappings for a package (owner only).
+/// - Authenticates via JWT
+/// - Requires `owner` role on the package
+/// - Returns array of mappings
+async fn list_access(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    Path(id): Path<i32>,
+) -> Result<Json<Vec<PackageAccessRoles>>, (StatusCode, String)> {
+    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    let result = state.service.list_access_roles(id, &session).await.map_err(|e| e.into())?;
+    Ok(Json(result))
 }
 

@@ -31,7 +31,7 @@
 //! ```
 //
 use crate::error::ModelError;
-use crate::package::package_store::{NewPackageDb, PackageAccessRoleDb, PackageDb, PackageStore, PatchPackageDb};
+use crate::package::package_store::{NewPackageAccessDb, NewPackageDb, PackageAccessRoleDb, PackageAccessRolesDb, PackageDb, PackageStore, PatchPackageDb};
 use crate::session::session_service::SessionData;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
@@ -151,8 +151,10 @@ pub enum PackageAccess {
     Owner,
     /// Management rights; can update/delete.
     Manage,
+    /// Can edit content but not manage access.
+    Edit,
     /// Read-only access.
-    Read,
+    View,
 }
 
 impl From<String> for PackageAccess {
@@ -160,7 +162,8 @@ impl From<String> for PackageAccess {
         match role.as_str() {
             "owner" => PackageAccess::Owner,
             "manage" => PackageAccess::Manage,
-            "read" => PackageAccess::Read,
+            "edit" => PackageAccess::Edit,
+            "view" => PackageAccess::View,
             _ => panic!("Unknown package access role: {}", role),
         }
     }
@@ -171,7 +174,8 @@ impl Into<String> for PackageAccess {
         match self {
             PackageAccess::Owner => "owner".to_string(),
             PackageAccess::Manage => "manage".to_string(),
-            PackageAccess::Read => "read".to_string(),
+            PackageAccess::Edit => "edit".to_string(),
+            PackageAccess::View => "view".to_string(),
         }
     }
 }
@@ -200,6 +204,23 @@ impl From<PackageAccessRoleDb> for PackageAccessRole {
 /// - Delegating persistence to `PackageStore`
 pub struct PackageService {
     items_store: PackageStore,
+}
+
+/// Input payload to grant access for an address to a package.
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+pub struct NewPackageAccessItem {
+    #[validate(length(min = 3, max = 255))]
+    pub address: String,
+    /// One of: "view", "edit", "manage"
+    pub role: String,
+}
+
+/// Response model for a package access mapping.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PackageAccessRoles {
+    pub package_id: i32,
+    pub address: String,
+    pub role: String,
 }
 
 impl<'a> PackageService {
@@ -265,4 +286,64 @@ impl<'a> PackageService {
         Ok(result.into())
     }
 
+    /// Grant access role to an address (owner only)
+    pub async fn add_access_role(&self, package_id: i32, item: &NewPackageAccessItem, session: &SessionData) -> Result<PackageAccessRoles, ModelError> {
+        // Only owner can manage access list
+        let roles = self.items_store.get_access_roles(package_id, session).await?;
+        if !roles.iter().any(|r| r.role == "owner") {
+            return Err(ModelError::Forbidden("Only owner can grant access".to_string()));
+        }
+
+        // validate role value
+        if validate_role(&item.role).is_err() {
+            return Err(ModelError::BadRequest("Invalid role".to_string()));
+        }
+
+        // Build store model and insert
+        let db_item = NewPackageAccessDb { package_id, address: &item.address, role: &item.role };
+        let stored = self.items_store.add_access_role(db_item).await?;
+        Ok(stored.into())
+    }
+
+    /// Revoke access for an address (owner only)
+    pub async fn revoke_access_role(&self, package_id: i32, address: &str, session: &SessionData) -> Result<PackageAccessRoles, ModelError> {
+        let roles = self.items_store.get_access_roles(package_id, session).await?;
+        if !roles.iter().any(|r| r.role == "owner") {
+            return Err(ModelError::Forbidden("Only owner can revoke access".to_string()));
+        }
+        // Prevent owner from revoking their own owner role via this endpoint
+        if address == session.address {
+            return Err(ModelError::BadRequest("Cannot revoke own access".to_string()));
+        }
+
+        let stored = self.items_store.revoke_access_role(package_id, address).await?;
+        Ok(stored.into())
+    }
+
+    /// List access mappings for a package (owner only)
+    pub async fn list_access_roles(&self, package_id: i32, session: &SessionData) -> Result<Vec<PackageAccessRoles>, ModelError> {
+        // Only owner can view access list
+        let roles = self.items_store.get_access_roles(package_id, session).await?;
+        if !roles.iter().any(|r| r.role == "owner") {
+            return Err(ModelError::Forbidden("Only owner can list access".to_string()));
+        }
+
+        let rows = self.items_store.list_access_roles(package_id).await?;
+        Ok(rows.into_iter().map(|r| r.into()).collect())
+    }
+}
+
+// --- helpers and conversions ---
+
+fn validate_role(role: &str) -> Result<(), validator::ValidationError> {
+    match role {
+        "view" | "edit" | "manage" => Ok(()),
+        _ => Err(validator::ValidationError::new("invalid_role")),
+    }
+}
+
+impl From<PackageAccessRolesDb> for PackageAccessRoles {
+    fn from(value: PackageAccessRolesDb) -> Self {
+        Self { package_id: value.package_id, address: value.address, role: value.role }
+    }
 }
