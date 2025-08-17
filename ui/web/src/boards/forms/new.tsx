@@ -33,7 +33,7 @@ export const NewBoardForm: TFormComponent<TBoardNew, TBoard> = (props) => {
 
     const onSubmit = useAction(add);
 
-    return (<Form onSubmit={onSubmit} onCancel={props.onCancel} class="space-y-4" >
+    return (<Form onSubmit={onSubmit} onCancel={props.onCancel} class="space-y-4" data-testid="board-new-form">
         <Header text={() => `New ${ENTITY_NAME}`} pending={loading}></Header>
         <Field name="name">
             {(field, props) => getInput(getLabel(field), getString(field, field, props), getError(field))}

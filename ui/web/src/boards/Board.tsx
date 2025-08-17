@@ -3,10 +3,14 @@ import { createSignal, Show, ErrorBoundary, Suspense, createEffect } from "solid
 import { setTitle } from "../common/providers/page-state";
 import { BoardItemProvider, useBoardItem } from "./providers/item";
 import { Portal } from "solid-js/web";
-import { Edit, Trash2, ArrowLeft, Save, X } from "lucide-solid";
+import { Edit, Trash2, ArrowLeft, Save, X, Users } from "lucide-solid";
 import { ModalCentered } from "../common/modals";
 import type { TBoard } from "./model";
 import { ENTITY_NAME, PAGE_TITLE, ROUTE } from "./const";
+import { AccessManager } from "../common/access/AccessManager";
+import { getBoardApi } from "./providers/api";
+import { useBackend } from "../common/providers/backend";
+import Expandable from "../common/expandable/Expandable";
 
 function BoardContent() {
     console.log("BoardContent rendered");
@@ -15,6 +19,7 @@ function BoardContent() {
     const boardId = params.id;
     
     const [brd, actions] = useBoardItem();
+    const boardApi = getBoardApi(useBackend());
     const [editMode, setEditMode] = createSignal(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = createSignal(false);
     const [saving, setSaving] = createSignal(false);
@@ -216,6 +221,30 @@ function BoardContent() {
                         </div>
                     </>
                 </Show>
+            </div>
+
+            {/* Package Items Sections */}
+            <div class="space-y-6">
+                {/* Access management */}
+                <Expandable title="Access" openByDefault={false} testIdPrefix="package-section-access">
+
+                    <div class="bg-white rounded-lg shadow p-6 mb-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-xl font-bold flex items-center gap-2"><Users size={'1rem'}/> Access</h2>
+                        </div>
+                        <Show when={brd.latest}>
+                            {(b) => (
+                                <AccessManager
+                                    title={`Access for ${b().name}`}
+                                    testIdPrefix="board-access"
+                                    load={() => boardApi.listAccess(String(b().id))}
+                                    grant={(item) => boardApi.grantAccess(String(b().id), item)}
+                                    revoke={(address) => boardApi.revokeAccess(String(b().id), address)}
+                                />
+                            )}
+                        </Show>
+                    </div>
+                </Expandable>
             </div>
             
             {/* Delete Confirmation Modal */}

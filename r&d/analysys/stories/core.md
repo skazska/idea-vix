@@ -280,11 +280,17 @@ Who: board or package owner [~]
 
 How:
 
-1. Activate "Invite User" in package view [v]
-2. Fill in user address and permissions [v]
-3. Submit invitation [v]
-4. Revoke invitation [v]
-5. Board UI pending []
+1. View list of invited users [~]
+   - backend [v]
+   - frontend []
+2. Activate "Invite User" in package view []
+3. Fill in user address and permissions []
+4. Submit invitation [~]
+   - backend [v]
+   - frontend []
+5. Revoke invitation [~]
+   - backend [v]
+   - frontend []
 
 Explanation:
 The invited user will receive a notification and when identified by this address will have access and permissions defined in invitation.

@@ -3,10 +3,14 @@ import { createSignal, Show, ErrorBoundary, Suspense, createEffect } from "solid
 import { setTitle } from "../common/providers/page-state";
 import { PackageItemProvider, usePackageItem } from "./providers/item";
 import { Portal } from "solid-js/web";
-import { Edit, Trash2, ArrowLeft, Plus, Save, X } from "lucide-solid";
+import { Edit, Trash2, ArrowLeft, Plus, Save, X, Users } from "lucide-solid";
 import { ModalCentered } from "../common/modals";
 import type { TPackage } from "./model";
 import { ENTITY_NAME, PAGE_TITLE, ROUTE } from "./const";
+import { AccessManager } from "../common/access/AccessManager";
+import { getPackageApi } from "./providers/api";
+import { useBackend } from "../common/providers/backend";
+import Expandable from "../common/expandable/Expandable";
 
 function PackageContent() {
     console.log("PackageContent rendered");
@@ -15,6 +19,7 @@ function PackageContent() {
     const packageId = params.id;
     
     const [pkg, actions] = usePackageItem();
+    const packageApi = getPackageApi(useBackend());
     const [editMode, setEditMode] = createSignal(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = createSignal(false);
     const [saving, setSaving] = createSignal(false);
@@ -231,41 +236,66 @@ function PackageContent() {
             
             {/* Package Items Sections */}
             <div class="space-y-6">
-                {/* Node Shapes Section */}
-                <div class="bg-white rounded-lg shadow p-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-xl font-bold">Node Shapes</h2>
-                        <button class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-sm flex items-center gap-1">
-                            <Plus size={'0.8rem'}/>
-                            Add Shape
-                        </button>
+                {/* Access management */}
+                <Expandable title="Access" openByDefault={false} testIdPrefix="package-section-access">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-xl font-bold flex items-center gap-2"><Users size={'1rem'}/> Access</h2>
+                        </div>
+                        <Show when={pkg.latest}>
+                            {(p) => (
+                                <AccessManager
+                                    title={`Access for ${p().name}`}
+                                    testIdPrefix="package-access"
+                                    load={() => packageApi.listAccess(String(p().id))}
+                                    grant={(item) => packageApi.grantAccess(String(p().id), item)}
+                                    revoke={(address) => packageApi.revokeAccess(String(p().id), address)}
+                                />
+                            )}
+                        </Show>
                     </div>
-                    <div class="text-gray-500">No node shapes defined yet.</div>
-                </div>
+                </Expandable>
+                {/* Node Shapes Section */}
+                <Expandable title="Node Shapes" openByDefault={false} testIdPrefix="package-section-shapes">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-xl font-bold">Node Shapes</h2>
+                            <button class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-sm flex items-center gap-1">
+                                <Plus size={'0.8rem'}/>
+                                Add Shape
+                            </button>
+                        </div>
+                        <div class="text-gray-500">No node shapes defined yet.</div>
+                    </div>
+                </Expandable>
                 
                 {/* Connection Lines Section */}
-                <div class="bg-white rounded-lg shadow p-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-xl font-bold">Connection Lines</h2>
-                        <button class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-sm flex items-center gap-1">
-                            <Plus size={'0.8rem'}/>
-                            Add Line
-                        </button>
+                <Expandable title="Connection Lines" openByDefault={false} testIdPrefix="package-section-lines">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-xl font-bold">Connection Lines</h2>
+                            <button class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-sm flex items-center gap-1">
+                                <Plus size={'0.8rem'}/>
+                                Add Line
+                            </button>
+                        </div>
+                        <div class="text-gray-500">No connection lines defined yet.</div>
                     </div>
-                    <div class="text-gray-500">No connection lines defined yet.</div>
-                </div>
+                </Expandable>
                 
                 {/* Connection Rules Section */}
-                <div class="bg-white rounded-lg shadow p-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-xl font-bold">Connection Rules</h2>
-                        <button class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-sm flex items-center gap-1">
-                            <Plus size={'0.8rem'}/>
-                            Add Rule
-                        </button>
+                <Expandable title="Connection Rules" openByDefault={false} testIdPrefix="package-section-rules">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-xl font-bold">Connection Rules</h2>
+                            <button class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-sm flex items-center gap-1">
+                                <Plus size={'0.8rem'}/>
+                                Add Rule
+                            </button>
+                        </div>
+                        <div class="text-gray-500">No connection rules defined yet.</div>
                     </div>
-                    <div class="text-gray-500">No connection rules defined yet.</div>
-                </div>
+                </Expandable>
             </div>
                                 
             
