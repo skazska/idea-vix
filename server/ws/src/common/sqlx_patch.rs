@@ -17,3 +17,18 @@ macro_rules! sqlx_build_set {
         parts.join(", ")
     }}
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn build_set_none() {
+        let set = crate::sqlx_build_set!( false => "name = ?", false => "icon = ?" );
+        assert!(set.is_empty());
+    }
+
+    #[test]
+    fn build_set_some() {
+        let set = crate::sqlx_build_set!( true => "name = ?", false => "icon = ?", true => "is_public = ?" );
+        assert_eq!(set, "name = ?, is_public = ?");
+    }
+}
