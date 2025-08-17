@@ -144,56 +144,9 @@ impl From<PackageDb> for Package {
     }
 }
 
-/// Access roles applicable to a package.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum PackageAccess {
-    /// Full control; can update/delete and manage roles.
-    Owner,
-    /// Management rights; can update/delete.
-    Manage,
-    /// Can edit content but not manage access.
-    Edit,
-    /// Read-only access.
-    View,
-}
-
-impl From<String> for PackageAccess {
-    fn from(role: String) -> Self {
-        match role.as_str() {
-            "owner" => PackageAccess::Owner,
-            "manage" => PackageAccess::Manage,
-            "edit" => PackageAccess::Edit,
-            "view" => PackageAccess::View,
-            _ => panic!("Unknown package access role: {}", role),
-        }
-    }
-}
-
-impl Into<String> for PackageAccess {
-    fn into(self) -> String {
-        match self {
-            PackageAccess::Owner => "owner".to_string(),
-            PackageAccess::Manage => "manage".to_string(),
-            PackageAccess::Edit => "edit".to_string(),
-            PackageAccess::View => "view".to_string(),
-        }
-    }
-}
-
-/// Wrapper returned by service when reporting a role for a package.
-#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
-pub struct PackageAccessRole {
-    /// The effective role granted for a package.
-    pub role: PackageAccess,
-}
-
-impl From<PackageAccessRoleDb> for PackageAccessRole {
-    fn from(item: PackageAccessRoleDb) -> Self {
-        Self {
-            role: item.role.into(),
-        }
-    }
-}
+pub use crate::common::access::RoleOnly as PackageAccessRole;
+pub use crate::common::access::GrantRequest as NewPackageAccessItem;
+use crate::common::access::validate_grant_role;
 
 
 /// Service layer encapsulating business logic for packages.
@@ -206,14 +159,7 @@ pub struct PackageService {
     items_store: PackageStore,
 }
 
-/// Input payload to grant access for an address to a package.
-#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
-pub struct NewPackageAccessItem {
-    #[validate(length(min = 3, max = 255))]
-    pub address: String,
-    /// One of: "view", "edit", "manage"
-    pub role: String,
-}
+// NewPackageAccessItem is re-exported from common::access::GrantRequest
 
 /// Response model for a package access mapping.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -295,7 +241,7 @@ impl<'a> PackageService {
         }
 
         // validate role value
-        if validate_role(&item.role).is_err() {
+    if validate_grant_role(&item.role).is_err() {
             return Err(ModelError::BadRequest("Invalid role".to_string()));
         }
 
@@ -335,15 +281,14 @@ impl<'a> PackageService {
 
 // --- helpers and conversions ---
 
-fn validate_role(role: &str) -> Result<(), validator::ValidationError> {
-    match role {
-        "view" | "edit" | "manage" => Ok(()),
-        _ => Err(validator::ValidationError::new("invalid_role")),
-    }
-}
-
 impl From<PackageAccessRolesDb> for PackageAccessRoles {
     fn from(value: PackageAccessRolesDb) -> Self {
         Self { package_id: value.package_id, address: value.address, role: value.role }
+    }
+}
+
+impl From<PackageAccessRoleDb> for PackageAccessRole {
+    fn from(item: PackageAccessRoleDb) -> Self {
+        Self { role: item.role.into() }
     }
 }

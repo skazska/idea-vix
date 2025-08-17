@@ -1,3 +1,15 @@
+//! Board storage module: SQLx-backed persistence for boards and access roles.
+//!
+//! Scope:
+//! - CRUD on `board` rows
+//! - Visibility-filtered reads based on session address
+//! - Access role CRUD in `board_access`
+//!
+//! Design notes:
+//! - Uses explicit transactions where multi-step writes must be atomic
+//! - Leaves access control decisions to the service layer (except visibility filters)
+//! - Patch updates bind only provided fields, supporting NULL to clear values
+
 use std::{ops::Deref, sync::Arc};
 
 use sqlx::Error;
@@ -31,6 +43,28 @@ pub struct PatchBoardDb<'a> {
     pub description: Option<Option<&'a str>>,
     pub icon: Option<Option<&'a str>>,
     pub is_public: Option<bool>,
+}
+
+/// Database model for a single role value for a (board_id, address).
+#[derive(sqlx::FromRow, Debug)]
+pub struct BoardAccessRoleDb {
+    pub role: String,
+}
+
+/// Insert model for a board access role entry.
+#[derive(Debug)]
+pub struct NewBoardAccessDb<'a> {
+    pub board_id: i32,
+    pub address: &'a str,
+    pub role: &'a str,
+}
+
+/// Database model representing an access role mapping row.
+#[derive(sqlx::FromRow, Debug)]
+pub struct BoardAccessRolesDb {
+    pub board_id: i32,
+    pub address: String,
+    pub role: String,
 }
 
 
@@ -177,8 +211,8 @@ impl<'a> BoardStore {
         }
     }
 
-    /// Updates an item in the store (owner or manage)
-    pub async fn update_item(&self, id: i32, item: PatchBoardDb<'a>, session: &SessionData) -> Result<BoardDb, Error> {
+    /// Updates an item in the store. Access is validated by the service layer.
+    pub async fn update_item(&self, id: i32, item: PatchBoardDb<'a>) -> Result<BoardDb, Error> {
         let mut query = String::from("UPDATE board SET ");
 
         //params strings
@@ -196,7 +230,8 @@ impl<'a> BoardStore {
         }
 
         query.push_str(&params.join(", "));
-        query.push_str(" WHERE id = ? AND EXISTS (SELECT 1 FROM board_access WHERE board_id = ? AND address = ? AND role IN ('owner','manage')) RETURNING id, name, description, icon, is_public");
+    // only filter by id; access is validated in service
+    query.push_str(" WHERE id = ? RETURNING id, name, description, icon, is_public");
 
         let connection = self.pool.deref();
         let mut transaction = connection.begin().await?;
@@ -220,11 +255,9 @@ impl<'a> BoardStore {
             None => q,
         };
 
-        // Bind id for WHERE, then id again for EXISTS, then address
+        // Bind id for WHERE
         let result = match q
             .bind(&id)
-            .bind(&id)
-            .bind(&session.address)
             .fetch_one(&mut *transaction)
             .await {
                 Ok(row) => row,
@@ -240,18 +273,28 @@ impl<'a> BoardStore {
         }
     }
 
-    /// Deletes an item from the store (owner only)
-    pub async fn delete_item(&self, id: i32, session: &SessionData) -> Result<BoardDb, Error> {
+    /// Deletes an item from the store and related access rows. Access validated by service.
+    pub async fn delete_item(&self, id: i32) -> Result<BoardDb, Error> {
         let connection = self.pool.deref();
         let mut transaction = connection.begin().await?;
 
-        let result = match sqlx::query_as::<_, BoardDb>("DELETE FROM board WHERE id = ? AND EXISTS (SELECT 1 FROM board_access WHERE board_id = ? AND address = ? AND role = 'owner') RETURNING id, name, description, icon, is_public")
+        let result = match sqlx::query_as::<_, BoardDb>("DELETE FROM board WHERE id = ? RETURNING id, name, description, icon, is_public")
             .bind(id)
-            .bind(id)
-            .bind(&session.address)
             .fetch_one(&mut *transaction)
             .await {
                 Ok(row) => row,
+                Err(err) => {
+                    let _ = transaction.rollback().await;
+                    return Err(err);
+                }
+            };
+
+        // clean up access rows
+        match sqlx::query("DELETE FROM board_access WHERE board_id = ?")
+            .bind(id)
+            .execute(&mut *transaction)
+            .await {
+                Ok(_) => {}
                 Err(err) => {
                     let _ = transaction.rollback().await;
                     return Err(err);
@@ -262,5 +305,59 @@ impl<'a> BoardStore {
             Ok(_) => Ok(result),
             Err(err) => Err(err),
         }
+    }
+
+    /// Fetch roles the given `session` has for a particular board id.
+    pub async fn get_access_roles(&self, id: i32, session: &SessionData) -> Result<Vec<BoardAccessRoleDb>, Error> {
+        let connection = self.pool.deref();
+
+        let access = sqlx::query_as::<_, BoardAccessRoleDb>("SELECT role FROM board_access WHERE board_id = ? AND address = ?")
+            .bind(id)
+            .bind(&session.address)
+            .fetch_all(connection)
+            .await?;
+
+        Ok(access)
+    }
+
+    /// Grant a role to an address for a specific board.
+    pub async fn add_access_role(&self, item: NewBoardAccessDb<'a>) -> Result<BoardAccessRolesDb, Error> {
+        let connection = self.pool.deref();
+
+        let result = sqlx::query_as::<_, BoardAccessRolesDb>("INSERT INTO board_access (board_id, address, role) VALUES (?, ?, ?) RETURNING board_id, address, role")
+            .bind(item.board_id)
+            .bind(item.address)
+            .bind(item.role)
+            .fetch_one(connection)
+            .await?;
+
+        Ok(result)
+    }
+
+    /// Revoke access for an address and return the removed mapping row.
+    pub async fn revoke_access_role(&self, board_id: i32, address: &str) -> Result<BoardAccessRolesDb, Error> {
+        let connection = self.pool.deref();
+
+        let result = sqlx::query_as::<_, BoardAccessRolesDb>("DELETE FROM board_access WHERE board_id = ? AND address = ? RETURNING board_id, address, role")
+            .bind(board_id)
+            .bind(address)
+            .fetch_one(connection)
+            .await?;
+
+        Ok(result)
+    }
+
+    /// List all access mappings for a board id.
+    pub async fn list_access_roles(&self, board_id: i32) -> Result<Vec<BoardAccessRolesDb>, Error> {
+        let connection = self.pool.deref();
+
+        let rows = sqlx::query_as::<_, BoardAccessRolesDb>(
+            "SELECT board_id, address, role FROM board_access WHERE board_id = ? ORDER BY address"
+        )
+        .bind(board_id)
+        .fetch_all(connection)
+        .await?;
+
+        Ok(rows)
     }
 }

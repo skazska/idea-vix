@@ -38,6 +38,32 @@ paths:
                   $ref: '#/components/schemas/Board'
         '500':
           $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - Boards
+      summary: Add a new board
+      description: Create a new board (requires authentication)
+      security:
+        - SessionToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BoardNew'
+      responses:
+        '201':
+          description: The created board
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Board'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /api/board/{id}:
     get:
       tags:
@@ -64,6 +90,159 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Board'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      tags:
+        - Boards
+      summary: Update an existing board
+      description: Update details of an existing board (requires authentication; owner or manage role required)
+      security:
+        - SessionToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier of the board
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BoardPartial'
+      responses:
+        '200':
+          description: The updated board
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Board'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - Boards
+      summary: Remove a board
+      description: Delete a board by its ID (requires authentication; owner or manage role required)
+      security:
+        - SessionToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier of the board
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '204':
+          description: Board deleted
+  /api/board/{id}/access:
+    post:
+      tags:
+        - Boards
+      summary: Grant access to a board
+      description: Owner grants a role (view, edit, manage) to an address
+      security:
+        - SessionToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Board id
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BoardAccessGrant'
+      responses:
+        '200':
+          description: Granted mapping
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoardAccessMapping'
+    get:
+      tags:
+        - Boards
+      summary: List access mappings for a board
+      description: Owner lists all access role mappings for a board
+      security:
+        - SessionToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Board id
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Access mappings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BoardAccessMapping'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/board/{id}/access/{address}:
+    delete:
+      tags:
+        - Boards
+      summary: Revoke access to a board
+      description: Owner revokes access for an address
+      security:
+        - SessionToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Board id
+          schema:
+            type: integer
+        - name: address
+          in: path
+          required: true
+          description: Address to revoke
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Revoked mapping
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoardAccessMapping'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -454,9 +633,9 @@ components:
         - name
       properties:
         id:
-          type: string
+          type: integer
           description: Unique identifier for the board
-          example: "123"
+          example: 1
         name:
           type: string
           description: Name of the board
@@ -469,6 +648,52 @@ components:
           type: string
           description: Optional icon identifier for the board
           example: "lightbulb"
+        is_public:
+          type: boolean
+          description: Whether the board is publicly accessible
+          example: false
+    BoardNew:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Name of the board
+          minLength: 1
+          example: "Project Ideas"
+        description:
+          type: string
+          description: Optional description of the board
+          example: "A board for collecting project ideas"
+        icon:
+          type: string
+          description: Optional icon identifier for the board
+          example: "lightbulb"
+        is_public:
+          type: boolean
+          description: Whether the board is publicly accessible (defaults to false)
+          example: false
+    BoardPartial:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the board
+          minLength: 1
+          example: "Updated Project Ideas"
+        description:
+          type: string
+          description: Optional description of the board
+          example: "Updated board description"
+        icon:
+          type: string
+          description: Optional icon identifier for the board
+          example: "lightbulb-outline"
+        is_public:
+          type: boolean
+          description: Whether the board is publicly accessible
+          example: true
     Package:
       type: object
       required:
@@ -643,6 +868,43 @@ components:
         package_id:
           type: integer
           description: Package id
+          example: 1
+        address:
+          type: string
+          description: Address with access
+          example: user@example.com
+        role:
+          type: string
+          description: Granted role
+          enum: [view, edit, manage, owner]
+          example: view
+
+    BoardAccessGrant:
+      type: object
+      required:
+        - address
+        - role
+      properties:
+        address:
+          type: string
+          description: Address to grant access to
+          example: user@example.com
+        role:
+          type: string
+          description: Role to grant (view, edit, manage)
+          enum: [view, edit, manage]
+          example: view
+
+    BoardAccessMapping:
+      type: object
+      required:
+        - board_id
+        - address
+        - role
+      properties:
+        board_id:
+          type: integer
+          description: Board id
           example: 1
         address:
           type: string
