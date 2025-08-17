@@ -112,6 +112,7 @@ impl From<PackageDb> for Package {
 pub use crate::common::access::RoleOnly as PackageAccessRole;
 pub use crate::common::access::GrantRequest as NewPackageAccessItem;
 use crate::common::access::validate_grant_role;
+use crate::common::service_access::{has_owner, has_owner_or_manage, ensure_not_self_revoke};
 
 
 /// Service layer encapsulating business logic for packages.
@@ -173,7 +174,7 @@ impl<'a> PackageService {
     pub async fn update_item(&self, id: i32, item: &'a PatchPackageItem, session: &SessionData) -> Result<Package, ModelError> {
         // access check moved to service: require owner or manage
         let roles = self.items_store.get_access_roles(id, session).await?;
-        if !roles.iter().any(|r| r.role == "owner" || r.role == "manage") {
+        if !has_owner_or_manage(roles.iter().map(|r| r.role.as_str())) {
             return Err(ModelError::Forbidden("You are not allowed to update this package".to_string()));
         }
 
@@ -188,7 +189,7 @@ impl<'a> PackageService {
     pub async fn delete_item(&self, id: i32, session: &SessionData) -> Result<Package, ModelError> {
         let roles = self.items_store.get_access_roles(id, session).await?;
 
-        if !roles.iter().any(|r| r.role == "owner" || r.role == "manage") {
+        if !has_owner_or_manage(roles.iter().map(|r| r.role.as_str())) {
             return Err(ModelError::Forbidden("You are not allowed to delete this package".to_string()));
         }
 
@@ -201,7 +202,7 @@ impl<'a> PackageService {
     pub async fn add_access_role(&self, package_id: i32, item: &NewPackageAccessItem, session: &SessionData) -> Result<PackageAccessRoles, ModelError> {
         // Only owner can manage access list
         let roles = self.items_store.get_access_roles(package_id, session).await?;
-        if !roles.iter().any(|r| r.role == "owner") {
+        if !has_owner(roles.iter().map(|r| r.role.as_str())) {
             return Err(ModelError::Forbidden("Only owner can grant access".to_string()));
         }
 
@@ -219,13 +220,11 @@ impl<'a> PackageService {
     /// Revoke access for an address (owner only)
     pub async fn revoke_access_role(&self, package_id: i32, address: &str, session: &SessionData) -> Result<PackageAccessRoles, ModelError> {
         let roles = self.items_store.get_access_roles(package_id, session).await?;
-        if !roles.iter().any(|r| r.role == "owner") {
+        if !has_owner(roles.iter().map(|r| r.role.as_str())) {
             return Err(ModelError::Forbidden("Only owner can revoke access".to_string()));
         }
         // Prevent owner from revoking their own owner role via this endpoint
-        if address == session.address {
-            return Err(ModelError::BadRequest("Cannot revoke own access".to_string()));
-        }
+        ensure_not_self_revoke(address, &session.address)?;
 
         let stored = self.items_store.revoke_access_role(package_id, address).await?;
         Ok(stored.into())
@@ -235,7 +234,7 @@ impl<'a> PackageService {
     pub async fn list_access_roles(&self, package_id: i32, session: &SessionData) -> Result<Vec<PackageAccessRoles>, ModelError> {
         // Only owner can view access list
         let roles = self.items_store.get_access_roles(package_id, session).await?;
-        if !roles.iter().any(|r| r.role == "owner") {
+        if !has_owner(roles.iter().map(|r| r.role.as_str())) {
             return Err(ModelError::Forbidden("Only owner can list access".to_string()));
         }
 

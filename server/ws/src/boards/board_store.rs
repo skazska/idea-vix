@@ -213,25 +213,22 @@ impl<'a> BoardStore {
 
     /// Updates an item in the store. Access is validated by the service layer.
     pub async fn update_item(&self, id: i32, item: PatchBoardDb<'a>) -> Result<BoardDb, Error> {
-        let mut query = String::from("UPDATE board SET ");
+        let set = crate::sqlx_build_set!(
+            item.name.is_some() => "name = ?",
+            item.description.is_some() => "description = ?",
+            item.icon.is_some() => "icon = ?",
+            item.is_public.is_some() => "is_public = ?"
+        );
 
-        //params strings
-        let mut params = Vec::<&str>::new();
-
-        if item.name.is_some() { params.push("name = ?");}
-        if item.description.is_some() { params.push("description = ?"); }
-        if item.icon.is_some() { params.push("icon = ?"); }
-        if item.is_public.is_some() { params.push("is_public = ?"); }
-
-        if params.is_empty() {
+        if set.is_empty() {
             return Err(Error::InvalidArgument(
                 "No fields to update in board item".to_string(),
             ));
         }
-
-        query.push_str(&params.join(", "));
-    // only filter by id; access is validated in service
-    query.push_str(" WHERE id = ? RETURNING id, name, description, icon, is_public");
+        let query = format!(
+            "UPDATE board SET {} WHERE id = ? RETURNING id, name, description, icon, is_public",
+            set
+        );
 
         let connection = self.pool.deref();
         let mut transaction = connection.begin().await?;

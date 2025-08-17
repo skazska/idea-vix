@@ -104,6 +104,7 @@ impl From<BoardDb> for Board {
 pub use crate::common::access::RoleOnly as BoardAccessRole;
 pub use crate::common::access::GrantRequest as NewBoardAccessItem;
 use crate::common::access::validate_grant_role;
+use crate::common::service_access::{has_owner, has_owner_or_manage, ensure_not_self_revoke};
 
 /// Response model for a board access mapping.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -154,7 +155,7 @@ impl<'a> BoardService {
     pub async fn update_item(&self, id: i32, item: &'a PatchBoardItem, session: &SessionData) -> Result<Board, ModelError> {
         // access check moved to service: require owner or manage
         let roles = self.items_store.get_access_roles(id, session).await?;
-        if !roles.iter().any(|r| r.role == "owner" || r.role == "manage") {
+        if !has_owner_or_manage(roles.iter().map(|r| r.role.as_str())) {
             return Err(ModelError::Forbidden("You are not allowed to update this board".to_string()));
         }
 
@@ -166,7 +167,7 @@ impl<'a> BoardService {
     pub async fn delete_item(&self, id: i32, session: &SessionData) -> Result<Board, ModelError> {
         // access check moved to service: require owner or manage
         let roles = self.items_store.get_access_roles(id, session).await?;
-        if !roles.iter().any(|r| r.role == "owner" || r.role == "manage") {
+        if !has_owner_or_manage(roles.iter().map(|r| r.role.as_str())) {
             return Err(ModelError::Forbidden("You are not allowed to delete this board".to_string()));
         }
 
@@ -179,7 +180,7 @@ impl<'a> BoardService {
     pub async fn add_access_role(&self, board_id: i32, item: &NewBoardAccessItem, session: &SessionData) -> Result<BoardAccessRoles, ModelError> {
         // Only owner can manage access list
         let roles = self.items_store.get_access_roles(board_id, session).await?;
-        if !roles.iter().any(|r| r.role == "owner") {
+        if !has_owner(roles.iter().map(|r| r.role.as_str())) {
             return Err(ModelError::Forbidden("Only owner can grant access".to_string()));
         }
 
@@ -197,13 +198,11 @@ impl<'a> BoardService {
     /// Revoke access for an address (owner only)
     pub async fn revoke_access_role(&self, board_id: i32, address: &str, session: &SessionData) -> Result<BoardAccessRoles, ModelError> {
         let roles = self.items_store.get_access_roles(board_id, session).await?;
-        if !roles.iter().any(|r| r.role == "owner") {
+        if !has_owner(roles.iter().map(|r| r.role.as_str())) {
             return Err(ModelError::Forbidden("Only owner can revoke access".to_string()));
         }
         // Prevent owner from revoking their own access
-        if address == session.address {
-            return Err(ModelError::BadRequest("Cannot revoke own access".to_string()));
-        }
+        ensure_not_self_revoke(address, &session.address)?;
 
         let stored = self.items_store.revoke_access_role(board_id, address).await?;
         Ok(stored.into())
@@ -213,7 +212,7 @@ impl<'a> BoardService {
     pub async fn list_access_roles(&self, board_id: i32, session: &SessionData) -> Result<Vec<BoardAccessRoles>, ModelError> {
         // Only owner can view access list
         let roles = self.items_store.get_access_roles(board_id, session).await?;
-        if !roles.iter().any(|r| r.role == "owner") {
+        if !has_owner(roles.iter().map(|r| r.role.as_str())) {
             return Err(ModelError::Forbidden("Only owner can list access".to_string()));
         }
 

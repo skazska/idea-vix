@@ -13,13 +13,14 @@ Purpose: Consolidate duplicated types and utilities across feature modules (boar
   - Includes: `NewItemFields`, `PatchItemFields` with validations and `deserialize_some`
   - Refactor aliases: `NewBoardItem`, `PatchBoardItem`, `NewPackageItem`, `PatchPackageItem`
   - Update conversions to DB patch/insert types in stores
-- [ ] Common access guard helpers (Proposed)
+- [x] Common access guard helpers (Done)
   - Module: `common::service_access`
   - Helpers: `has_owner`, `has_owner_or_manage`, `ensure_not_self_revoke`
-  - Use in board/package services to replace repeated guards
-- [ ] SQL update builder macro/helper (Optional)
+  - Used in board/package services to replace repeated guards
+- [x] SQL update builder macro/helper (Done)
   - Module: `common::sqlx_patch`
-  - Macro or helper to compose SET clauses and bind optional fields
+  - Macro: `sqlx_build_set!` to compose dynamic SET clauses
+  - Used in: `boards::board_store::update_item`, `package::package_store::update_item`
 - [ ] API router macros (Optional)
   - Module: `api::router_macros`
   - Macro to generate CRUD + access routes with pluggable types/service methods
