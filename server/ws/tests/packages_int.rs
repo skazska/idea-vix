@@ -7,6 +7,9 @@ use serde::Deserialize;
 #[derive(Deserialize)]
 struct PackageResp { id: i32, name: String }
 
+#[derive(Deserialize)]
+struct AccessMapping { package_id: i32, address: String, role: String }
+
 #[tokio::test]
 async fn packages_crud_ok() {
     let app = test_app::TestApp::new().await;
@@ -43,12 +46,22 @@ async fn package_access_invite_and_permissions() {
     let resp = helpers::post_json(&app.router, &format!("/api/package/{}/access", pkg_id), r#"{"address":"guest@example.com","role":"view"}"#, Some(&owner_cookie)).await;
     assert_eq!(resp.status(), StatusCode::OK);
 
-    // Owner can list access and should see guest mapping
-    let resp = helpers::get(&app.router, &format!("/api/package/{}/access", pkg_id), Some(&owner_cookie)).await;
-    assert_eq!(resp.status(), StatusCode::OK);
-
     // Guest session
     let guest_cookie = helpers::auth_cookie_for(&app.router, "guest@example.com").await;
+
+    // Owner can list access and should see owner + guest mapping
+    let resp = helpers::get(&app.router, &format!("/api/package/{}/access", pkg_id), Some(&owner_cookie)).await;
+    let (_status, list): (StatusCode, Vec<AccessMapping>) = helpers::read_json(resp).await;
+    assert!(list.iter().any(|m| m.address == "owner@example.com" && m.role == "owner"));
+    assert!(list.iter().any(|m| m.address == "guest@example.com" && m.role == "view"));
+
+    // Guest cannot list access (owner-only)
+    let resp = helpers::get(&app.router, &format!("/api/package/{}/access", pkg_id), Some(&guest_cookie)).await;
+    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+
+    // Unauthenticated must be 401
+    let resp = helpers::get(&app.router, &format!("/api/package/{}/access", pkg_id), None).await;
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
 
     // Guest can GET the package now
     let resp = helpers::get(&app.router, &format!("/api/package/{}", pkg_id), Some(&guest_cookie)).await;

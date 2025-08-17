@@ -72,3 +72,19 @@ You can also run specific tests:
 - Run a single integration test file: `cargo test --test <test_name>`, e.g., `cargo test --test sessions_int`
 
 Note: Integration tests automatically create a temporary database and run migrations.
+
+### Test helpers
+
+Integration tests use shared helpers in `server/ws/tests/helpers/mod.rs` to reduce boilerplate:
+
+- auth_cookie_for(router, address): perform signin+verify and return the `Authorization` cookie string
+- get/post_json/put_json/delete: send in-process requests with optional cookie
+- read_json: decode JSON response into a typed value and also returns the HTTP status
+
+Example:
+
+```rust
+let cookie = helpers::auth_cookie_for(&app.router, "user@example.com").await;
+let resp = helpers::post_json(&app.router, "/api/package", r#"{"name":"Demo"}"#, Some(&cookie)).await;
+assert_eq!(resp.status(), axum::http::StatusCode::CREATED);
+```

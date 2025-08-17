@@ -233,6 +233,37 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PackageAccessMapping'
+    get:
+      tags:
+        - Packages
+      summary: List access mappings for a package
+      description: Owner lists all access role mappings for a package
+      security:
+        - SessionToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Package id
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Access mappings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PackageAccessMapping'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /api/package/{id}/access/{address}:
     delete:
       tags:
@@ -445,9 +476,9 @@ components:
         - name
       properties:
         id:
-          type: string
+          type: integer
           description: Unique identifier for the package
-          example: "pkg-123"
+          example: 1
         name:
           type: string
           description: Name of the package

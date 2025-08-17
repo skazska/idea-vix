@@ -36,6 +36,20 @@ How it works:
 - Temp SQLite file per test for isolation; migrations run automatically
 - JWT service is initialized with a test secret; session flow uses stub code `some_code`
 
+Helpers:
+
+- Shared helpers live at `server/ws/tests/helpers/mod.rs` and provide:
+  - `auth_cookie_for(&Router, &str)` to get an Authorization cookie via signin+verify
+  - `get/post_json/put_json/delete` for concise in-process requests
+  - `read_json` to parse JSON bodies in tests
+  Example usage:
+
+  ```rust
+  let cookie = helpers::auth_cookie_for(&app.router, "user@example.com").await;
+  let resp = helpers::get(&app.router, "/api/package", Some(&cookie)).await;
+  assert_eq!(resp.status(), axum::http::StatusCode::OK);
+  ```
+
 ### Unit Tests
 
 Location:
