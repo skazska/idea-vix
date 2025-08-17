@@ -19,224 +19,270 @@
   - [Ownership](#ownership)
   - [Invite user to board or package](#invite-user-to-board-or-package)
 
+## Implementation status
+
+### Legend
+
+[v] - implemented
+[~] - partially implemented
+[]  - not implemented
+[?] - unknown
+[MAYBE] - may be not needed?
+
 ## Boards
+
+Status [~]
 
 ### View boards
 
-Who: any user
+Status [~]
+
+Who: any user [v]
 
 How:
 
-1. Navigate to boards page
-2. List available boards
-3. Open board view
+1. Navigate to boards page [v]
+2. List available boards [v]
+3. Open board view [v]
 
 Restrictions:
 
-1. unidentified user can view only public boards
-2. authenticated user can view own boards and public boards
-3. invited user can view boards they are invited to
+1. unidentified user can view only public boards [~]
+2. authenticated user can view own boards and public boards [~]
+3. invited user can view boards they are invited to [~]
 
 ### Create board
 
-Who: authenticated user
+Status [~]
+
+Who: authenticated user [~]
 
 How:
 
-1. Navigate to boards
-2. Summon "Create Board" form
-3. Fill in board properties (name, description, icon)
-4. Submit form
+1. Navigate to boards [v]
+2. Summon "Create Board" form [v]
+3. Fill in board properties (name, description, icon) [v]
+4. Submit form [v]
 
 ### Work with board
 
-Who: any user
+Status [~]
+
+Who: any user [v]
 
 How:
 
-1. Navigate to boards
-2. Open board view
+1. Navigate to boards [v]
+2. Open board view [v]
 
 restrictions:
 
-1. unidentified user can view only public board
-2. authenticated user can view own board and public board
-3. invited user can view board they are invited to
+1. unidentified user can view only public board [~]
+2. authenticated user can view own board and public board [~]
+3. invited user can view board they are invited to []
 
 #### Change board properties
 
+Status [~]
+
 Who:
 
-- board owner
-- user invited to board with "manage" permission
+- board owner [~]
+- user invited to board with "manage" permission []
 
 How:
 
-1. switch to edit mode in board view
-2. Fill in properties form
-3. save changes
+1. switch to edit mode in board view [v]
+2. Fill in properties form [v]
+3. save changes [v]
 
 #### Draw shaped nodes with links
 
+Status []
+
 Who:
 
-- board owner
-- user invited to board with "draw" permission
+- board owner []
+- user invited to board with "draw" permission []
 
 How:
 
-0. Switch to "Draw" mode in board view
-1. Put shapes on board:
-1.1. there is a set of available (defined) shapes to be placed at board as nodes (workshop)
-1.2. A node of shape can be placed on board as connected, when attaching a link to node which already on board.
-1.3. change node shape from available in workshop
-2. Connect shapes (put links):
-2.1. link 2 placed nodes
-2.2. attach link to placed node
-2.3. change link type from available in workshop
+0. Switch to "Draw" mode in board view []
+1. Put shapes on board: []
+1.1. there is a set of available (defined) shapes to be placed at board as nodes (workshop) []
+1.2. A node of shape can be placed on board as connected, when attaching a link to node which already on board []
+1.3. change node shape from available in workshop []
+2. Connect shapes (put links): []
+2.1. link 2 placed nodes []
+2.2. attach link to placed node []
+2.3. change link type from available in workshop []
 
 #### Manage node shapes, link types and restrictions by shapes connection rules
 
+Status []
+
 Who:
 
-- board owner
-- user invited to board with "manage" permission
+- board owner []
+- user invited to board with "manage" permission []
 
 How:
 
-0. Activate "Manage workshop" in board view
-1. by adding from package
-    - list available packages
-    - select package
-    - check items to use in board
-2. by adding internal items
-    - add new item (node shape, link type, connection rule)
-    - define item
-    - save item
+0. Activate "Manage workshop" in board view []
+1. by adding from package []
+    - list available packages []
+    - select package []
+    - check items to use in board []
+2. by adding internal items []
+    - add new item (node shape, link type, connection rule) []
+    - define item []
+    - save item []
 
 #### add package to board
 
+Status []
+
 Who:
 
-- board owner
+- board owner []
 
 How:
 
-1. click "Add Package" button in board view
-2. Select package from list
-3. Click "Add" button
+1. click "Add Package" button in board view []
+2. Select package from list []
+3. Click "Add" button []
 
 ## Packages
 
+Status [~]
+
 ### View packages
 
-Who: any user
+Status [~]
+
+Who: any user [v]
 
 How:
 
-1. Navigate to packages page
-2. List available packages
-3. Open package view
+1. Navigate to packages page [v]
+2. List available packages [v]
+3. Open package view [v]
 
 Restrictions:
 
-1. unidentified user can view only public packages
-2. authenticated user can view own packages and public packages
-3. invited user can view packages they are invited to [MAYBE]
+1. unidentified user can view only public packages [v]
+2. authenticated user can view own packages and public packages [v]
+3. invited user can view packages they are invited to []
 
 ### Create package
 
-Who: authenticated user
+Status [v]
+
+Who: authenticated user [v]
 
 How:
 
-1. Navigate to packages page
-2. Summon "Create Package" form
-3. Fill in package properties (name, description, icon)
-4. Submit form
+1. Navigate to packages page [v]
+2. Summon "Create Package" form [v]
+3. Fill in package properties (name, description, icon, is_public) [v]
+4. Submit form [v]
 
 ### Work with package
 
-Who: any user
+Status [~]
+
+Who: any user [v]
 
 How:
 
-1. Navigate to packages page
-2. Open package view
+1. Navigate to packages page [v]
+2. Open package view [v]
 
 Restrictions:
 
-1. unidentified user can view only public packages
-2. authenticated user can view own packages and public packages
-3. invited user can view packages they are invited to [MAYBE]
+1. unidentified user can view only public packages [v]
+2. authenticated user can view own packages and public packages [v]
+3. invited user can view packages they are invited to []
 
 #### Change package properties
 
+Status [~]
+
 Who:
 
-- package owner
-- user invited to package with "manage" permission [MAYBE]
+- package owner [v]
+- user invited to package with "manage" permission []
 
 How:
 
-1. switch to edit mode in package view
-2. Fill in properties form
-3. save changes
+1. switch to edit mode in package view [v]
+2. Fill in properties form [v]
+3. save changes [v]
 
 #### Add items to package
 
+Status []
+
 Who:
 
-- package owner
-- user invited to package with "manage" permission [MAYBE]
+- package owner []
+- user invited to package with "manage" permission []
 
 How:
 
-1. Activate "Add Shape" to add new shape item to package
-    - define shape item
-    - save shape item
-2. Activate "Add Link" to add new link item to package
-    - define link item
-    - save link item
-3. Activate "Add Rule" to add new connection rule item to package
-    - define rule item
-    - save rule item
+1. Activate "Add Shape" to add new shape item to package []
+    - define shape item []
+    - save shape item []
+2. Activate "Add Link" to add new link item to package []
+    - define link item []
+    - save link item []
+3. Activate "Add Rule" to add new connection rule item to package []
+    - define rule item []
+    - save rule item []
 
 ## Users
 
+Status [v]
+
 ### Identification
 
-Who: any user
+Status [~]
+
+Who: any user [v]
 
 How:
 
-1. Activate "Sign In"
-2. Fill address to receive confirmation code
-3. Submit
-4. Enter confirmation code
-5. Submit
+1. Activate "Sign In" [v]
+2. Fill address to receive confirmation code [v]
+3. Submit [v]
+4. Enter confirmation code [v]
+5. Submit [v]
 
 ### Ownership
 
-Who: identified user
+Status [v]
+
+Who: identified user [v]
 
 How:
 
-1. Create board
-2. Create package
+1. Create board [v]
+2. Create package [v]
 
 Explanation:
 package and board ownership is defined by address used for identification.
 
 ### Invite user to board or package
 
-Who: board or package owner
+Status []
+
+Who: board or package owner []
 
 How:
 
-1. Activate "Invite User" in board or package view
-2. Fill in user address and permissions
-3. Submit invitation
+1. Activate "Invite User" in board or package view []
+2. Fill in user address and permissions []
+3. Submit invitation []
 
 Explanation:
 The invited user will receive a notification and when identified by this address will have access and permissions defined in invitation.

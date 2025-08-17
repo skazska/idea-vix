@@ -1,10 +1,22 @@
+//! Package storage module: SQLx-backed persistence for packages and access roles.
+//!
+//! Scope:
+//! - CRUD on `package` rows
+//! - Visibility-filtered reads based on session address
+//! - Access role CRUD in `package_access`
+//!
+//! Design notes:
+//! - Uses explicit transactions where multi-step writes must be atomic
+//! - Leaves access control decisions to the service layer (except visibility filters)
+//! - Patch updates bind only provided fields, supporting NULL to clear values
+//
 use std::{ops::Deref, sync::Arc};
 
 use sqlx::Error;
 
 use crate::{session::session_service::SessionData};
 
-/// Package database content model
+/// Database model for a package row.
 #[derive(sqlx::FromRow, Debug)]
 pub struct PackageDb {
     pub id: i32,
@@ -14,7 +26,7 @@ pub struct PackageDb {
     pub is_public: bool,
 }
 
-/// New package database model
+/// Insert model for a new package.
 #[derive(Debug)]
 pub struct NewPackageDb<'a> {
     pub name: &'a str,
@@ -23,7 +35,11 @@ pub struct NewPackageDb<'a> {
     pub is_public: bool,
 }
 
-/// Patch package database model
+/// Update model for an existing package.
+///
+/// Notes about nested options:
+/// - `description: Option<Option<&str>>`: `None` -> not provided; `Some(None)` -> set NULL; `Some(Some(v))` -> set value
+/// - `icon` follows the same pattern.
 #[derive(Debug)]
 pub struct PatchPackageDb<'a> {
     pub name: Option<&'a str>,
@@ -32,13 +48,13 @@ pub struct PatchPackageDb<'a> {
     pub is_public: Option<bool>,
 }
 
-/// Package access database model
+/// Database model for a single role value for a (package_id, address).
 #[derive(sqlx::FromRow, Debug)]
 pub struct PackageAccessRoleDb {
     pub role: String,
 }
 
-/// New Package access database model
+/// Insert model for a package access role entry.
 #[derive(Debug)]
 pub struct NewPackageAccessDb<'a> {
     pub package_id: i32,
@@ -46,7 +62,7 @@ pub struct NewPackageAccessDb<'a> {
     pub role: &'a str,
 }
 
-/// Package access roles database model
+/// Database model representing an access role mapping row.
 #[derive(sqlx::FromRow, Debug)]
 pub struct PackageAccessRolesDb {
     pub package_id: i32,
@@ -54,21 +70,26 @@ pub struct PackageAccessRolesDb {
     pub role: String,
 }
 
-/// returns function 
+// (internal helper note left intentionally blank)
 
-/// A package store
+/// Storage layer for packages, backed by SQLx + SQLite.
+///
+/// Handles transactions and low-level SQL, without applying access-control decisions
+/// (those are enforced by the service layer where required).
 pub struct PackageStore {
     pub pool: Arc<sqlx::Pool<sqlx::Sqlite>>,
 }
 
 impl<'a> PackageStore {
+    /// Create a new store using the given pool.
     pub fn new(pool: Arc<sqlx::Pool<sqlx::Sqlite>>) -> Self {
         Self { 
             pool,
         }
     }
 
-    /// Adds an item to the store
+    /// Insert a new package and assign `owner` role to the provided session address.
+    /// Uses a transaction to ensure both package row and access row are created.
     pub async fn add_item(&self, item: NewPackageDb<'a>, session: &SessionData) -> Result<PackageDb, Error> {
         let connection = self.pool.deref();
 
@@ -111,7 +132,8 @@ impl<'a> PackageStore {
         }
     }
 
-    /// Retrieves all items from the store, enforcing access (public or has access)
+    /// Retrieve packages visible to the optional session.
+    /// When `session` is `None`, only public packages are returned.
     pub async fn get_items(&self, session: &Option<SessionData>) -> Result<Vec<PackageDb>, Error> {
         let connection = self.pool.deref();
         let mut transaction = connection.begin().await?;
@@ -154,7 +176,7 @@ impl<'a> PackageStore {
         }
     }
 
-    /// Retrieves a single item by its ID, enforcing access (public or has access)
+    /// Retrieve a single package by id if visible to the optional session.
     pub async fn get_item(&self, item_id: i32, session: &Option<SessionData>) -> Result<PackageDb, Error> {
         let connection = self.pool.deref();
         let mut transaction = connection.begin().await?;
@@ -199,7 +221,8 @@ impl<'a> PackageStore {
         }
     }
 
-    /// Updates an item in the store (access checked in service layer)
+    /// Update a package row. Access is validated by the service layer.
+    /// Dynamically builds the SQL to bind only provided fields, including NULL for cleared values.
     pub async fn update_item(&self, id: i32, item: PatchPackageDb<'a>) -> Result<PackageDb, Error> {
         let mut query = String::from("UPDATE package SET ");
 
@@ -260,7 +283,7 @@ impl<'a> PackageStore {
         }
     }
 
-    /// Deletes an item from the store (owner only)
+    /// Delete a package row and its access entries within a transaction.
     pub async fn delete_item(&self, id: i32) -> Result<PackageDb, Error> {
         let connection = self.pool.deref();
         let mut transaction = connection.begin().await?;
@@ -293,6 +316,7 @@ impl<'a> PackageStore {
         }
     }
 
+    /// Fetch roles the given `session` has for a particular package id.
     pub async fn get_access_roles(&self, id: i32, session: &SessionData) -> Result<Vec<PackageAccessRoleDb>, Error> {
         let connection = self.pool.deref();
 
@@ -305,6 +329,7 @@ impl<'a> PackageStore {
         Ok(access)
     }
 
+    /// Grant a role to an address for a specific package.
     pub async fn add_access_role(&self, item: NewPackageAccessDb<'a>) -> Result<PackageAccessRolesDb, Error> {
         let connection = self.pool.deref();
 
@@ -318,6 +343,7 @@ impl<'a> PackageStore {
         Ok(result)
     }
 
+    /// Revoke access for an address and return the removed mapping row.
     pub async fn revoke_access_role(&self, package_id: i32, address: &str) -> Result<PackageAccessRolesDb, Error> {
         let connection = self.pool.deref();
 
