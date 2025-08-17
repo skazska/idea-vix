@@ -10,8 +10,8 @@ info:
   license:
     name: MIT
 servers:
-  - url: http://localhost:5173
-    description: Development server
+  - url: http://localhost:7878
+    description: Backend development server
 security:
   - SessionToken: []
   - {} # Allow unauthenticated access for public endpoints
@@ -62,6 +62,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
         '500':
           $ref: '#/components/responses/InternalServerError'
   /api/board/{id}:
@@ -90,6 +92,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Board'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -152,6 +156,14 @@ paths:
       responses:
         '204':
           description: Board deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /api/board/{id}/access:
     post:
       tags:
@@ -180,6 +192,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BoardAccessMapping'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     get:
       tags:
         - Boards
@@ -294,6 +316,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
         '500':
           $ref: '#/components/responses/InternalServerError'
   /api/package/{id}:
@@ -322,6 +346,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Package'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -384,6 +410,14 @@ paths:
       responses:
         '204':
           description: Package deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /api/package/{id}/access:
     post:
       tags:
@@ -412,6 +446,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PackageAccessMapping'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     get:
       tags:
         - Packages
@@ -631,6 +675,7 @@ components:
       required:
         - id
         - name
+        - is_public
       properties:
         id:
           type: integer
@@ -660,14 +705,17 @@ components:
         name:
           type: string
           description: Name of the board
-          minLength: 1
+          minLength: 3
+          maxLength: 100
           example: "Project Ideas"
         description:
           type: string
+          maxLength: 500
           description: Optional description of the board
           example: "A board for collecting project ideas"
         icon:
           type: string
+          maxLength: 255
           description: Optional icon identifier for the board
           example: "lightbulb"
         is_public:
@@ -680,14 +728,21 @@ components:
         name:
           type: string
           description: Name of the board
-          minLength: 1
+          minLength: 3
+          maxLength: 100
           example: "Updated Project Ideas"
         description:
-          type: string
+          oneOf:
+            - type: string
+              maxLength: 500
+            - type: 'null'
           description: Optional description of the board
           example: "Updated board description"
         icon:
-          type: string
+          oneOf:
+            - type: string
+              maxLength: 255
+            - type: 'null'
           description: Optional icon identifier for the board
           example: "lightbulb-outline"
         is_public:
@@ -699,6 +754,7 @@ components:
       required:
         - id
         - name
+        - is_public
       properties:
         id:
           type: integer
@@ -729,14 +785,17 @@ components:
         name:
           type: string
           description: Name of the package
-          minLength: 1
+          minLength: 3
+          maxLength: 100
           example: "React Components"
         description:
           type: string
+          maxLength: 500
           description: Optional description of the package
           example: "A collection of reusable React components"
         icon:
           type: string
+          maxLength: 255
           description: Optional icon identifier for the package
           example: "package"
         is_public:
@@ -749,14 +808,21 @@ components:
         name:
           type: string
           description: Name of the package
-          minLength: 1
+          minLength: 3
+          maxLength: 100
           example: "Updated React Components"
         description:
-          type: string
+          oneOf:
+            - type: string
+              maxLength: 500
+            - type: 'null'
           description: Optional description of the package
           example: "An updated collection of reusable React components"
         icon:
-          type: string
+          oneOf:
+            - type: string
+              maxLength: 255
+            - type: 'null'
           description: Optional icon identifier for the package
           example: "package-updated"
         is_public:

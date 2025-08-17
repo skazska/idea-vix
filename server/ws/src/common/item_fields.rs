@@ -28,3 +28,45 @@ pub struct PatchItemFields {
     pub icon: Option<Option<String>>,
     pub is_public: Option<bool>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use validator::Validate;
+
+    #[test]
+    fn new_item_fields_valid() {
+        let item = NewItemFields {
+            name: "Valid Name".to_string(),
+            description: Some("desc".to_string()),
+            icon: Some("icon".to_string()),
+            is_public: None,
+        };
+        assert!(item.validate().is_ok());
+    }
+
+    #[test]
+    fn new_item_fields_name_too_short() {
+        let item = NewItemFields { name: "ab".to_string(), description: None, icon: None, is_public: None };
+        assert!(item.validate().is_err());
+    }
+
+    #[test]
+    fn patch_item_fields_description_length_limits() {
+        let ok = PatchItemFields {
+            name: None,
+            description: Some(Some("x".repeat(500))),
+            icon: None,
+            is_public: None,
+        };
+        assert!(ok.validate().is_ok());
+
+        let too_long = PatchItemFields {
+            name: None,
+            description: Some(Some("x".repeat(501))),
+            icon: None,
+            is_public: None,
+        };
+        assert!(too_long.validate().is_err());
+    }
+}
