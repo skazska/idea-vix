@@ -236,7 +236,7 @@ impl<'a> PackageStore {
                 "No fields to update in package item".to_string(),
             ));
         }
-    let query = format!(
+        let query = format!(
             "UPDATE package SET {} WHERE id = ? RETURNING id, name, description, icon, is_public",
             set
         );
