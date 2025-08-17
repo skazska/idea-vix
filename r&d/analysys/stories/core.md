@@ -14,7 +14,7 @@
   - [Work with package](#work-with-package)
     - [Change package properties](#change-package-properties)
     - [Add items to package](#add-items-to-package)
-- [Users](#users)
+- [Access](#access)
   - [Identification](#identification)
   - [Ownership](#ownership)
   - [Invite user to board or package](#invite-user-to-board-or-package)
@@ -240,7 +240,7 @@ How:
     - define rule item []
     - save rule item []
 
-## Users
+## Access
 
 Status [v]
 
