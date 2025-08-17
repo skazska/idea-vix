@@ -13,7 +13,8 @@ pub fn deserialize_some<'de, T, D>(deserializer: D) -> Result<Option<T>, D::Erro
     Deserialize::deserialize(deserializer).map(Some)
 }
 
-pub fn extract_cookies_from_headers(headers: &HeaderMap) -> Option<Vec<String>> {
+/// Extract cookies from the request headers
+fn extract_cookies_from_headers(headers: &HeaderMap) -> Option<Vec<String>> {
     headers.get(header::COOKIE).and_then(|cookie_header| {
         let cookie_str = cookie_header.to_str().ok()?;
         Some(cookie_str.split(';').map(|s| s.trim().to_string()).collect())
@@ -21,7 +22,7 @@ pub fn extract_cookies_from_headers(headers: &HeaderMap) -> Option<Vec<String>> 
 }
 
 /// Extract JWT token from the request cookies
-pub fn extract_token_from_cookies(cookies: &Vec<String>) -> Option<String> {
+fn extract_token_from_cookies(cookies: &Vec<String>) -> Option<String> {
     cookies.iter().find_map(|cookie| {
         if cookie.starts_with("Authorization=Bearer ") {
             let result = cookie.strip_prefix("Authorization=Bearer ").unwrap_or_default();
@@ -33,7 +34,7 @@ pub fn extract_token_from_cookies(cookies: &Vec<String>) -> Option<String> {
 }
 
 /// Extract JWT token from the authorization header
-pub fn extract_token_from_header(headers: &HeaderMap) -> Option<String> {
+fn extract_token_from_header(headers: &HeaderMap) -> Option<String> {
     headers.get(header::AUTHORIZATION).and_then(|auth_header| {
         let auth_str = auth_header.to_str().ok()?;
         if auth_str.starts_with("Bearer ") {
@@ -50,6 +51,7 @@ pub struct AuthToken(pub String);
 impl<S: Send + Sync> FromRequestParts<S> for AuthToken {
     type Rejection = ModelError;
 
+    /// Extract the JWT token from the request parts
     async fn from_request_parts(
         parts: &mut Parts,
         _state: &S,
@@ -169,79 +171,70 @@ mod tests {
         assert_eq!(result.unwrap().0, expected_token);
     }
 
+    fn build_headers(auth_header: Option<&str>, cookie_header: Option<&str>) -> HeaderMap {
+        let mut headers = HeaderMap::new();
+        
+        if let Some(auth) = auth_header {
+            headers.insert(axum::http::header::AUTHORIZATION, auth.parse().unwrap());
+        }
+        
+        if let Some(cookie) = cookie_header {
+            headers.insert(axum::http::header::COOKIE, cookie.parse().unwrap());
+        }
+        
+        headers
+    }
+
     #[tokio::test]
     async fn auth_token_from_authorization_header() {
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            axum::http::header::AUTHORIZATION,
-            "Bearer test_token_123".parse().unwrap(),
-        );
-
-        auth_token_probe(headers, "test_token_123").await;
+        auth_token_probe(
+            build_headers(Some("Bearer test_token_123"), None),
+            "test_token_123"
+        ).await;
     }
 
     #[tokio::test]
     async fn auth_token_from_cookie() {
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            axum::http::header::COOKIE,
-            "Authorization=Bearer cookie_token_456; other=value".parse().unwrap(),
-        );
-
-        auth_token_probe(headers, "cookie_token_456").await;
+        auth_token_probe(
+            build_headers(None, Some("Authorization=Bearer cookie_token_456; other=value")),
+            "cookie_token_456"
+        ).await;
     }
 
     #[tokio::test]
     async fn auth_token_cookie_takes_precedence_over_header() {
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            axum::http::header::AUTHORIZATION,
-            "Bearer header_token".parse().unwrap(),
-        );
-        headers.insert(
-            axum::http::header::COOKIE,
-            "Authorization=Bearer cookie_token".parse().unwrap(),
-        );
-
-        auth_token_probe(headers, "cookie_token").await;
+        auth_token_probe(
+            build_headers(Some("Bearer header_token"), Some("Authorization=Bearer cookie_token")),
+            "cookie_token"
+        ).await;
     }
 
     #[tokio::test]
     async fn auth_token_no_token_returns_empty() {
-        let headers = HeaderMap::new();
-        auth_token_probe(headers, "").await;
+        auth_token_probe(build_headers(None, None), "").await;
     }
 
     #[tokio::test]
     async fn auth_token_invalid_authorization_header() {
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            axum::http::header::AUTHORIZATION,
-            "Basic invalid_format".parse().unwrap(),
-        );
-
-        auth_token_probe(headers, "").await;
+        auth_token_probe(
+            build_headers(Some("Basic invalid_format"), None),
+            ""
+        ).await;
     }
 
     #[tokio::test]
     async fn auth_token_invalid_cookie_format() {
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            axum::http::header::COOKIE,
-            "session=value; other=another".parse().unwrap(),
-        );
-
-        auth_token_probe(headers, "").await;
+        auth_token_probe(
+            build_headers(None, Some("session=value; other=another")),
+            ""
+        ).await;
     }
 
     #[tokio::test]
     async fn auth_token_empty_cookie_header() {
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            axum::http::header::COOKIE,
-            "".parse().unwrap(),
-        );
-
-        auth_token_probe(headers, "").await;
+        auth_token_probe(
+            build_headers(None, Some("")),
+            ""
+        ).await;
     }
 }
