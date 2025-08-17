@@ -1,4 +1,4 @@
-import { useParams, A, useNavigate } from "@solidjs/router";
+import { useParams, A, useNavigate, revalidate } from "@solidjs/router";
 import { createSignal, Show, ErrorBoundary, Suspense, createEffect } from "solid-js";
 import { setTitle } from "../common/providers/page-state";
 import { PackageItemProvider, usePackageItem } from "./providers/item";
@@ -78,9 +78,10 @@ function PackageContent() {
         if (!packageId) return;
         try {
             await actions.remove(packageId);
+            revalidate(packageApi.getPackages.key);
             navigate(ROUTE);
         } catch (error) {
-            console.error('Failed to delete ${ENTITY_NAME}:', error);
+            console.error(`Failed to delete ${ENTITY_NAME}:`, error);
         }
     };
     

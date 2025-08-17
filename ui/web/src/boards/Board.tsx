@@ -1,4 +1,4 @@
-import { useParams, A, useNavigate } from "@solidjs/router";
+import { useParams, A, useNavigate, revalidate } from "@solidjs/router";
 import { createSignal, Show, ErrorBoundary, Suspense, createEffect } from "solid-js";
 import { setTitle } from "../common/providers/page-state";
 import { BoardItemProvider, useBoardItem } from "./providers/item";
@@ -78,6 +78,7 @@ function BoardContent() {
         if (!boardId) return;
         try {
             await actions.remove(boardId);
+            revalidate(boardApi.getBoards.key);
             navigate(ROUTE);
         } catch (error) {
             console.error(`Failed to delete ${ENTITY_NAME}:`, error);
@@ -108,6 +109,7 @@ function BoardContent() {
                         <Show when={!editMode()} fallback={
                             <>
                                 <button 
+                                    data-testid="board-save-button"
                                     class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-m"
                                     onClick={handleSave}
                                     disabled={saving()}
@@ -115,6 +117,7 @@ function BoardContent() {
                                     <Save size={'1rem'}/>
                                 </button>
                                 <button 
+                                    data-testid="board-cancel-button"
                                     class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-1 px-2 rounded text-m"
                                     onClick={handleCancelEdit}
                                     disabled={saving()}
@@ -124,12 +127,14 @@ function BoardContent() {
                             </>
                         }>
                             <button 
+                                data-testid="board-edit-button"
                                 class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-m"
                                 onClick={handleEdit}
                             >
                                 <Edit size={'1rem'}/>
                             </button>
                             <button 
+                                data-testid="board-delete-button"
                                 class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-m"
                                 onClick={confirmDelete}
                             >
@@ -140,12 +145,13 @@ function BoardContent() {
                 </div>
             </Portal>
             
-            <div class="bg-white rounded-lg shadow p-6 mb-6">
-                <Show when={!editMode()} fallback={
-                    <>
-                        <div class="mb-4">
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+    <Show when={!editMode()} fallback={
+            <div data-testid="board-edit-form">
+        <div class="mb-4">
                             <h3 class="text-lg font-semibold mb-2">Name</h3>
                             <input 
+                name="name"
                                 type="text"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 value={editName()}
@@ -157,6 +163,7 @@ function BoardContent() {
                         <div class="mb-4">
                             <h3 class="text-lg font-semibold mb-2">Icon URL</h3>
                             <input 
+                name="icon"
                                 type="text"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 value={editIcon()}
@@ -173,6 +180,7 @@ function BoardContent() {
                         <div class="mb-4">
                             <h3 class="text-lg font-semibold mb-2">Description</h3>
                             <textarea 
+                                name="description"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 rows="4"
                                 value={editDescription()}
@@ -184,6 +192,7 @@ function BoardContent() {
                         <div class="mb-4">
                             <label class="inline-flex items-center gap-2 select-none">
                                 <input
+                                    name="is_public"
                                     type="checkbox"
                                     class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                                     checked={editIsPublic()}
@@ -196,7 +205,7 @@ function BoardContent() {
                         <Show when={saving()}>
                             <div class="text-blue-500 mb-4">Saving changes...</div>
                         </Show>
-                    </>
+            </div>
                 }>
                     <>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -206,8 +215,8 @@ function BoardContent() {
                                 </Show>
                                 <div>
                                     <h2 class="text-xl font-semibold flex items-center gap-2">
-                                        {brd.latest?.name}
-                                        <span class={`text-xs px-2 py-1 rounded ${brd.latest?.is_public ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}`}>
+                                        <span data-testid="board-detail-name">{brd.latest?.name}</span>
+                                        <span data-testid="board-detail-visibility" class={`text-xs px-2 py-1 rounded ${brd.latest?.is_public ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}`}>
                                             {brd.latest?.is_public ? 'Public' : 'Private'}
                                         </span>
                                     </h2>
@@ -256,12 +265,14 @@ function BoardContent() {
                             <p class="mb-4">Are you sure you want to delete the {ENTITY_NAME} "{brd.latest?.name}"? This action cannot be undone.</p>
                             <div class="flex gap-2 justify-end">
                                 <button 
+                                    data-testid="modal-cancel-button"
                                     class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
                                     onClick={cancelDelete}
                                 >
                                     Cancel
                                 </button>
                                 <button 
+                                    data-testid="modal-delete-button"
                                     class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
                                     onClick={handleDelete}
                                 >

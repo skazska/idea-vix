@@ -13,7 +13,7 @@ const BoardsItems: Component = () => {
         console.log("BoardsItems effect: boardItems changed", boardItems);
     });
 
-    return (<>
+    return (<div role="list" data-testid="board-items">
         <For each={boardItems.latest}>{(item, _index) => {
                 return (
                     <ListItemContainer type="row">
@@ -39,7 +39,7 @@ const BoardsItems: Component = () => {
                     </ListItemContainer>
                 );
         }}</For>
-    </>);
+    </div>);
 }
 
 export default BoardsItems;
