@@ -1,7 +1,7 @@
 import { useParams, A, useNavigate, revalidate } from "@solidjs/router";
 import { createSignal, Show, ErrorBoundary, Suspense, createEffect, Switch, Match } from "solid-js";
 import { setTitle } from "../common/providers/page-state";
-import { BoardItemProvider, useBoardItem } from "./providers/item";
+import { BoardItemProvider, useBoardItem } from "./providers/item.provider";
 import { Portal } from "solid-js/web";
 import { Edit, Trash2, ArrowLeft, Save, X, Users } from "lucide-solid";
 import { ModalCentered } from "../common/modals";

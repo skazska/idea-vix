@@ -1,6 +1,6 @@
 import { createSignal, ErrorBoundary, Show } from "solid-js";
 import { setTitle } from "../common/providers/page-state";
-import { BoardsProvider } from "./providers/items";
+import { BoardsProvider } from "./providers/items.provider";
 import BoardsItems from "./Items";
 import { Portal } from "solid-js/web";
 import { Plus } from "lucide-solid";

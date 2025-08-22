@@ -1,5 +1,5 @@
 import { usePageState } from "../providers/page-state";
-import { Header, Close } from "../forms";
+import { Header, Close } from "../form/components";
 import { useBackend } from "../providers/backend";
 import { getSessionApi } from "./providers/api";
 

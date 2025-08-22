@@ -1,6 +1,6 @@
 import { createEffect, For, type Component } from "solid-js";
 import { usePackageData } from "./providers/items";
-import { ListItemContainer, ListItemRowContainer } from "../common/list";
+import { ListItemContainer, ListItemRowContainer } from "../common/list/components";
 import { Edit } from "lucide-solid";
 import { A } from "@solidjs/router";
 import { ROUTE } from "./const";

@@ -1,8 +1,8 @@
 import { createForm, valiForm } from "@modular-forms/solid";
-import { getError, getLabel, getInput, getString, getText, type TFormComponent, getBoolean } from "../../common/gen/forms";
+import { getError, getLabel, getInput, getString, getText, type TFormComponent, getBoolean } from "../../common/form/generators";
 import { NewBoardSchema, type TBoard, type TBoardNew } from "../model";
-import { Footer, Header } from "../../common/forms";
-import { useBoardsData } from "../providers/items";
+import { Footer, Header } from "../../common/form/components";
+import { useBoardsData } from "../providers/items.provider";
 import { action, useAction } from "@solidjs/router";
 import { createSignal } from "solid-js";
 import { ENTITY_NAME } from "../const";
