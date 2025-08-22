@@ -6,7 +6,6 @@
 	],
 	"settings": {
 		"lldb.cargo": "/home/ska/.cargo/bin/cargo",
-		"rust-analyzer.sou"
 		// "rust-analyzer.linkedProjects": ["${workspaceFolder}/server"],
 
 		// "rust-analyzer.cargo.extraEnv": {
@@ -14,5 +13,22 @@
 		// 	"RUSTUP_HOME": "/home/ska/.cargo/bin",
 		// 	"CARGO_HOME": "/home/ska/.cargo/bin"
     	// },
+
+		"chat.tools.terminal.autoApprove": {
+			"cargo build": true,
+			"/\\.ps1\\b/i": { "approve": false, "matchCommandLine": true },
+
+			"rm": false,
+			"rmdir": false,
+			"del": false,
+			"kill": false,
+			"curl": false,
+			"wget": false,
+			"eval": false,
+			"chmod": false,
+			"chown": false,
+			"/^Remove-Item\\b/i": false
+		},
+
 	}
 }

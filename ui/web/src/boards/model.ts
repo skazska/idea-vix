@@ -20,3 +20,5 @@ export const BoardSchema = v.object({
 })
 
 export type TBoard = v.InferOutput<typeof BoardSchema>
+
+export type TBoardUpdate = Partial<Omit<TBoard, 'id'>>

@@ -238,7 +238,7 @@ function PackageContent() {
             {/* Package Items Sections */}
             <div class="space-y-6">
                 {/* Access management */}
-                <Expandable title="Access" openByDefault={false} testIdPrefix="package-section-access">
+                <Expandable title="Access" openByDefault={false} name="package-section-access">
                     <div class="bg-white rounded-lg shadow p-6">
                         <div class="flex justify-between items-center mb-4">
                             <h2 class="text-xl font-bold flex items-center gap-2"><Users size={'1rem'}/> Access</h2>
@@ -257,7 +257,7 @@ function PackageContent() {
                     </div>
                 </Expandable>
                 {/* Node Shapes Section */}
-                <Expandable title="Node Shapes" openByDefault={false} testIdPrefix="package-section-shapes">
+                <Expandable title="Node Shapes" openByDefault={false} name="package-section-shapes">
                     <div class="bg-white rounded-lg shadow p-6">
                         <div class="flex justify-between items-center mb-4">
                             <h2 class="text-xl font-bold">Node Shapes</h2>
@@ -271,7 +271,7 @@ function PackageContent() {
                 </Expandable>
                 
                 {/* Connection Lines Section */}
-                <Expandable title="Connection Lines" openByDefault={false} testIdPrefix="package-section-lines">
+                <Expandable title="Connection Lines" openByDefault={false} name="package-section-lines">
                     <div class="bg-white rounded-lg shadow p-6">
                         <div class="flex justify-between items-center mb-4">
                             <h2 class="text-xl font-bold">Connection Lines</h2>
@@ -285,7 +285,7 @@ function PackageContent() {
                 </Expandable>
                 
                 {/* Connection Rules Section */}
-                <Expandable title="Connection Rules" openByDefault={false} testIdPrefix="package-section-rules">
+                <Expandable title="Connection Rules" openByDefault={false} name="package-section-rules">
                     <div class="bg-white rounded-lg shadow p-6">
                         <div class="flex justify-between items-center mb-4">
                             <h2 class="text-xl font-bold">Connection Rules</h2>

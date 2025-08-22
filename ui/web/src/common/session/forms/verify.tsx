@@ -1,9 +1,9 @@
 import { createForm, valiForm } from "@modular-forms/solid";
-import { getError, getLabel, getString, getInput, type TFormComponent } from "../../common/gen/forms";
+import { getError, getLabel, getString, getInput, type TFormComponent } from "../../gen/forms";
 import { VerifyCodeSchema, type TVerifyCodeRequest, type TSessionData } from "../model";
-import { Footer, Header } from "../../common/forms";
+import { Footer, Header } from "../../forms";
 import { getSessionApi } from "../providers/api";
-import { useBackend } from "../../common/providers/backend";
+import { useBackend } from "../../providers/backend";
 import { action, useAction } from "@solidjs/router";
 import { createSignal } from "solid-js";
 

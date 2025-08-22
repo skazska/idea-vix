@@ -1,6 +1,6 @@
-import { usePageState } from "../common/providers/page-state";
-import { Header, Close } from "../common/forms";
-import { useBackend } from "../common/providers/backend";
+import { usePageState } from "../providers/page-state";
+import { Header, Close } from "../forms";
+import { useBackend } from "../providers/backend";
 import { getSessionApi } from "./providers/api";
 
 export default function SessionInfo(props: { onClose: () => void }) {

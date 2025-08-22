@@ -83,7 +83,8 @@ pub async fn get_router<'a>(connection: Arc<sqlx::Pool<sqlx::Sqlite>>, jwt_servi
         delete_item,
         add_access,
         list_access,
-        revoke_access
+        revoke_access,
+        check_access
     ).with_state(state)
 }
 
@@ -202,3 +203,17 @@ async fn list_access(
     Ok(Json(result))
 }
 
+// #[axum::debug_handler]
+/// Handler: returns access to board for address
+/// - Authenticates via JWT
+/// - Returns roles of invitations of `address`
+/// - Returns `404` if the board is not accessible or does not exist
+async fn check_access(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    Path(id): Path<i32>,
+) -> Result<Json<Vec<String>>, (StatusCode, String)> {
+    let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
+    let result = state.service.check_access_role(id, session.as_ref()).await.map_err(|e| e.into())?;
+    Ok(Json(result))
+}

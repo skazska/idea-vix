@@ -1,8 +1,9 @@
 import { query } from "@solidjs/router";
-import type { TBoard, TBoardNew } from "../model";
-import type { AccessMapping, GrantRequest } from "../../common/access/model";
+import type { TBoard, TBoardNew, TBoardUpdate } from "../model";
+import type { AccessMapping, AccessRole, GrantRequest, IAccessApi, IAccessMapApi } from "../../common/access/model";
 import { getResponse, type IBackend } from "../../common/providers/backend";
 import { ENTITIES_NAME, REST_PATH } from "../const";
+import type { ICrudApi } from "../../common/crud/model";
 
 export async function getBoards(backend: IBackend): Promise<TBoard[]> {
     return getResponse(backend.fetchJson(REST_PATH), (data) => data as TBoard[], REST_PATH);
@@ -61,7 +62,15 @@ export async function revokeBoardAccess(backend: IBackend, id: string, address: 
     );
 }
 
-export class BoardApi {
+export async function myBoardAccess(backend: IBackend, id: string): Promise<AccessRole[]> {
+    return getResponse(
+        backend.fetchJson(`${REST_PATH}/${id}/my/access`),
+        (data) => data as AccessRole[],
+        `${REST_PATH}/${id}/my/access`
+    );
+}
+
+export class BoardApi implements IAccessMapApi, ICrudApi<TBoard, TBoardNew, TBoardUpdate>, IAccessApi {
     private _backend: IBackend
 
     constructor(backend: IBackend) {
@@ -72,14 +81,15 @@ export class BoardApi {
         return this._backend;
     }
 
-    public getBoards = query(() => getBoards(this.backend), ENTITIES_NAME)
-    public getBoard = query((id: string) => getBoard(this.backend, id), ENTITIES_NAME)
-    public addBoard = query((item: TBoardNew) => addBoard(this.backend, item), `add_${ENTITIES_NAME}`)
-    public updateBoard = query((id: string, item: Partial<Omit<TBoard, 'id'>>) => updateBoard(this.backend, id, item), `update_${ENTITIES_NAME}`)
-    public removeBoard = query((id: string) => removeBoard(this.backend, id), `remove_${ENTITIES_NAME}`)
-    public listAccess = (id: string) => listBoardAccess(this.backend, id)
-    public grantAccess = (id: string, item: GrantRequest) => grantBoardAccess(this.backend, id, item)
-    public revokeAccess = (id: string, address: string) => revokeBoardAccess(this.backend, id, address)
+    public list = query(() => getBoards(this.backend), ENTITIES_NAME)
+    public get = query((id: string) => getBoard(this.backend, id), ENTITIES_NAME)
+    public create = query((item: TBoardNew) => addBoard(this.backend, item), `add_${ENTITIES_NAME}`)
+    public update = query((id: string, item: TBoardUpdate) => updateBoard(this.backend, id, item), `update_${ENTITIES_NAME}`)
+    public remove = query((id: string) => removeBoard(this.backend, id), `remove_${ENTITIES_NAME}`)
+    public listAccess = query((id: string) => listBoardAccess(this.backend, id), `${ENTITIES_NAME}_access`)
+    public grantAccess = query((id: string, item: GrantRequest) => grantBoardAccess(this.backend, id, item), `${ENTITIES_NAME}_grant`)
+    public revokeAccess = query((id: string, address: string) => revokeBoardAccess(this.backend, id, address), `${ENTITIES_NAME}_revoke`)
+    public myAccess = query((id: string) => myBoardAccess(this.backend, id), `${ENTITIES_NAME}_my_access`)
 }
 
 let boardApi: BoardApi | undefined;

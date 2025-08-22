@@ -13,7 +13,7 @@
 
 import { For, Suspense, type ParentComponent } from "solid-js";
 import { usePageState } from "./common/providers/page-state";
-import SessionIcon from "./session/SessionIcon";
+import SessionIcon from "./common/session/SessionIcon";
 import { APP_COPYRIGHT } from "./common/const";
 import { ROUTE as BOARD_ROUTE, PAGE_TITLE as BOARD_TITLE } from "./boards/const";
 import { ROUTE as PACKAGE_ROUTE, PAGE_TITLE as PACKAGE_TITLE } from "./package/const";

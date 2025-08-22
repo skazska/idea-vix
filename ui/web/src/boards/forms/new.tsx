@@ -22,7 +22,7 @@ export const NewBoardForm: TFormComponent<TBoardNew, TBoard> = (props) => {
         setLoading(true);
         setError(undefined);
         try {
-            const item = await actions.add(values);
+            const item = await actions.create(values);
             props.onDone(item);
             return item;
         } catch (err) {

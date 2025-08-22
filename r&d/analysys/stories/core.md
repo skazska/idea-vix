@@ -274,23 +274,23 @@ package and board ownership is defined by address used for identification.
 
 ### Invite user to board or package
 
-Status [~]
+Status [v]
 
-Who: board or package owner [~]
+Who: board or package owner [v]
 
 How:
 
-1. View list of invited users [~]
+1. View list of invited users [v]
    - backend [v]
-   - frontend []
-2. Activate "Invite User" in package view []
-3. Fill in user address and permissions []
-4. Submit invitation [~]
+   - frontend [v]
+2. Activate "Invite User" in package view [v]
+3. Fill in user address and permissions [v]
+4. Submit invitation [v]
    - backend [v]
-   - frontend []
+   - frontend [v]
 5. Revoke invitation [~]
    - backend [v]
-   - frontend []
+   - frontend [v]
 
 Explanation:
 The invited user will receive a notification and when identified by this address will have access and permissions defined in invitation.

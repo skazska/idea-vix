@@ -1,45 +1,23 @@
 import { createContext, useContext, type ParentComponent } from "solid-js";
-import type { TBoard } from "../model";
-import { reload } from "@solidjs/router";
-import { getBoardApi, BoardApi } from "./api";
+import type { TBoard, TBoardNew } from "../model";
+import { getBoardApi } from "./api";
 import { useBackend } from "../../common/providers/backend";
-import { createAsync, type AccessorWithLatest } from "@solidjs/router";
+import { getItemsModel, type TItemsModel } from "../../common/crud/model";
 
-export type TBoardItemsModel = [
-    AccessorWithLatest<TBoard[] | undefined >,
-    {
-        add: BoardApi["addBoard"];
-        remove: BoardApi["removeBoard"];
-        reload: () => void;
-    }
-];
+export type TBoardItemsModel = TItemsModel<TBoard, TBoardNew>;
 
 const BoardItemsContext = createContext<TBoardItemsModel>();
 
-
 export const BoardsProvider: ParentComponent<{ items?: TBoard[] }> = (props) => {
     const boardApi = getBoardApi(useBackend());
-    const resource = createAsync(() => boardApi.getBoards(), {  name: "boards-query" });
 
-    console.log("BoardItemsProvider rendered");
-
-    const model: TBoardItemsModel = [
-        resource,
-        {
-            add: boardApi.addBoard.bind(boardApi),
-            remove: boardApi.removeBoard.bind(boardApi),
-            reload: () => {
-                console.log("BoardItemsProvider reload, for key:", boardApi.getBoards.key);
-                reload({ revalidate: boardApi.getBoards.key });
-            }
-        }
-    ];
+    const model: TBoardItemsModel = getItemsModel(boardApi);
 
     return (
         <BoardItemsContext.Provider value={model}>
             {props.children}
         </BoardItemsContext.Provider>
-    )
+    );
 }
 
 export function useBoardsData() {

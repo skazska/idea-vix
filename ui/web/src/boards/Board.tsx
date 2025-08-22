@@ -1,5 +1,5 @@
 import { useParams, A, useNavigate, revalidate } from "@solidjs/router";
-import { createSignal, Show, ErrorBoundary, Suspense, createEffect } from "solid-js";
+import { createSignal, Show, ErrorBoundary, Suspense, createEffect, Switch, Match } from "solid-js";
 import { setTitle } from "../common/providers/page-state";
 import { BoardItemProvider, useBoardItem } from "./providers/item";
 import { Portal } from "solid-js/web";
@@ -11,6 +11,9 @@ import { AccessManager } from "../common/access/AccessManager";
 import { getBoardApi } from "./providers/api";
 import { useBackend } from "../common/providers/backend";
 import Expandable from "../common/expandable/Expandable";
+import { AccessProvider } from "../common/access/access.provider";
+import { AccessMapProvider } from "../common/access/accessMap.provider";
+import Accessible from "../common/access/Accessible";
 
 function BoardContent() {
     console.log("BoardContent rendered");
@@ -78,7 +81,7 @@ function BoardContent() {
         if (!boardId) return;
         try {
             await actions.remove(boardId);
-            revalidate(boardApi.getBoards.key);
+            revalidate(boardApi.list.key);
             navigate(ROUTE);
         } catch (error) {
             console.error(`Failed to delete ${ENTITY_NAME}:`, error);
@@ -144,144 +147,138 @@ function BoardContent() {
                     </Show>
                 </div>
             </Portal>
-            
-        <div class="bg-white rounded-lg shadow p-6 mb-6">
-    <Show when={!editMode()} fallback={
-            <div data-testid="board-edit-form">
-        <div class="mb-4">
-                            <h3 class="text-lg font-semibold mb-2">Name</h3>
-                            <input 
-                name="name"
-                                type="text"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                value={editName()}
-                                onInput={(e) => setEditName(e.target.value)}
-                                placeholder={`name`}
-                            />
-                        </div>
-                        
-                        <div class="mb-4">
-                            <h3 class="text-lg font-semibold mb-2">Icon URL</h3>
-                            <input 
-                name="icon"
-                                type="text"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                value={editIcon()}
-                                onInput={(e) => setEditIcon(e.target.value)}
-                                placeholder="Icon URL (optional)"
-                            />
-                            <Show when={editIcon()}>
-                                <div class="mt-2">
-                                    <img src={editIcon()} alt="Icon preview" class="w-16 h-16 rounded" />
+
+            <Show when={brd.latest} fallback={<div class="bg-white rounded-lg shadow p-6 mb-6">No board selected</div>}>
+                {(b) => (
+                    <AccessProvider id={b().id} api={boardApi}>
+                        <Switch>
+                            <Match when={editMode()}>
+                                <div data-testid="board-edit-form" class="bg-white rounded-lg shadow p-6 mb-6">
+                                    <div class="mb-4">
+                                        <h3 class="text-lg font-semibold mb-2">Name</h3>
+                                        <input 
+                                            name="name"
+                                            type="text"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            value={editName()}
+                                            onInput={(e) => setEditName(e.target.value)}
+                                            placeholder={`name`}
+                                        />
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <h3 class="text-lg font-semibold mb-2">Icon URL</h3>
+                                        <input 
+                                            name="icon"
+                                            type="text"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            value={editIcon()}
+                                            onInput={(e) => setEditIcon(e.target.value)}
+                                            placeholder="Icon URL (optional)"
+                                        />
+                                        <Show when={editIcon()}>
+                                            <div class="mt-2">
+                                                <img src={editIcon()} alt="Icon preview" class="w-16 h-16 rounded" />
+                                            </div>
+                                        </Show>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <h3 class="text-lg font-semibold mb-2">Description</h3>
+                                        <textarea 
+                                            name="description"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            rows="4"
+                                            value={editDescription()}
+                                            onInput={(e) => setEditDescription(e.target.value)}
+                                            placeholder={`description`}
+                                        />
+                                    </div>
+
+                                    <div class="mb-4">
+                                        <label class="inline-flex items-center gap-2 select-none">
+                                            <input
+                                                name="is_public"
+                                                type="checkbox"
+                                                class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                checked={editIsPublic()}
+                                                onChange={(e) => setEditIsPublic(e.currentTarget.checked)}
+                                            />
+                                            <span class="text-gray-700">Public</span>
+                                        </label>
+                                    </div>
+                                    
+                                    <Show when={saving()}>
+                                        <div class="text-blue-500 mb-4">Saving changes...</div>
+                                    </Show>
                                 </div>
-                            </Show>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <h3 class="text-lg font-semibold mb-2">Description</h3>
-                            <textarea 
-                                name="description"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                rows="4"
-                                value={editDescription()}
-                                onInput={(e) => setEditDescription(e.target.value)}
-                                placeholder={`description`}
-                            />
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="inline-flex items-center gap-2 select-none">
-                                <input
-                                    name="is_public"
-                                    type="checkbox"
-                                    class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                    checked={editIsPublic()}
-                                    onChange={(e) => setEditIsPublic(e.currentTarget.checked)}
-                                />
-                                <span class="text-gray-700">Public</span>
-                            </label>
-                        </div>
-                        
-                        <Show when={saving()}>
-                            <div class="text-blue-500 mb-4">Saving changes...</div>
-                        </Show>
-            </div>
-                }>
-                    <>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                            <div class="flex items-center gap-4">
-                                <Show when={brd.latest?.icon}>
-                                    <img src={brd.latest?.icon} alt={brd.latest?.name} class="w-16 h-16 rounded" />
-                                </Show>
-                                <div>
-                                    <h2 class="text-xl font-semibold flex items-center gap-2">
-                                        <span data-testid="board-detail-name">{brd.latest?.name}</span>
-                                        <span data-testid="board-detail-visibility" class={`text-xs px-2 py-1 rounded ${brd.latest?.is_public ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}`}>
-                                            {brd.latest?.is_public ? 'Public' : 'Private'}
-                                        </span>
-                                    </h2>
+                            </Match>
+                            <Match when={!editMode()}>
+                                <div class="bg-white rounded-lg shadow p-6 mb-6">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                        <div class="flex items-center gap-4">
+                                            <Show when={b().icon}>
+                                                <img src={b().icon} alt={b().name} class="w-16 h-16 rounded" />
+                                            </Show>
+                                            <div>
+                                                <h2 class="text-xl font-semibold flex items-center gap-2">
+                                                    <span data-testid="board-detail-name">{b().name}</span>
+                                                    <span data-testid="board-detail-visibility" class={`text-xs px-2 py-1 rounded ${b().is_public ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}`}>
+                                                        {b().is_public ? 'Public' : 'Private'}
+                                                    </span>
+                                                </h2>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <h3 class="text-lg font-semibold mb-2">Description</h3>
+                                        <p class="text-gray-700">{b().description || 'No description provided'}</p>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <h3 class="text-lg font-semibold mb-2">Description</h3>
-                            <p class="text-gray-700">{brd.latest?.description || 'No description provided'}</p>
-                        </div>
-                    </>
-                </Show>
-            </div>
 
-            {/* Package Items Sections */}
-            <div class="space-y-6">
-                {/* Access management */}
-                <Expandable title="Access" openByDefault={false} testIdPrefix="package-section-access">
-
-                    <div class="bg-white rounded-lg shadow p-6 mb-6">
-                        <div class="flex justify-between items-center mb-4">
-                            <h2 class="text-xl font-bold flex items-center gap-2"><Users size={'1rem'}/> Access</h2>
-                        </div>
-                        <Show when={brd.latest}>
-                            {(b) => (
-                                <AccessManager
-                                    title={`Access for ${b().name}`}
-                                    testIdPrefix="board-access"
-                                    load={() => boardApi.listAccess(String(b().id))}
-                                    grant={(item) => boardApi.grantAccess(String(b().id), item)}
-                                    revoke={(address) => boardApi.revokeAccess(String(b().id), address)}
-                                />
-                            )}
+                                {/* Package Items Sections */}
+                                <div class="space-y-6">
+                                    {/* Access management */}
+                                    <Accessible roles={["owner", "manage"]}>
+                                        <Expandable title={(<h2 class="text-xl font-bold flex items-center gap-2"><Users size={'1rem'}/> Access</h2>)} openByDefault={false} name="package-section-access">
+                                            <AccessMapProvider id={b().id} api={boardApi}>
+                                                <AccessManager id={b().id}/>
+                                            </AccessMapProvider>
+                                        </Expandable>
+                                    </Accessible>
+                                </div>
+                            </Match>
+                        </Switch>
+                        {/* Delete Confirmation Modal */}
+                        <Show when={showDeleteConfirm()}>
+                            <Portal mount={document.querySelector('main')!}>
+                                <ModalCentered>
+                                    <div class="p-4">
+                                        <h3 class="text-lg font-bold mb-4">Confirm Delete</h3>
+                                        <p class="mb-4">Are you sure you want to delete the {ENTITY_NAME} "{b().name}"? This action cannot be undone.</p>
+                                        <div class="flex gap-2 justify-end">
+                                            <button 
+                                                data-testid="modal-cancel-button"
+                                                class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
+                                                onClick={cancelDelete}
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button 
+                                                data-testid="modal-delete-button"
+                                                class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+                                                onClick={handleDelete}
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                </ModalCentered>
+                            </Portal>
                         </Show>
-                    </div>
-                </Expandable>
-            </div>
-            
-            {/* Delete Confirmation Modal */}
-            <Show when={showDeleteConfirm()}>
-                <Portal mount={document.querySelector('main')!}>
-                    <ModalCentered>
-                        <div class="p-4">
-                            <h3 class="text-lg font-bold mb-4">Confirm Delete</h3>
-                            <p class="mb-4">Are you sure you want to delete the {ENTITY_NAME} "{brd.latest?.name}"? This action cannot be undone.</p>
-                            <div class="flex gap-2 justify-end">
-                                <button 
-                                    data-testid="modal-cancel-button"
-                                    class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
-                                    onClick={cancelDelete}
-                                >
-                                    Cancel
-                                </button>
-                                <button 
-                                    data-testid="modal-delete-button"
-                                    class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
-                                    onClick={handleDelete}
-                                >
-                                    Delete
-                                </button>
-                            </div>
-                        </div>
-                    </ModalCentered>
-                </Portal>
+                    </AccessProvider>
+                )}
             </Show>
         </>
     );

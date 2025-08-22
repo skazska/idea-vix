@@ -1,7 +1,7 @@
 /* @refresh reload */
 
 import { query } from "@solidjs/router";
-import { getResponse, type IBackend } from "../../common/providers/backend";
+import { getResponse, type IBackend } from "../../providers/backend";
 import type { TSignInRequest, TVerifyCodeRequest, TSessionData } from "../model";
 
 export async function signIn(backend: IBackend, request: TSignInRequest): Promise<boolean> {

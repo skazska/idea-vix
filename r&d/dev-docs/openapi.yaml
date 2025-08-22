@@ -269,7 +269,40 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      
+  /api/board/{id}/my/access:
+    get:
+      tags:
+       - Boards
+      summary: Get access for a board
+      description: Returns access to board for a specific address
+      security:
+        - SessionToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Board id
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Access mapping
+          content:
+            application/json:
+              schema:
+               type: array
+               items:
+                 type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+
   /api/package:
     get:
       tags:
@@ -515,6 +548,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PackageAccessMapping'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/package/{id}/my/access:
+    get:
+      tags:
+        - Packages
+      summary: Get access for a package
+      description: Returns access to package for a specific address
+      security:
+        - SessionToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Package id
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Access mapping
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

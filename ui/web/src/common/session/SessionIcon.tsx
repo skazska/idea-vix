@@ -1,7 +1,7 @@
 import { createSignal, Show } from "solid-js";
 import { User, UserCheck } from "lucide-solid";
-import { usePageState } from "../common/providers/page-state";
-import { ModalCentered } from "../common/modals";
+import { usePageState } from "../providers/page-state";
+import { ModalCentered } from "../modals";
 import { SignInForm } from "./forms/signin";
 import { VerifyCodeForm } from "./forms/verify";
 import SessionInfo from "./SessionInfo";

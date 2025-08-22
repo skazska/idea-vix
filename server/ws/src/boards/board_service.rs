@@ -219,6 +219,19 @@ impl<'a> BoardService {
         let rows = self.items_store.list_access_roles(board_id).await?;
         Ok(rows.into_iter().map(|r| r.into()).collect())
     }
+
+    /// Check access for a specific address
+    /// Returns roles of invitations for the address
+    pub async fn check_access_role(&self, board_id: i32, session: Option<&SessionData>) -> Result<Vec<String>, ModelError> {
+        if let Some(session) = session {
+            let roles = self.items_store.get_access_roles(board_id, session).await?;
+            Ok(roles.into_iter()
+                .map(|r| r.role)
+                .collect())
+        } else {
+            Ok(vec![])
+        }
+    }
 }
 
 // --- helpers and conversions ---

@@ -241,6 +241,18 @@ impl<'a> PackageService {
         let rows = self.items_store.list_access_roles(package_id).await?;
         Ok(rows.into_iter().map(|r| r.into()).collect())
     }
+
+    /// Check access for a specific address
+    pub async fn check_access_role(&self, package_id: i32, session: Option<&SessionData>) -> Result<Vec<String>, ModelError> {
+        if let Some(session) = session {
+            let roles = self.items_store.get_access_roles(package_id, session).await?;
+            Ok(roles.into_iter()
+                .map(|r| r.role)
+                .collect())
+        } else {
+            Ok(vec![])
+        }
+    }
 }
 
 // --- helpers and conversions ---

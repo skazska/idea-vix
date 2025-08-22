@@ -31,7 +31,8 @@ macro_rules! resource_routes {
         $delete_item:expr,
         $add_access:expr,
         $list_access:expr,
-        $revoke_access:expr
+        $revoke_access:expr,
+        $check_access:expr
     ) => {{
         ::axum::Router::new()
             .route("/", ::axum::routing::get($get_items))
@@ -42,5 +43,6 @@ macro_rules! resource_routes {
             .route("/{id}/access", ::axum::routing::post($add_access))
             .route("/{id}/access", ::axum::routing::get($list_access))
             .route("/{id}/access/{address}", ::axum::routing::delete($revoke_access))
+            .route("/{id}/my/access", ::axum::routing::get($check_access))
     }};
 }

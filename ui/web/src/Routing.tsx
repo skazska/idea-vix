@@ -50,11 +50,11 @@ const Routing: Component = () => {
     }
 
     const preloadBoards = (): Promise<TBoard[]> => {
-        return boardApi.getBoards()
+        return boardApi.list()
     }
 
     const preloadBoard = ({ params }: RoutePreloadFuncArgs): Promise<TBoard> => {
-        return boardApi.getBoard(params.id)
+        return boardApi.get(params.id)
     }
 
     return (
