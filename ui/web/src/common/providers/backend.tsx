@@ -17,7 +17,7 @@ export interface IBackend {
 };
 import { createContext, useContext, onMount } from "solid-js";
 import { usePageState } from "./page-state";
-import type { TSessionData } from "../../session/model";
+import type { TSessionData } from "../../common/session/model";
 
 class Backend {
     private getFetchJSONOptions(options: RequestInit = {}): RequestInit {

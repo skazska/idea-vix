@@ -2,9 +2,10 @@
 
 import { query } from "@solidjs/router";
 import type { TPackage, TPackageNew } from "../model";
-import type { AccessMapping, GrantRequest } from "../../common/access/model";
+import type { AccessMapping, AccessRole, GrantRequest, IAccessApi, IAccessMapApi } from "../../common/access/model";
 import { getResponse, type IBackend } from "../../common/providers/backend";
-import { REST_PATH } from "../const";
+import { REST_PATH, ENTITIES_NAME } from "../const";
+import type { ICrudApi } from "../../common/crud/model";
 
 export async function getPackages(backend: IBackend): Promise<TPackage[]> {
     return getResponse(backend.fetchJson(REST_PATH), (data) => data as TPackage[], REST_PATH);
@@ -63,7 +64,15 @@ export async function revokePackageAccess(backend: IBackend, id: string, address
     );
 }
 
-export class PackageApi {
+export async function myPackageAccess(backend: IBackend, id: string): Promise<AccessRole[]> {
+    return getResponse(
+        backend.fetchJson(`${REST_PATH}/${id}/my/access`),
+        (data) => data as AccessRole[],
+        `${REST_PATH}/${id}/my/access`
+    );
+}
+
+export class PackageApi implements IAccessMapApi, ICrudApi<TPackage, TPackageNew, Partial<Omit<TPackage, 'id'>>>, IAccessApi {
     private _backend: IBackend
 
     constructor(backend: IBackend) {
@@ -74,14 +83,15 @@ export class PackageApi {
         return this._backend;
     }
 
-    public getPackages = query(() => getPackages(this.backend), "package")
-    public getPackage = query((id: string) => getPackage(this.backend, id), "package")
-    public addPackage = query((item: TPackageNew) => addPackage(this.backend, item), "addPackage")
-    public updatePackage = query((id: string, item: Partial<Omit<TPackage, 'id'>>) => updatePackage(this.backend, id, item), "updatePackage")
-    public removePackage = query((id: string) => removePackage(this.backend,id), "removePackage")
-    public listAccess = (id: string) => listPackageAccess(this.backend, id)
-    public grantAccess = (id: string, item: GrantRequest) => grantPackageAccess(this.backend, id, item)
-    public revokeAccess = (id: string, address: string) => revokePackageAccess(this.backend, id, address)
+    public list = query(() => getPackages(this.backend), ENTITIES_NAME)
+    public get = query((id: string) => getPackage(this.backend, id), ENTITIES_NAME)
+    public create = query((item: TPackageNew) => addPackage(this.backend, item), `add_${ENTITIES_NAME}`)
+    public update = query((id: string, item: Partial<Omit<TPackage, 'id'>>) => updatePackage(this.backend, id, item), `update_${ENTITIES_NAME}`)
+    public remove = query((id: string) => removePackage(this.backend, id), `remove_${ENTITIES_NAME}`)
+    public listAccess = query((id: string) => listPackageAccess(this.backend, id), `${ENTITIES_NAME}_access`)
+    public grantAccess = query((id: string, item: GrantRequest) => grantPackageAccess(this.backend, id, item), `${ENTITIES_NAME}_grant`)
+    public revokeAccess = query((id: string, address: string) => revokePackageAccess(this.backend, id, address), `${ENTITIES_NAME}_revoke`)
+    public myAccess = query((id: string) => myPackageAccess(this.backend, id), `${ENTITIES_NAME}_my_access`)
 }
 
 let packageApi: PackageApi | undefined;

@@ -237,13 +237,13 @@ function BoardContent() {
                                     </div>
                                 </div>
 
-                                {/* Package Items Sections */}
+                                {/* Board Sections */}
                                 <div class="space-y-6">
                                     {/* Access management */}
                                     <Accessible roles={["owner", "manage"]}>
-                                        <Expandable title={(<h2 class="text-xl font-bold flex items-center gap-2"><Users size={'1rem'}/> Access</h2>)} openByDefault={false} name="package-section-access">
+                                        <Expandable title={(<h2 class="text-xl font-bold flex items-center gap-2"><Users size={'1rem'}/> Access</h2>)} openByDefault={false} name="board-section-access">
                                             <AccessMapProvider id={b().id} api={boardApi}>
-                                                <AccessManager id={b().id}/>
+                                                <AccessManager id={b().id} entity="board"/>
                                             </AccessMapProvider>
                                         </Expandable>
                                     </Accessible>

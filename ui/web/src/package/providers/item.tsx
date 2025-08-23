@@ -8,8 +8,8 @@ import { createAsync, type AccessorWithLatest } from "@solidjs/router";
 export type TPackageItemModel = [
     AccessorWithLatest<TPackage | undefined>,
     {
-        remove: PackageApi["removePackage"];
-        update: PackageApi["updatePackage"];
+        remove: PackageApi["remove"];
+        update: PackageApi["update"];
         reload: () => void;
     }
 ];
@@ -18,8 +18,8 @@ const PackageItemContext = createContext<TPackageItemModel>();
 
 export const PackageItemProvider: ParentComponent<{ packageId: string }> = (props) => {
     const packageApi = getPackageApi(useBackend());
-    const { updatePackage, removePackage } = packageApi;
-    const resource = createAsync(() => packageApi.getPackage(props.packageId), { 
+    const { update, remove } = packageApi;
+    const resource = createAsync(() => packageApi.get(props.packageId), { 
         name: "package-item-query",
     });
 
@@ -28,10 +28,10 @@ export const PackageItemProvider: ParentComponent<{ packageId: string }> = (prop
     const model: TPackageItemModel = [
         resource,
         {
-            remove: removePackage.bind(packageApi),
-            update: updatePackage.bind(packageApi),
+            remove: remove.bind(packageApi),
+            update: update.bind(packageApi),
             reload: () => {
-                const key = packageApi.getPackage.keyFor(props.packageId);
+                const key = packageApi.get.keyFor(props.packageId);
                 console.log("Reloading package item with revalidate key:", key);
                 revalidate(key);
             }

@@ -7,7 +7,7 @@ import { Plus } from "lucide-solid";
 import { NewBoardForm } from "./forms/new";
 import { ModalCentered } from "../common/modals";
 import type { TBoardNew } from "./model";
-import { ENTITIES_NAME, PAGE_TITLE } from "./const";
+import { PAGE_TITLE } from "./const";
 
 export default function Boards() {
     setTitle(PAGE_TITLE)

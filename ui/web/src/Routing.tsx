@@ -46,7 +46,7 @@ const Routing: Component = () => {
     // }
 
     const preloadPackage = ({ params }: RoutePreloadFuncArgs): Promise<TPackage> => {
-        return packageApi.getPackage(params.id)
+        return packageApi.get(params.id)
     }
 
     const preloadBoards = (): Promise<TBoard[]> => {

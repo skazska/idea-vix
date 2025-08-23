@@ -1,7 +1,7 @@
 import { createForm, valiForm } from "@modular-forms/solid";
 import { getError, getLabel, getInput, getString, getText, type TFormComponent, getBoolean } from "../../common/form/generators";
 import { NewPackageSchema, type TPackage, type TPackageNew } from "../model";
-import { Footer, Header } from "../../common/forms.components";
+import { Footer, Header } from "../../common/form/components";
 import { usePackageData } from "../providers/items";
 import { action, useAction } from "@solidjs/router";
 import { createSignal } from "solid-js";

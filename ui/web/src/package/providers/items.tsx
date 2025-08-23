@@ -9,8 +9,8 @@ import { createAsync, type AccessorWithLatest } from "@solidjs/router";
 export type TPackageItemsModel = [
     AccessorWithLatest<TPackage[] | undefined >,
     {
-        add: PackageApi["addPackage"];
-        remove: PackageApi["removePackage"];
+        add: PackageApi["create"];
+        remove: PackageApi["remove"];
         reload: () => void;
     }
 ];
@@ -20,7 +20,7 @@ const PackageItemsContext = createContext<TPackageItemsModel>();
 
 export const PackageProvider: ParentComponent<{ items: TPackage[] }> = (props) => {
     const packageApi = getPackageApi(useBackend());
-    const resource = createAsync(() => packageApi.getPackages(), {  name: "package-query", 
+    const resource = createAsync(() => packageApi.list(), {  name: "package-query", 
         // reconcile: 
         // reconcile({
         //     deep: true,
@@ -39,11 +39,11 @@ export const PackageProvider: ParentComponent<{ items: TPackage[] }> = (props) =
     const model:TPackageItemsModel = [
         resource,
         {
-            add: packageApi.addPackage.bind(packageApi),
-            remove: packageApi.removePackage.bind(packageApi),
+            add: packageApi.create.bind(packageApi),
+            remove: packageApi.remove.bind(packageApi),
             reload: () => {
-                console.log("PackageItemsProvider reload, for key:", packageApi.getPackages.key);
-                reload({ revalidate: packageApi.getPackage.key });
+                console.log("PackageItemsProvider reload, for key:", packageApi.list.key);
+                reload({ revalidate: packageApi.get.key });
                 // actions.refetch({ revalidate: packageApi.getPackages.key });
             }
         }
