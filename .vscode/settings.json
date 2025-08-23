@@ -3,4 +3,5 @@
     "github.copilot.chat.completionContext.typescript.mode": "sidecar",
     "github.copilot.chat.languageContext.inline.typescript.enabled": true,
     "github.copilot.chat.languageContext.typescript.enabled": true,
+    "github.copilot.chat.codeGeneration.useInstructionFiles": true
 }
