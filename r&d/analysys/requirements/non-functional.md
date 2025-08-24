@@ -59,3 +59,4 @@
 
 - All operations are exposed through API
 - API contains endpoints for both data representation variants.
+- Packages versioning

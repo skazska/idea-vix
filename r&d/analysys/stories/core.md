@@ -44,7 +44,7 @@ Status [~]
 
 ### View boards
 
-Status [~]
+Status [v]
 
 Who: any user [v]
 
@@ -56,15 +56,15 @@ How:
 
 Restrictions:
 
-1. unidentified user can view only public boards [~]
-2. authenticated user can view own boards and public boards [~]
-3. invited user can view boards they are invited to [~]
+1. unidentified user can view only public boards [v]
+2. authenticated user can view own boards and public boards [v]
+3. invited user can view boards they are invited to [v]
 
 ### Create board
 
-Status [~]
+Status [v]
 
-Who: authenticated user [~]
+Who: authenticated user [v]
 
 How:
 
@@ -75,7 +75,7 @@ How:
 
 ### Work with board
 
-Status [~]
+Status [v]
 
 Who: any user [v]
 
@@ -86,9 +86,9 @@ How:
 
 restrictions:
 
-1. unidentified user can view only public board [~]
-2. authenticated user can view own board and public board [~]
-3. invited user can view board they are invited to []
+1. unidentified user can view only public board [v]
+2. authenticated user can view own board and public board [v]
+3. invited user can view board they are invited to [v]
 
 #### Change board properties
 
@@ -106,6 +106,8 @@ How:
 3. save changes [v]
 
 #### Draw shaped nodes with links
+
+[Diagram](diagrams.md)
 
 Status []
 
@@ -126,9 +128,11 @@ How:
 2.2. attach link to placed node []
 2.3. change link type from available in workshop []
 
-#### Manage node shapes, links, rules and layout
+#### Manage node shapes, links, rules and layout (Workshop)
 
 Status []
+
+[Workshop](./workshop.md)
 
 Who:
 
@@ -137,7 +141,7 @@ Who:
 
 How:
 
-0. Activate "Manage workshop" in board view []
+0. by viewing items in workshop []
 1. by adding from package []
     - list available packages []
     - select package []
@@ -146,6 +150,10 @@ How:
     - add new item (node shape, link type, connection rule) []
     - define item []
     - save item []
+3. by removing internal items []
+    - select item to remove []
+    - confirm removal []
+4. by unchecking items in package []
 
 #### add package to board
 
@@ -181,7 +189,8 @@ Restrictions:
 
 1. unidentified user can view only public packages [v]
 2. authenticated user can view own packages and public packages [v]
-3. invited user can view packages they are invited to []
+3. invited user can view packages they are invited to [v]
+4. package with no version is visible only to its owner []
 
 ### Create package
 
@@ -228,9 +237,11 @@ How:
 2. Fill in properties form [v]
 3. save changes [v]
 
-#### Add items to package
+#### Add items to workshop
 
-Status []
+Status [~]
+
+[Workshop](./workshop.md)
 
 Who:
 
@@ -239,7 +250,8 @@ Who:
 
 How:
 
-1. Activate "Add Shape" to add new shape item to package []
+0. view items in workshop [~]
+1. Activate "Add Shape" to add new shape item to package [~]
     - define shape item []
     - save shape item []
 2. Activate "Add Link" to add new link item to package []
@@ -252,13 +264,30 @@ How:
     - define layout item []
     - save layout item []
 
+#### remove item from package
+
+Status []
+
+[Workshop](./workshop.md)
+
+Who:
+
+- package owner []
+- user invited to package with "manage" permission []
+
+How:
+
+1. Activate "Remove Item" in package view []
+2. Select item to remove []
+3. Confirm removal []
+
 ## Access
 
 Status [v]
 
 ### Identification
 
-Status [~]
+Status [v]
 
 Who: any user [v]
 
@@ -300,9 +329,24 @@ How:
 4. Submit invitation [v]
    - backend [v]
    - frontend [v]
-5. Revoke invitation [~]
+5. Revoke invitation [v]
    - backend [v]
    - frontend [v]
 
 Explanation:
 The invited user will receive a notification and when identified by this address will have access and permissions defined in invitation.
+
+## Versioning
+
+Status []
+
+Who:
+
+- package owner []
+- user invited to package with "manage" permission []
+
+How:
+
+1. Package is not 
+2. Select version to view []
+3. Compare with other versions []
