@@ -32,23 +32,23 @@ test.describe('Package access management', () => {
   await page.getByTestId('package-section-access-toggle').click();
   await expect(page.getByTestId('package-section-access-content')).toBeVisible();
 
-    const form = page.getByTestId('package-access-form');
+    const form = page.getByTestId('access-map-form');
     await expect(form).toBeVisible();
 
     const address = `user-${Date.now()}@example.com`;
 
     await form.locator('input[name="address"]').fill(address);
     await form.locator('select[name="role"]').selectOption('manage');
-    await page.getByTestId('package-access-grant-button').click();
+    await page.getByTestId('access-map-grant-button').click();
 
-    const list = page.getByTestId('package-access-list');
+    const list = page.getByTestId('access-map-list');
     await expect(list).toBeVisible();
     const row = list.getByRole('listitem').filter({ hasText: address });
     await expect(row).toBeVisible();
-    await expect(row.getByTestId('package-access-role')).toHaveText(/manage/i);
+    await expect(row.getByTestId('access-map-role')).toHaveText(/manage/i);
 
     // revoke
-    await row.getByTestId('package-access-revoke-button').click();
+    await row.getByTestId('access-map-revoke-button').click();
     await expect(list.getByRole('listitem').filter({ hasText: address })).toHaveCount(0);
   });
 });

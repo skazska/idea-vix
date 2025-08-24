@@ -46,3 +46,7 @@ Learn more about deploying your application with the [documentations](https://vi
 ### E2E Testing
 
 Using [Playwright](https://playwright.dev) for end-to-end testing
+
+## Code Standards
+
+TODO (at least copy from copilot instructions)

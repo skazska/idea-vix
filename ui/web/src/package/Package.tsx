@@ -243,7 +243,7 @@ function PackageContent() {
                                     <Accessible roles={["owner", "manage"]}>
                                         <Expandable title={(<h2 class="text-xl font-bold flex items-center gap-2"><Users size={'1rem'}/> Access</h2>)} openByDefault={false} name="package-section-access">
                                             <AccessMapProvider id={p().id} api={packageApi}>
-                                                <AccessManager id={p().id} entity="package"/>
+                                                <AccessManager id={p().id}/>
                                             </AccessMapProvider>
                                         </Expandable>
                                     </Accessible>

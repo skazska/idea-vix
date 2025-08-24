@@ -32,23 +32,23 @@ test.describe('Board access management', () => {
   await page.getByTestId('board-section-access-toggle').click();
   await expect(page.getByTestId('board-section-access-content')).toBeVisible();
 
-    const form = page.getByTestId('board-access-form');
+    const form = page.getByTestId('access-map-form');
     await expect(form).toBeVisible();
 
     const address = `user-${Date.now()}@example.com`;
 
     await form.locator('input[name="address"]').fill(address);
     await form.locator('select[name="role"]').selectOption('edit');
-    await page.getByTestId('board-access-grant-button').click();
+    await page.getByTestId('access-map-grant-button').click();
 
-    const list = page.getByTestId('board-access-list');
+    const list = page.getByTestId('access-map-list');
     await expect(list).toBeVisible();
     const row = list.getByRole('listitem').filter({ hasText: address });
     await expect(row).toBeVisible();
-    await expect(row.getByTestId('board-access-role')).toHaveText(/edit/i);
+    await expect(row.getByTestId('access-map-role')).toHaveText(/edit/i);
 
     // revoke
-    await row.getByTestId('board-access-revoke-button').click();
+    await row.getByTestId('access-map-revoke-button').click();
     await expect(list.getByRole('listitem').filter({ hasText: address })).toHaveCount(0);
   });
 });

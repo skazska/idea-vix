@@ -1,12 +1,13 @@
 # User stories User stories
 
+- [Concept](#concept)
 - [Boards](#boards)
   - [View boards](#view-boards)
   - [Create board](#create-board)
   - [Work with board](#work-with-board)
     - [Change board properties](#change-board-properties)
     - [Draw shaped nodes with links](#draw-shaped-nodes-with-links)
-    - [Manage node shapes, link types and restrictions by shapes connection rules](#manage-node-shapes-link-types-and-restrictions-by-shapes-connection-rules)
+    - [Manage node shapes, links, rules and layout](#manage-node-shapes-links-rules-and-layout)
     - [add package to board](#add-package-to-board)
 - [Packages](#packages)
   - [View packages](#view-packages)
@@ -28,6 +29,14 @@
 []  - not implemented
 [?] - unknown
 [MAYBE] - may be not needed?
+
+## Concept
+
+To draw [diagram](diagrams.md#concept) on [Board](#boards) one need to have set of shapes and links available in the [Workshop](diagrams.md#workshop) of the board to put shapes on [layout](diagrams.md#layouts) and connect them with links according to [connection rules](diagrams.md#connection-rules).
+Workshop provides a collection of predefined shapes, links with rules that can be used to create diagrams.
+Shapes and links are a drawing primitives blueprints, board can be of layout.
+
+All components can be defined for Board or imported from packages.
 
 ## Boards
 
@@ -83,12 +92,12 @@ restrictions:
 
 #### Change board properties
 
-Status [~]
+Status [v]
 
 Who:
 
-- board owner [~]
-- user invited to board with "manage" permission []
+- board owner [v]
+- user invited to board with "manage" permission [v]
 
 How:
 
@@ -117,7 +126,7 @@ How:
 2.2. attach link to placed node []
 2.3. change link type from available in workshop []
 
-#### Manage node shapes, link types and restrictions by shapes connection rules
+#### Manage node shapes, links, rules and layout
 
 Status []
 
@@ -202,7 +211,7 @@ Restrictions:
 
 1. unidentified user can view only public packages [v]
 2. authenticated user can view own packages and public packages [v]
-3. invited user can view packages they are invited to []
+3. invited user can view packages they are invited to [v]
 
 #### Change package properties
 
@@ -239,6 +248,9 @@ How:
 3. Activate "Add Rule" to add new connection rule item to package []
     - define rule item []
     - save rule item []
+4. Activate "Add Layout" to add new layout item to package []
+    - define layout item []
+    - save layout item []
 
 ## Access
 

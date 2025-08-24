@@ -20,7 +20,8 @@ applyTo: "**"
 
 
 ## Requirements
-- use `r&d/analysis/stories/core.md` for core feature requirements and implementation status. 
+- use `r&d/analysis/stories/*` for core feature concept and user stories and their implementation status.
+- use `r&d/analysis/requirements/*` for technical requirements 
 
 
 ## Documentation
@@ -29,6 +30,8 @@ applyTo: "**"
 - Keep API documentation up-to-date with code changes.
 - Use `r&d/dev-docs/storage.dbml` for database schema documentation.
 - Keep database documentation in sync with migrations.
+- Use `r&d/dev-docs/project-implementation-overview.md` for project implementation overview documentation.
+- Keep implementation details up-to-date with code changes.
 
 ## Architecture
 - Backend: See `.github/instructions/server.instructions.md`

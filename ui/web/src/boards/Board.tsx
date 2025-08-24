@@ -243,7 +243,7 @@ function BoardContent() {
                                     <Accessible roles={["owner", "manage"]}>
                                         <Expandable title={(<h2 class="text-xl font-bold flex items-center gap-2"><Users size={'1rem'}/> Access</h2>)} openByDefault={false} name="board-section-access">
                                             <AccessMapProvider id={b().id} api={boardApi}>
-                                                <AccessManager id={b().id} entity="board"/>
+                                                <AccessManager id={b().id}/>
                                             </AccessMapProvider>
                                         </Expandable>
                                     </Accessible>

@@ -3,7 +3,6 @@ import type { GrantRequest } from './model';
 import { useAccessMap } from './accessMap.provider';
 
 export type AccessManagerProps = {
-  entity: string;
   id: string;
 };
 
@@ -45,20 +44,20 @@ export const AccessManager: Component<AccessManagerProps> = (props) => {
   // initial load
   // reload();
 
-  const p = (suffix: string) => `${props.entity}-access-map-${suffix}`;
+  // const p = (suffix: string) => (props.testIdPrefix ? `${props.testIdPrefix}-${suffix}` : undefined);
 
   return (
-      <div class="bg-white rounded-lg shadow p-4 space-y-4" data-testid={p('container')}>
+      <div class="bg-white rounded-lg shadow p-4 space-y-4" data-testid={'access-map-container'}>
         <div class="flex items-center justify-between">
           <Show when={loading()}>
             <span class="text-blue-500 text-sm">Loading…</span>
           </Show>
         </div>
         <Show when={error()}>
-          <div class="text-red-600" data-testid={p('error')}>{error()}</div>
+          <div class="text-red-600" data-testid={'access-map-error'}>{error()}</div>
         </Show>
 
-        <form class="flex flex-col sm:flex-row gap-2 items-start sm:items-end" onSubmit={onGrant} data-testid={p('form')}>
+        <form class="flex flex-col sm:flex-row gap-2 items-start sm:items-end" onSubmit={onGrant} data-testid={'access-map-form'}>
           <div class="flex-1 w-full">
             <label class="block text-sm text-gray-700 mb-1">Address</label>
             <input name="address" class="border rounded w-full px-2 py-1" value={addr()} onInput={(e) => setAddr(e.currentTarget.value)} placeholder="user@example.com" />
@@ -72,7 +71,7 @@ export const AccessManager: Component<AccessManagerProps> = (props) => {
             </select>
           </div>
           <div>
-            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded" disabled={granting()} data-testid={p('grant-button')}>
+            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded" disabled={granting()} data-testid={'access-map-grant-button'}>
               Grant
             </button>
           </div>
@@ -80,16 +79,16 @@ export const AccessManager: Component<AccessManagerProps> = (props) => {
 
         <div>
           <div class="text-sm text-gray-600 mb-2">Current access</div>
-          <div role="list" class="divide-y" data-testid={p('list')}>
+          <div role="list" class="divide-y" data-testid={'access-map-list'}>
             <For each={items()}>{(row) => (
               <div role="listitem" class="flex items-center justify-between py-2">
                 <div class="space-x-2">
-                  <span class="font-mono" data-testid={p('address')}>{row.address}</span>
-                  <span class={`text-xxs px-1 py-0.5 rounded ${row.role === 'owner' ? 'bg-yellow-100 text-yellow-700' : row.role === 'manage' ? 'bg-blue-100 text-blue-700' : row.role === 'edit' ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 text-gray-700'}`} data-testid={p('role')}>
+                  <span class="font-mono" data-testid={'access-map-address'}>{row.address}</span>
+                  <span class={`text-xxs px-1 py-0.5 rounded ${row.role === 'owner' ? 'bg-yellow-100 text-yellow-700' : row.role === 'manage' ? 'bg-blue-100 text-blue-700' : row.role === 'edit' ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 text-gray-700'}`} data-testid={'access-map-role'}>
                     {String(row.role)}
                   </span>
                 </div>
-                <button class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded" onClick={() => onRevoke(row.address)} data-testid={p('revoke-button')}>
+                <button class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded" onClick={() => onRevoke(row.address)} data-testid={'access-map-revoke-button'}>
                   Revoke
                 </button>
               </div>
