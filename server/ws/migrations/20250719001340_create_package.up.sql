@@ -11,6 +11,7 @@ CREATE TABLE `package_shape` (
     package_id INTEGER NOT NULL,
     shape_id INTEGER NOT NULL,
     name VARCHAR(100),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (package_id, shape_id),
     FOREIGN KEY (package_id) REFERENCES package(id) ON DELETE CASCADE,
     FOREIGN KEY (shape_id) REFERENCES shape(id) ON DELETE CASCADE

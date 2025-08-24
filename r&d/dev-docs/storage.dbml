@@ -17,6 +17,11 @@ Enum role {
 table shape {
     id integer [pk, increment]
     name VARCHAR(100) [not null]
+    slug VARCHAR(100) [unique, note: 'semantic identifier for text-based references']
+    description VARCHAR(500)
+    definition text [note: 'JSON definition of shape properties']
+    created_at datetime [default: `CURRENT_TIMESTAMP`]
+    updated_at datetime [default: `CURRENT_TIMESTAMP`]
 }
 
 table line {
@@ -51,7 +56,8 @@ table package_access {
 table package_shape {
     package_id integer [ref: > package.id]
     shape_id integer [ref: > shape.id]
-    name VARCHAR(100)
+    name VARCHAR(100) [note: 'optional display name override']
+    created_at datetime [default: `CURRENT_TIMESTAMP`]
 
     indexes {
         (package_id, shape_id) [pk, unique]

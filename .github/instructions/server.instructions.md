@@ -15,6 +15,7 @@ applyTo: "server/**"
 - Document business logic and non-obvious patterns
 - Include API endpoint documentation in router modules
 - Example usage in service/store trait documentation
+- Named root module file and named folder for included modules
 
 ## Testing Patterns
 
