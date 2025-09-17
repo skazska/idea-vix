@@ -102,7 +102,7 @@ impl From<BoardDb> for Board {
 }
 
 pub use crate::common::access::RoleOnly as BoardAccessRole;
-pub use crate::common::access::GrantRequest as NewBoardAccessItem;
+pub use crate::common::access::ItemRoleDto as NewBoardAccessItem;
 use crate::common::access::validate_grant_role;
 use crate::common::service_access::{has_owner, has_owner_or_manage, ensure_not_self_revoke};
 

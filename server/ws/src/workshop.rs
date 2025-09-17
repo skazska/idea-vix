@@ -1,0 +1,105 @@
+//! Workshop module: API routes for workshop elements (shapes, lines, rules, layouts).
+//!
+//! The workshop provides global management of diagram element blueprints.
+//! These elements can be referenced by packages and used in boards.
+
+use crate::common::workshop::shape_service::{NewShapeItem, PatchShapeItem, Shape, ShapeService};
+use crate::api::{deserialize::AuthToken, validation::ValidatedJson};
+use crate::session::session_jwt::SessionJWTService;
+use axum::extract::Query;
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    response::Json,
+    routing::{delete, get, patch, post},
+    Router,
+};
+use serde::Deserialize;
+use std::sync::Arc;
+
+/// Shared state for the workshop routes.
+struct RouteState {
+    shape_service: ShapeService,
+    jwt_service: Arc<SessionJWTService>,
+}
+
+/// Create the workshop router with all shape routes.
+pub fn router(
+    shape_service: ShapeService,
+    jwt_service: Arc<SessionJWTService>,
+) -> Router {
+    let state = Arc::new(RouteState {
+        shape_service,
+        jwt_service,
+    });
+
+    Router::new()
+        // Global workshop shape routes
+        .route("/workshop/shapes", get(list_shapes).post(create_shape))
+        .route("/workshop/shapes/:id", get(get_shape).patch(update_shape))
+        .route("/workshop/shapes/by-slug/:slug", get(get_shape_by_slug))
+        .with_state(state)
+}
+
+#[derive(Deserialize, Debug)]
+pub struct SearchParams {
+    pub ids: Vec<i64>,
+    // pub limit: Option<u32>,
+}
+
+/// Handler: list all shapes in the global workshop.
+/// - No authentication required for reading
+/// - Returns array of shapes
+async fn list_shapes(State(state): State<Arc<RouteState>>, Query(params): Query<SearchParams>) -> Result<Json<Vec<Shape>>, (StatusCode, String)> {
+    if params.ids.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "Missing or invalid 'id' query parameter".into()));
+    }
+
+    let shapes = state.shape_service.get_items(&params.ids).await.map_err(|e| e.into())?;
+    Ok(Json(shapes))
+}
+
+/// Handler: get a shape by id.
+/// - No authentication required for reading
+/// - Returns single shape or 404
+async fn get_shape(State(state): State<Arc<RouteState>>, Path(id): Path<i32>) -> Result<Json<Shape>, (StatusCode, String)> {
+    let shape = state.shape_service.get_item(id).await.map_err(|e| e.into())?;
+    Ok(Json(shape))
+}
+
+/// Handler: get a shape by semantic identifier (slug).
+/// - No authentication required for reading
+/// - Returns single shape or 404
+async fn get_shape_by_slug(State(state): State<Arc<RouteState>>, Path(slug): Path<String>) -> Result<Json<Shape>, (StatusCode, String)> {
+    let shape = state.shape_service.get_shape_by_slug(&slug).await.map_err(|e| e.into())?;
+    Ok(Json(shape))
+}
+
+/// Handler: create a new shape in the global workshop.
+/// - Requires authentication
+/// - Validates slug format and uniqueness
+/// - Returns 201 Created with the new shape
+async fn create_shape(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    ValidatedJson(item): ValidatedJson<NewShapeItem>,
+) -> Result<(StatusCode, Json<Shape>), (StatusCode, String)> {
+    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    let shape = state.shape_service.add_item(&item, &session).await.map_err(|e| e.into())?;
+    Ok((StatusCode::CREATED, Json(shape)))
+}
+
+/// Handler: update an existing shape.
+/// - Requires authentication
+/// - Validates slug format and uniqueness if provided
+/// - Returns updated shape
+async fn update_shape(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    Path(id): Path<i32>,
+    ValidatedJson(item): ValidatedJson<PatchShapeItem>,
+) -> Result<Json<Shape>, (StatusCode, String)> {
+    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    let shape = state.shape_service.update_item(id, &item, &session).await.map_err(|e| e.into())?;
+    Ok(Json(shape))
+}

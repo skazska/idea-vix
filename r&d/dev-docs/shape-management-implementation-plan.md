@@ -8,11 +8,13 @@ This document outlines the implementation plan for adding shape management funct
 
 ### Database Schema
 
-- ✅ `shape` table exists with basic structure (id, name)
-- ✅ `package_shape` junction table exists (package_id, shape_id, name)
-- ❌ Shape definition/model storage not implemented
-- ❌ No semantic identifier for text-based references
-- ❌ No JSON field for complex shape definitions
+- ✅ `shape` table enhanced with semantic identifiers and JSON definitions
+- ✅ `package_shape` junction table with timestamps
+- ✅ Shape definition/model storage implemented (JSON in TEXT field)
+- ✅ Semantic identifier (slug) for text-based references
+- ✅ Complex shape definitions via JSON field
+- ✅ Sample shapes inserted (rectangle, circle, diamond)
+- ✅ Database documentation updated
 
 ### Backend Status
 
@@ -80,11 +82,11 @@ interface ShapeDefinition {
 }
 ```
 
-### Phase 1: Database Schema Enhancement
+### Phase 1: Database Schema Enhancement ✅ COMPLETED
 
-#### 1.1 Create Migration for Shape Definitions
+#### 1.1 Create Migration for Shape Definitions ✅ COMPLETED
 
-**File**: `server/ws/migrations/[timestamp]_enhance_shape_table.up.sql`
+**File**: `server/ws/migrations/20250719001300_create_shape_line_rule.up.sql` (modified)
 
 ```sql
 -- Add semantic identifier and JSON definition column
@@ -104,15 +106,15 @@ CREATE INDEX idx_shape_slug ON shape(slug);
 ALTER TABLE package_shape ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP;
 ```
 
-#### 1.2 Update storage.dbml
+#### 1.2 Update storage.dbml ✅ COMPLETED
 
 Update the database documentation to reflect the new schema with semantic identifiers.
 
-### Phase 2: Backend Implementation
+### Phase 2: Backend Implementation 🚧 IN PROGRESS
 
 #### 2.1 Workshop Shape Storage Layer
 
-**File**: `server/ws/src/workshop/shape_store.rs`
+**File**: `server/ws/src/common/workshop/shape_store.rs`
 
 ```rust
 pub struct ShapeDb {
@@ -169,7 +171,7 @@ impl ShapeStore {
 
 #### 2.2 Workshop Shape Service Layer
 
-**File**: `server/ws/src/workshop/shape_service.rs`
+**File**: `server/ws/src/common/workshop/shape_service.rs`
 
 ```rust
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -239,7 +241,8 @@ impl ShapeService {
 
 #### 2.3 Workshop Shape API Routes
 
-**File**: `server/ws/src/workshop/shape_routes.rs`
+**File**: `server/ws/src/workshop.rs` (add shapes routes)
+**File**: `server/ws/src/package.rs` (add package-shape routes)
 
 ```rust
 pub fn router() -> Router<Arc<crate::RouteState>> {

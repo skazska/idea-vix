@@ -1,3 +1,5 @@
+DROP INDEX IF EXISTS "idx_shape_slug";
+
 DROP TABLE IF EXISTS "shape";
 DROP TABLE IF EXISTS "line";
 DROP TABLE IF EXISTS "rule";

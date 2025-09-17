@@ -4,22 +4,41 @@
 //! - CRUD on `package` rows
 //! - Visibility-filtered reads based on session address
 //! - Access role CRUD in `package_access`
+//! - Package shapes CRUD in `package_shape`
 //!
 //! Design notes:
 //! - Uses explicit transactions where multi-step writes must be atomic
 //! - Leaves access control decisions to the service layer (except visibility filters)
 //! - Patch updates bind only provided fields, supporting NULL to clear values
 //
-use std::{ops::Deref, sync::Arc};
-
 use sqlx::Error;
 
-use crate::{session::session_service::SessionData};
+use crate::common::crud::{CrudQueries, QueryFilter, QueryLister, QueryPager};
+
+/// Storage layer for packages, backed by SQLx + SQLite.
+///
+/// Handles transactions and low-level SQL, without applying access-control decisions
+/// (those are enforced by the service layer where required).
+pub struct PackageStore {}
+
+impl PackageStore {
+    /// Create a new store using the given pool.
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+/*******
+* Package CRUD operations
+*/
+
+/// Lister
+pub type PackageLister = QueryLister;
 
 /// Database model for a package row.
-#[derive(sqlx::FromRow, Debug)]
+#[derive(sqlx::FromRow, Debug, Clone)]
 pub struct PackageDb {
-    pub id: i32,
+    pub id: i64,
     pub name: String,
     pub description: Option<String>,
     pub icon: Option<String>,
@@ -48,177 +67,128 @@ pub struct PatchPackageDb<'a> {
     pub is_public: Option<bool>,
 }
 
-/// Database model for a single role value for a (package_id, address).
-#[derive(sqlx::FromRow, Debug)]
-pub struct PackageAccessRoleDb {
-    pub role: String,
-}
-
-/// Insert model for a package access role entry.
-#[derive(Debug)]
-pub struct NewPackageAccessDb<'a> {
-    pub package_id: i32,
-    pub address: &'a str,
-    pub role: &'a str,
-}
-
-/// Database model representing an access role mapping row.
-#[derive(sqlx::FromRow, Debug)]
-pub struct PackageAccessRolesDb {
-    pub package_id: i32,
-    pub address: String,
-    pub role: String,
-}
-
-// (internal helper note left intentionally blank)
-
-/// Storage layer for packages, backed by SQLx + SQLite.
-///
-/// Handles transactions and low-level SQL, without applying access-control decisions
-/// (those are enforced by the service layer where required).
-pub struct PackageStore {
-    pub pool: Arc<sqlx::Pool<sqlx::Sqlite>>,
-}
-
-impl<'a> PackageStore {
-    /// Create a new store using the given pool.
-    pub fn new(pool: Arc<sqlx::Pool<sqlx::Sqlite>>) -> Self {
-        Self { 
-            pool,
-        }
-    }
+impl<'a> CrudQueries<'a> for PackageStore {
+    type Item = PackageDb;
+    type NewItem = NewPackageDb<'a>;
+    type PatchItem = PatchPackageDb<'a>;
+    type Lister = PackageLister;
+    type Error = Error;
+    type Transaction = sqlx::Transaction<'a, sqlx::Sqlite>;
+    type Id = i64;
 
     /// Insert a new package and assign `owner` role to the provided session address.
     /// Uses a transaction to ensure both package row and access row are created.
-    pub async fn add_item(&self, item: NewPackageDb<'a>, session: &SessionData) -> Result<PackageDb, Error> {
-        let connection = self.pool.deref();
-
-        // Start a transaction
-        let mut transaction = connection.begin().await?;
-
-        // Use transaction for all operations and commit at the end
-        let result = match sqlx::query_as::<_, PackageDb>(
+    async fn add_item(&self, item: &NewPackageDb<'a>, transaction: &mut Self::Transaction) -> Result<Self::Item, Self::Error> {
+        let result = sqlx::query_as::<_, Self::Item>(
             "INSERT INTO package (name, description, icon, is_public) VALUES (?, ?, ?, ?) RETURNING id, name, description, icon, is_public",
         )
             .bind(item.name)
             .bind(item.description)
             .bind(item.icon)
             .bind(item.is_public)
-            .fetch_one(&mut *transaction)
-            .await {
-                Ok(result) => result,
-                Err(err) => {
-                    let _ = transaction.rollback().await;
-                    return Err(err);
-                }
-            };
+            .fetch_one(&mut **transaction)
+            .await;
 
-        match sqlx::query("INSERT INTO package_access (package_id, address, role) VALUES (?, ?, ?)")
-            .bind(result.id)
-            .bind(&session.address)
-            .bind("owner")
-            .execute(&mut *transaction)
-            .await {
-                Ok(_) => {},
-                Err(err) => {
-                    let _ = transaction.rollback().await;
-                    return Err(err);
-                }
-            };
-
-        match transaction.commit().await {
-            Ok(_) => Ok(result),
-            Err(err) => Err(err),
-        }
+        result
     }
 
     /// Retrieve packages visible to the optional session.
     /// When `session` is `None`, only public packages are returned.
-    pub async fn get_items(&self, session: &Option<SessionData>) -> Result<Vec<PackageDb>, Error> {
-        let connection = self.pool.deref();
-        let mut transaction = connection.begin().await?;
+    async fn get_items(&self, lister: &Self::Lister, transaction: &mut Self::Transaction) -> Result<Vec<Self::Item>, Self::Error> {
+        let select = Vec::from([String::from("p.id"), String::from("p.name"), String::from("p.description"), String::from("p.icon"), String::from("p.is_public")]);
+        let from = Vec::from([String::from("package p")]);
+        let mut where_clauses: Vec<String> = Vec::new();
+        let mut paging = Vec::new();
 
-        let result = if let Some(session) = session {
-            match sqlx::query_as::<_, PackageDb>(
-                "SELECT p.id, p.name, p.description, p.icon, p.is_public
-                 FROM package p
-                 WHERE p.is_public = 1 OR EXISTS (
-                   SELECT 1 FROM package_access pa
-                   WHERE pa.package_id = p.id AND pa.address = ?
-                 )",
-            )
-            .bind(&session.address)
-            .fetch_all(&mut *transaction)
-            .await {
-                Ok(rows) => rows,
-                Err(err) => {
-                    let _ = transaction.rollback().await;
-                    return Err(err);
-                }
+        if let Some(filter) = &lister.filter {
+            if let Some(_access) = &filter.access {
+                where_clauses.push(String::from("(b.is_public = 1 OR EXISTS (SELECT 1 FROM package_access pa WHERE pa.package_id = p.id AND pa.address = ?))"));
+            } else {
+                where_clauses.push(String::from("p.is_public = 1"));
             }
-        } else {
-            match sqlx::query_as::<_, PackageDb>(
-                "SELECT id, name, description, icon, is_public FROM package WHERE is_public = 1",
-            )
-            .fetch_all(&mut *transaction)
-            .await {
-                Ok(rows) => rows,
-                Err(err) => {
-                    let _ = transaction.rollback().await;
-                    return Err(err);
-                }
+
+            if let Some(_search) = &filter.search {
+                where_clauses.push(String::from("(p.name LIKE ? OR p.description LIKE ?)"));
             }
+
+            if let Some(ids) = &filter.ids {
+                let ids = ids.iter().map(|id| id.to_string()).collect::<Vec<_>>().join(", ");
+                where_clauses.push(format!(" AND p.id IN ({ids})"));
+                // where_clause.push_str(" AND p.id IN (");
+                // where_clause.push_str(&ids.iter().map(|_| "?").collect::<Vec<_>>().join(", "));
+                // where_clause.push_str(")");
+            }
+        }
+
+        paging.push(format!(" LIMIT {}", lister.pager.limit));
+        if let Some(offset) = lister.pager.offset {
+            paging.push(format!(" OFFSET {}", offset));
+        }
+
+        let mut sql = format!(
+            "SELECT {} FROM {}{}",
+            select.join(", "),
+            from.join(", "),
+            if where_clauses.is_empty() {
+                String::new()
+            } else {
+                format!(" WHERE {}", where_clauses.join(" AND "))
+            }
+        );
+
+        for p in paging {
+            sql.push_str(&p);
+        }
+
+        let q = sqlx::query_as::<_, Self::Item>(&sql);
+
+        let q = match &lister.filter {
+            Some(filter) => {
+                let q = match &filter.access {
+                    Some(access) => q.bind(access),
+                    None => q,
+                };
+
+                let q = match &filter.search {
+                    Some(search) => {
+                        let search = format!("%{}%", search);
+                        let q = q.bind(search.clone());
+                        let q = q.bind(search);
+                        q
+                    }
+                    None => q,
+                };
+
+                // if let Some(ids) = filter.ids {
+                //     for id in ids {
+                //         let q = q.bind(id);
+                //     }
+                // }
+                q
+            }
+            None => q,
         };
 
-        match transaction.commit().await {
-            Ok(_) => Ok(result),
-            Err(err) => Err(err),
-        }
+        let result = q.fetch_all(&mut **transaction).await;
+
+        result
     }
 
     /// Retrieve a single package by id if visible to the optional session.
-    pub async fn get_item(&self, item_id: i32, session: &Option<SessionData>) -> Result<PackageDb, Error> {
-        let connection = self.pool.deref();
-        let mut transaction = connection.begin().await?;
+    async fn get_item(&self, id: Self::Id, access: Option<&'a str>, transaction: &mut Self::Transaction) -> Result<Self::Item, Self::Error> {
+        let items = self.get_items(&Self::Lister {
+            filter: Some(QueryFilter {
+                access: access.map(|s| s.to_string()),
+                filter: None,
+                ids: Some(vec![id]),
+                search: None,
+            }),
+            pager: QueryPager { limit: 1, offset: None },
+        }, transaction).await?;
 
-        let result = if let Some(session) = session {
-            match sqlx::query_as::<_, PackageDb>(
-                "SELECT p.id, p.name, p.description, p.icon, p.is_public
-                 FROM package p
-                 WHERE p.id = ? AND (p.is_public = 1 OR EXISTS (
-                   SELECT 1 FROM package_access pa
-                   WHERE pa.package_id = p.id AND pa.address = ?
-                 ))",
-            )
-            .bind(item_id)
-            .bind(&session.address)
-            .fetch_one(&mut *transaction)
-            .await {
-                Ok(row) => row,
-                Err(err) => {
-                    let _ = transaction.rollback().await;
-                    return Err(err);
-                }
-            }
-        } else {
-            match sqlx::query_as::<_, PackageDb>(
-                "SELECT id, name, description, icon, is_public FROM package WHERE id = ? AND is_public = 1",
-            )
-            .bind(item_id)
-            .fetch_one(&mut *transaction)
-            .await {
-                Ok(row) => row,
-                Err(err) => {
-                    let _ = transaction.rollback().await;
-                    return Err(err);
-                }
-            }
-        };
+        let item = items.get(0).cloned().ok_or(Error::RowNotFound)?;
 
-        match transaction.commit().await {
-            Ok(_) => Ok(result),
-            Err(err) => Err(err),
-        }
+        Ok(item)
     }
 
     /// Update a package row. Access is validated by the service layer.
@@ -233,7 +203,7 @@ impl<'a> PackageStore {
     ///   - `Some(None)` sets the column to `NULL`.
     ///   - `None` means "do not update this column".
     /// - If no fields are provided, returns `Error::InvalidArgument`.
-    pub async fn update_item(&self, id: i32, item: PatchPackageDb<'a>) -> Result<PackageDb, Error> {
+    async fn update_item(&self, id: Self::Id, item: &PatchPackageDb<'a>, transaction: &mut Self::Transaction) -> Result<Self::Item, Self::Error> {
         let set = crate::sqlx_build_set!(
             item.name.is_some() => "name = ?",
             item.description.is_some() => "description = ?",
@@ -251,10 +221,7 @@ impl<'a> PackageStore {
             set
         );
 
-        let connection = self.pool.deref();
-        let mut transaction = connection.begin().await?;
-
-        let q = sqlx::query_as::<_, PackageDb>(&query);
+        let q = sqlx::query_as::<_, Self::Item>(&query);
         let q = match item.name {
             Some(name) => q.bind(name),
             _ => q,
@@ -273,107 +240,80 @@ impl<'a> PackageStore {
             None => q,
         };
 
-        let result = match q
-            .bind(&id)
-            .fetch_one(&mut *transaction)
-            .await {
-                Ok(row) => row,
-                Err(err) => {
-                    let _ = transaction.rollback().await;
-                    return Err(err);
-                }
-            };
+        // let item_id: i32 = id.try_into().map_err(|_| Error::InvalidArgument("id is too big. Unsupported by DB".into()))?;
 
-        match transaction.commit().await {
-            Ok(_) => Ok(result),
-            Err(err) => Err(err),
-        }
+        let result = q
+            .bind(id)
+            .fetch_one(&mut **transaction)
+            .await;
+            //  {
+            //     Ok(row) => row,
+            //     Err(err) => {
+            //         let _ = transaction.rollback().await;
+            //         return Err(err);
+            //     }
+            // };
+
+        result
+
+        // match transaction.commit().await {
+        //     Ok(_) => Ok(result),
+        //     Err(err) => Err(err),
+        // }
     }
 
     /// Delete a package row and its access entries within a transaction.
-    pub async fn delete_item(&self, id: i32) -> Result<PackageDb, Error> {
-        let connection = self.pool.deref();
-        let mut transaction = connection.begin().await?;
-
-        let result = match sqlx::query_as::<_, PackageDb>("DELETE FROM package WHERE id = ? RETURNING id, name, description, icon, is_public")
+    async fn delete_item(&self, id: Self::Id, transaction: &mut Self::Transaction) -> Result<Self::Item, self::Error> {
+        let result = sqlx::query_as::<_, Self::Item>("DELETE FROM package WHERE id = ? RETURNING id, name, description, icon, is_public")
             .bind(id)
-            .fetch_one(&mut *transaction)
-            .await {
-                Ok(row) => row,
-                Err(err) => {
-                    let _ = transaction.rollback().await;
-                    return Err(err);
-                }
-            };
+            .fetch_one(&mut **transaction)
+            .await;
+            //  {
+            //     Ok(row) => row,
+            //     Err(err) => {
+            //         let _ = transaction.rollback().await;
+            //         return Err(err);
+            //     }
+            // };
 
-        match sqlx::query("DELETE FROM package_access WHERE package_id = ?")
-            .bind(id)
-            .execute(&mut *transaction)
-            .await {
-                Ok(_) => {}
-                Err(err) => {
-                    let _ = transaction.rollback().await;
-                    return Err(err);
-                }
-            };
+        result
 
-        match transaction.commit().await {
-            Ok(_) => Ok(result),
-            Err(err) => Err(err),
-        }
+        // match sqlx::query("DELETE FROM package_access WHERE package_id = ?")
+        //     .bind(id)
+        //     .execute(&mut *transaction)
+        //     .await {
+        //         Ok(_) => {}
+        //         Err(err) => {
+        //             let _ = transaction.rollback().await;
+        //             return Err(err);
+        //         }
+        //     };
+
+        // match transaction.commit().await {
+        //     Ok(_) => Ok(result),
+        //     Err(err) => Err(err),
+        // }
     }
 
-    /// Fetch roles the given `session` has for a particular package id.
-    pub async fn get_access_roles(&self, id: i32, session: &SessionData) -> Result<Vec<PackageAccessRoleDb>, Error> {
-        let connection = self.pool.deref();
+    // /// List all shapes for a package id.
+    // pub async fn list_shapes(&self, package_id: i32) -> Result<Vec<PackageShapeDb>, Error> {
+    //     let connection = self.pool.deref();
 
-        let access = sqlx::query_as::<_, PackageAccessRoleDb>("SELECT role FROM package_access WHERE package_id = ? AND address = ?")
-            .bind(id)
-            .bind(&session.address)
-            .fetch_all(connection)
-            .await?;
+    //     let rows = sqlx::query_as::<_, PackageShapeDb>(
+    //         "SELECT id, package_id, name, description FROM package_shape WHERE package_id = ? ORDER BY name"
+    //     )
+    //     .bind(package_id)
+    //     .fetch_all(connection)
+    //     .await?;
 
-        Ok(access)
-    }
+    //     Ok(rows)
+    // }
+}
 
-    /// Grant a role to an address for a specific package.
-    pub async fn add_access_role(&self, item: NewPackageAccessDb<'a>) -> Result<PackageAccessRolesDb, Error> {
-        let connection = self.pool.deref();
-
-        let result = sqlx::query_as::<_, PackageAccessRolesDb>("INSERT INTO package_access (package_id, address, role) VALUES (?, ?, ?) RETURNING package_id, address, role")
-            .bind(item.package_id)
-            .bind(item.address)
-            .bind(item.role)
-            .fetch_one(connection)
-            .await?;
-
-        Ok(result)
-    }
-
-    /// Revoke access for an address and return the removed mapping row.
-    pub async fn revoke_access_role(&self, package_id: i32, address: &str) -> Result<PackageAccessRolesDb, Error> {
-        let connection = self.pool.deref();
-
-        let result = sqlx::query_as::<_, PackageAccessRolesDb>("DELETE FROM package_access WHERE package_id = ? AND address = ? RETURNING package_id, address, role")
-            .bind(package_id)
-            .bind(address)
-            .fetch_one(connection)
-            .await?;
-
-        Ok(result)
-    }
-
-    /// List all access mappings for a package id.
-    pub async fn list_access_roles(&self, package_id: i32) -> Result<Vec<PackageAccessRolesDb>, Error> {
-        let connection = self.pool.deref();
-
-        let rows = sqlx::query_as::<_, PackageAccessRolesDb>(
-            "SELECT package_id, address, role FROM package_access WHERE package_id = ? ORDER BY address"
-        )
-        .bind(package_id)
-        .fetch_all(connection)
-        .await?;
-
-        Ok(rows)
-    }
+/// Database model for a package shape row.
+#[derive(sqlx::FromRow, Debug)]
+pub struct PackageShapeDb {
+    pub id: i32,
+    pub package_id: i32,
+    pub description: Option<String>,
 }

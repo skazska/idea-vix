@@ -12,6 +12,7 @@ pub enum ModelError {
     Timeout(String),
     Unavailable(String),
     Forbidden(String),
+    Conflict(String),
 }
 
 impl std::fmt::Display for ModelError {
@@ -26,14 +27,21 @@ impl std::fmt::Display for ModelError {
             ModelError::Timeout(msg) => write!(f, "Timeout Error: {}", msg),
             ModelError::Unavailable(msg) => write!(f, "Service Unavailable: {}", msg),
             ModelError::Forbidden(msg) => write!(f, "Forbidden: {}", msg),
+            ModelError::Conflict(msg) => write!(f, "Conflict: {}", msg),
         }
     }
-    
 }
 
 impl From<sqlx::Error> for ModelError {
     fn from(err: sqlx::Error) -> Self {
         match err {
+            sqlx::Error::Database(db_err) => {
+                if db_err.is_unique_violation() {
+                    ModelError::Conflict("Unique constraint violation".to_string())
+                } else {
+                    ModelError::Unexpected(db_err.message().to_string())
+                }
+            }
             sqlx::Error::RowNotFound => ModelError::NotFound("Row not found".to_string()),
             sqlx::Error::InvalidArgument(msg) => ModelError::BadRequest(msg),
             sqlx::Error::PoolTimedOut => ModelError::Timeout("Connection pool timed out".to_string()),

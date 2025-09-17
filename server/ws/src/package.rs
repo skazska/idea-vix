@@ -32,8 +32,16 @@ use axum::{
 
 use crate::{
     api::{deserialize::AuthToken, validation::ValidatedJson},
+    common::{
+        access::{self, ItemAccess, ItemRole, ItemRoleDto, SqliteItemAccessQueries},
+        workshop::{
+            shape_service::{AddShapeToPackageItem, ShapeService},
+            shape_store::ShapeStore,
+        }
+    },
+    db::TransactionStarter,
     package::package_service::{
-    NewPackageItem, Package, PatchPackageItem, NewPackageAccessItem, PackageAccessRoles
+        NewPackageAccessItem, NewPackageItem, Package, PatchPackageItem
     },
     session::session_jwt::SessionJWTService
 };
@@ -45,6 +53,7 @@ mod package_service;
 ///
 /// Holds the service layer and JWT service required by handlers.
 struct RouteState {
+    access_service: access::CommonItemAccess,
     service: package_service::PackageService,
     jwt_service: Arc<SessionJWTService>,
 }
@@ -66,11 +75,23 @@ struct RouteState {
 /// - `jwt_service`: JWT service wrapped in `Arc`
 ///
 /// Returns an Axum `Router` ready to be nested under a path like `/api/package`.
-pub async fn get_router<'a>(connection: Arc<sqlx::Pool<sqlx::Sqlite>>, jwt_service: Arc<SessionJWTService>) -> axum::Router {
-    let items_store = package_store::PackageStore::new(connection);
-    let package_service = package_service::PackageService::new(items_store);
+pub async fn get_router<'a>(
+    transaction_starter: Arc<TransactionStarter>,
+    jwt_service: Arc<SessionJWTService>,
+) -> axum::Router {
+
+    let shape_store = ShapeStore::new();
+    let access_store = Arc::new(SqliteItemAccessQueries::new(
+        "package_access_roles",
+        "package_id",
+    ));
+    let access_service = access::CommonItemAccess::new(transaction_starter.clone(), access_store);
+
+    let items_store = package_store::PackageStore::new();
+    let package_service = package_service::PackageService::new(transaction_starter, items_store, shape_store, access_store);
 
     let state= Arc::new(RouteState {
+        access_service,
         service: package_service,
         jwt_service
     });
@@ -85,7 +106,11 @@ pub async fn get_router<'a>(connection: Arc<sqlx::Pool<sqlx::Sqlite>>, jwt_servi
         list_access,
         revoke_access,
         check_access
-    ).with_state(state)
+    )
+    .route("/{id}/shapes", axum::routing::get(list_package_shapes))
+    .route("/{id}/shapes", axum::routing::post(add_package_shape))
+    .route("/{id}/shapes/{shape_id}", axum::routing::delete(remove_package_shape))
+    .with_state(state)
 }
 
 // #[axum::debug_handler]
@@ -165,11 +190,16 @@ async fn delete_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteS
 async fn add_access(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
-    axum::extract::Path(id): Path<i32>,
-    ValidatedJson(item): ValidatedJson<NewPackageAccessItem>,
-) -> Result<Json<PackageAccessRoles>, (StatusCode, String)> {
+    axum::extract::Path(id): Path<i64>,
+    ValidatedJson(item): ValidatedJson<NewPackageAccessItem<i64>>,
+) -> Result<Json<ItemRole<i64>>, (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    let result = state.service.add_access_role(id, &item, &session).await.map_err(|e| e.into())?;
+    let role_dto = ItemRoleDto {
+        address: item.address,
+        role: item.role,
+        item_id: id,
+    };
+    let result = state.access_service.add_access_role(role_dto, session).await.map_err(|e| e.into())?;
     Ok(Json(result))
 }
 
@@ -181,10 +211,10 @@ async fn add_access(
 async fn revoke_access(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
-    Path((id, address)): Path<(i32, String)>,
-) -> Result<Json<PackageAccessRoles>, (StatusCode, String)> {
+    Path((id, address)): Path<(i64, String)>,
+) -> Result<Json<Vec<ItemRole<i64>>>, (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    let result = state.service.revoke_access_role(id, &address, &session).await.map_err(|e| e.into())?;
+    let result = state.access_service.revoke_access_roles(id, address, session).await.map_err(|e| e.into())?;
     Ok(Json(result))
 }
 
@@ -196,10 +226,10 @@ async fn revoke_access(
 async fn list_access(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
-    Path(id): Path<i32>,
-) -> Result<Json<Vec<PackageAccessRoles>>, (StatusCode, String)> {
+    Path(id): Path<i64>,
+) -> Result<Json<Vec<ItemRole<i64>>>, (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    let result = state.service.list_access_roles(id, &session).await.map_err(|e| e.into())?;
+    let result = state.access_service.list_access_roles(id, session).await.map_err(|e| e.into())?;
     Ok(Json(result))
 }
 
@@ -211,9 +241,53 @@ async fn list_access(
 async fn check_access(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
-    Path(id): Path<i32>,
+    Path(id): Path<i64>,
 ) -> Result<Json<Vec<String>>, (StatusCode, String)> {
     let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
-    let result = state.service.check_access_role(id, session.as_ref()).await.map_err(|e| e.into())?;
+    let result = state.access_service.check_access_role(id, session.as_ref()).await.map_err(|e| e.into())?;
     Ok(Json(result))
+}
+
+// Package-Shape Association Handlers
+
+/// Handler: list shapes associated with a package.
+/// - Requires read access to the package
+/// - Returns array of `PackageShape`
+async fn list_package_shapes(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    Path(package_id): Path<i32>,
+) -> Result<Json<Vec<PackageShape>>, (StatusCode, String)> {
+    let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
+    let result = state.service.list_shapes(package_id, &session).await.map_err(|e| e.into())?;
+    Ok(Json(result))
+}
+
+/// Handler: add a shape to a package.
+/// - Requires edit access to the package
+/// - Body: { "shape_id": 123, "name": "optional display name" }
+/// - Returns the created `PackageShape`
+async fn add_package_shape(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    Path(package_id): Path<i32>,
+    ValidatedJson(item): ValidatedJson<AddShapeToPackageItem>,
+) -> Result<(StatusCode, Json<PackageShape>), (StatusCode, String)> {
+    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    let result = state.service.add_shape(package_id, &item, &session).await.map_err(|e| e.into())?;
+    Ok((StatusCode::CREATED, Json(result)))
+}
+
+
+/// Handler: remove a shape from a package.
+/// - Requires edit access to the package
+/// - Returns `204 No Content` on success
+async fn remove_package_shape(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    Path((package_id, slug)): Path<(i32, String)>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    state.service.remove_shape(package_id, &slug, &session).await.map_err(|e| e.into())?;
+    Ok(StatusCode::NO_CONTENT)
 }

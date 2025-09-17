@@ -2,6 +2,7 @@
 pub mod boards;
 pub mod package;
 pub mod session;
+pub mod workshop;
 
 // Utility modules
 pub mod config;
@@ -13,3 +14,4 @@ pub mod common;
 
 // Service modules
 pub mod ext_comm;
+

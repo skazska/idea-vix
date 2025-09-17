@@ -29,21 +29,24 @@
 //!     assert!(visible.iter().any(|p| p.id == created.id));
 //! }
 //! ```
-//
+use std::sync::Arc;
+
+use crate::common::access::{ ItemAccessQueries, ItemRoleDb, SqliteItemAccessQueries, ROLE_OWNER };
+use crate::common::crud::{CrudQueries, CrudService, ListParams, QueryFilter, QueryLister};
+use crate::common::workshop::shape_service::{Shape, ShapeService};
+use crate::db::{ TransactionHandler, TransactionStarter };
 use crate::error::ModelError;
-use crate::package::package_store::{NewPackageAccessDb, NewPackageDb, PackageAccessRoleDb, PackageAccessRolesDb, PackageDb, PackageStore, PatchPackageDb};
+use crate::package::package_store::{NewPackageDb, PackageDb, PackageStore, PatchPackageDb};
 use crate::session::session_service::SessionData;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
+pub use crate::common::access::ItemRoleDto as NewPackageAccessItem;
 
-/// API representation of a package.
-///
-/// This is the structure returned to clients by HTTP handlers and used
-/// throughout the service layer. It is converted from the storage model (`PackageDb`).
-#[derive(Serialize, Deserialize, Debug, Clone)]
+/// Package view
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Package {
     /// Unique identifier of the package.
-    pub id: i32,
+    pub id: i64,
     /// Human-readable name of the package.
     pub name: String,
     /// Optional description shown in listings and details.
@@ -54,6 +57,9 @@ pub struct Package {
     pub is_public: bool,
 }
 
+/// New Package DTO
+/// exteds base entity new DTO
+/// has validations
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
 pub struct NewPackageItem {
     #[serde(flatten)]
@@ -61,6 +67,9 @@ pub struct NewPackageItem {
     pub base: crate::common::item_fields::NewItemFields,
 }
 
+/// Patch Package DTO
+/// extends base entity patch DTO
+/// has validations
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
 pub struct PatchPackageItem {
     #[serde(flatten)]
@@ -68,11 +77,10 @@ pub struct PatchPackageItem {
     pub base: crate::common::item_fields::PatchItemFields,
 }
 
-/// Conversion: `&NewPackageItem` -> storage model `NewPackageDb`.
-///
-/// Applies default for `is_public` when omitted.
-impl<'a> From<&'a NewPackageItem> for NewPackageDb<'a> {
-    fn from(item: &'a NewPackageItem) -> Self {
+/// Conversion of NewPackageItem into NewPackageDb
+/// applies default for `is_public` when omitted.
+impl<'d> From<&'d NewPackageItem> for NewPackageDb<'d> {
+    fn from(item: &'d NewPackageItem) -> Self {
         Self {
             name: &item.base.name,
             description: item.base.description.as_deref(),
@@ -82,11 +90,9 @@ impl<'a> From<&'a NewPackageItem> for NewPackageDb<'a> {
     }
 }
 
-/// Conversion: `&PatchPackageItem` -> storage model `PatchPackageDb`.
-///
-/// Nested optional fields map to `Option<Option<&str>>` to support clearing values.
-impl<'a> From<&'a PatchPackageItem> for PatchPackageDb<'a> {
-    fn from(item: &'a PatchPackageItem) -> Self {
+/// Conversion of PatchPackageItem into PatchPackageDb
+impl<'d> From<&'d PatchPackageItem> for PatchPackageDb<'d> {
+    fn from(item: &'d PatchPackageItem) -> Self {
         Self {
             name: item.base.name.as_deref(),
             description: item.base.description.as_ref().map(|d| d.as_deref()),
@@ -96,7 +102,7 @@ impl<'a> From<&'a PatchPackageItem> for PatchPackageDb<'a> {
     }
 }
 
-/// Conversion: storage model `PackageDb` -> API model `Package`.
+/// Conversion of PackageDb into Package
 impl From<PackageDb> for Package {
     fn from(item: PackageDb) -> Self {
         Self {
@@ -109,11 +115,8 @@ impl From<PackageDb> for Package {
     }
 }
 
-pub use crate::common::access::RoleOnly as PackageAccessRole;
-pub use crate::common::access::GrantRequest as NewPackageAccessItem;
-use crate::common::access::validate_grant_role;
-use crate::common::service_access::{has_owner, has_owner_or_manage, ensure_not_self_revoke};
-
+/// Lister for packages
+pub type PackageLister = ListParams;
 
 /// Service layer encapsulating business logic for packages.
 ///
@@ -122,149 +125,147 @@ use crate::common::service_access::{has_owner, has_owner_or_manage, ensure_not_s
 /// - Access control decisions that require knowing the caller's session
 /// - Delegating persistence to `PackageStore`
 pub struct PackageService {
-    items_store: PackageStore,
+    transaction_starter: Arc<TransactionStarter>,
+    items_store: Arc<PackageStore>,
+    shapes_service: Arc<ShapeService>,
+    access_store: Arc<SqliteItemAccessQueries>,
 }
 
-// NewPackageAccessItem is re-exported from common::access::GrantRequest
-
-/// Response model for a package access mapping.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct PackageAccessRoles {
-    pub package_id: i32,
-    pub address: String,
-    pub role: String,
-}
-
-impl<'a> PackageService {
+impl PackageService {
     /// Create a new service with the provided store.
-    pub fn new(items_store: PackageStore) -> Self {
+    pub fn new(transaction_starter: Arc<TransactionStarter>, items_store: Arc<PackageStore>, shapes_service: Arc<ShapeService>, access_store: Arc<SqliteItemAccessQueries>) -> Self {
         Self {
-            items_store: items_store,
+            transaction_starter,
+            items_store,
+            shapes_service,
+            access_store,
         }
     }
+}
+
+impl CrudService for PackageService {
+    type Item = Package;
+    type NewItem = NewPackageItem;
+    type PatchItem = PatchPackageItem;
+    type SessionData = SessionData;
+    type Lister = PackageLister;
+    type Id = i64;
 
     /// Create a new package for the authenticated user.
     /// - Persists a new package via the store
     /// - Grants the caller the `owner` role
-    pub async fn add_item(&self, item: &'a NewPackageItem, session: &SessionData) -> Result<Package, ModelError> {
-        let result = self.items_store.add_item(item.into(), session).await?;
+    async fn add_item(&self, item: Self::NewItem, session: &Self::SessionData) -> Result<Self::Item, ModelError> {
+        let trx = self.transaction_starter.begin().await?;
+        let db_item = NewPackageDb::from(&item);
 
-        Ok(result.into())
+        let result = trx.run(async move |transaction| {
+                let item = self.items_store.add_item(&db_item, transaction).await?;
+                let role = ItemRoleDb { address: session.address.clone(), role: ROLE_OWNER.to_string() };
+                self.access_store.add_access_role(item.id, &role, transaction).await?;
+
+                Ok(item)
+        }).await?;
+
+        Ok(Self::Item::from(result))
+
     }
 
     /// List packages visible to the optional session.
     /// - When `session` is `None`, returns only public packages
     /// - Otherwise, returns public plus accessible packages
-    pub async fn get_items(&self, session: &Option<SessionData>) -> Result<Vec<Package>, ModelError> {
-        let items = self.items_store.get_items(session).await?;
+    async fn get_items(&self, lister: Self::Lister, session: Option<&Self::SessionData>) -> Result<Vec<Self::Item>, ModelError> {
+        let trx = self.transaction_starter.begin().await?;
 
-        Ok(items.into_iter().map(|item| item.into()).collect())
+        let mut lister = QueryLister::from(lister);
+        if let Some(sess) = session {
+            if lister.filter.is_none() {
+                lister.filter = Some(QueryFilter {
+                    access: Some(sess.address.clone()),
+                    filter: None,
+                    ids: None,
+                    search: None,
+                });
+            } else if let Some(f) = &mut lister.filter {
+                f.access = Some(sess.address.clone());
+            }
+        }
+
+        let result = trx.run(async move |transaction| {
+            let items = self.items_store.get_items(&lister, transaction).await?;
+
+            Ok(items)
+        }).await?;
+
+        Ok(result.into_iter().map(|item| Self::Item::from(item)).collect())
     }
 
     /// Get a single package by id if visible to the session.
-    pub async fn get_item(&self, item_id: i32, session: &Option<SessionData>) -> Result<Package, ModelError> {
-        let item = self.items_store.get_item(item_id, session).await?;
+    async fn get_item(&self, item_id: Self::Id, session: Option<&Self::SessionData>) -> Result<Self::Item, ModelError> {
+        let trx = self.transaction_starter.begin().await?;
+        let access = session.map(|s| s.address.as_str());
 
-        Ok(item.into())
+        let result = trx.run(async move |transaction| {
+            let item = self.items_store.get_item(item_id, access, transaction).await?;
+
+            Ok(item)
+        }).await?;
+
+        Ok(Self::Item::from(result))
     }
 
     /// Update a package.
     /// - Verifies the caller has `owner` or `manage` role
     /// - Applies partial updates via the store
-    pub async fn update_item(&self, id: i32, item: &'a PatchPackageItem, session: &SessionData) -> Result<Package, ModelError> {
-        // access check moved to service: require owner or manage
-        let roles = self.items_store.get_access_roles(id, session).await?;
-        if !has_owner_or_manage(roles.iter().map(|r| r.role.as_str())) {
-            return Err(ModelError::Forbidden("You are not allowed to update this package".to_string()));
-        }
+    async fn update_item(&self, id: Self::Id, item: Self::PatchItem, session: &Self::SessionData) -> Result<Self::Item, ModelError> {
+        let trx = self.transaction_starter.begin().await?;
+        
+        let db_item = PatchPackageDb::from(&item);
 
-        let updated_item = self.items_store.update_item(id, item.into()).await?;
+        let result = trx.run(async move |transaction| {
+            let roles = self.access_store.get_access_roles(id, session, Some(&Vec::from([ROLE_OWNER])), transaction).await?;
 
-        Ok(updated_item.into())
+            if roles.len() == 0 {
+                return Err(ModelError::Forbidden("You are not allowed to update this package".to_string()));
+            }
+
+            let updated_item = self.items_store.update_item(id, &db_item, transaction).await?;
+
+            Ok(updated_item)
+        }).await?;
+
+        Ok(Self::Item::from(result))
     }
 
     /// Delete a package.
     /// - Verifies the caller has `owner` or `manage` role
     /// - Deletes the package (and related access rows in store)
-    pub async fn delete_item(&self, id: i32, session: &SessionData) -> Result<Package, ModelError> {
-        let roles = self.items_store.get_access_roles(id, session).await?;
+    async fn delete_item(&self, id: Self::Id, session: &Self::SessionData) -> Result<Self::Item, ModelError> {
+        let trx = self.transaction_starter.begin().await?;
 
-        if !has_owner_or_manage(roles.iter().map(|r| r.role.as_str())) {
-            return Err(ModelError::Forbidden("You are not allowed to delete this package".to_string()));
-        }
+        let result = trx.run(async move |transaction| {
+            let roles = self.access_store.get_access_roles(id, session, Some(&Vec::from([ROLE_OWNER])), transaction).await?;
 
-        let result = self.items_store.delete_item(id).await?;
+            if roles.len() == 0 {
+                return Err(ModelError::Forbidden("You are not allowed to delete this package".to_string()));
+            }
 
-        Ok(result.into())
+            let deleted_item = self.items_store.delete_item(id, transaction).await?;
+
+            Ok(deleted_item)
+        }).await?;
+
+        Ok(Self::Item::from(result))
     }
 
-    /// Grant access role to an address (owner only)
-    pub async fn add_access_role(&self, package_id: i32, item: &NewPackageAccessItem, session: &SessionData) -> Result<PackageAccessRoles, ModelError> {
-        // Only owner can manage access list
-        let roles = self.items_store.get_access_roles(package_id, session).await?;
-        if !has_owner(roles.iter().map(|r| r.role.as_str())) {
-            return Err(ModelError::Forbidden("Only owner can grant access".to_string()));
-        }
+    // /// Returns package shapes
+    // async fn list_shapes(&self, package_id: i32, session: &SessionData) -> Result<Vec<Shape>, ModelError> {
+    //     let roles = self.items_store.get_access_roles(package_id, session).await?;
+    //     if !has_owner_or_manage(roles.iter().map(|r| r.role.as_str())) {
+    //         return Err(ModelError::Forbidden("You are not allowed to view package shapes".to_string()));
+    //     }
 
-        // validate role value
-    if validate_grant_role(&item.role).is_err() {
-            return Err(ModelError::BadRequest("Invalid role".to_string()));
-        }
-
-        // Build store model and insert
-        let db_item = NewPackageAccessDb { package_id, address: &item.address, role: &item.role };
-        let stored = self.items_store.add_access_role(db_item).await?;
-        Ok(stored.into())
-    }
-
-    /// Revoke access for an address (owner only)
-    pub async fn revoke_access_role(&self, package_id: i32, address: &str, session: &SessionData) -> Result<PackageAccessRoles, ModelError> {
-        let roles = self.items_store.get_access_roles(package_id, session).await?;
-        if !has_owner(roles.iter().map(|r| r.role.as_str())) {
-            return Err(ModelError::Forbidden("Only owner can revoke access".to_string()));
-        }
-        // Prevent owner from revoking their own owner role via this endpoint
-        ensure_not_self_revoke(address, &session.address)?;
-
-        let stored = self.items_store.revoke_access_role(package_id, address).await?;
-        Ok(stored.into())
-    }
-
-    /// List access mappings for a package (owner only)
-    pub async fn list_access_roles(&self, package_id: i32, session: &SessionData) -> Result<Vec<PackageAccessRoles>, ModelError> {
-        // Only owner can view access list
-        let roles = self.items_store.get_access_roles(package_id, session).await?;
-        if !has_owner(roles.iter().map(|r| r.role.as_str())) {
-            return Err(ModelError::Forbidden("Only owner can list access".to_string()));
-        }
-
-        let rows = self.items_store.list_access_roles(package_id).await?;
-        Ok(rows.into_iter().map(|r| r.into()).collect())
-    }
-
-    /// Check access for a specific address
-    pub async fn check_access_role(&self, package_id: i32, session: Option<&SessionData>) -> Result<Vec<String>, ModelError> {
-        if let Some(session) = session {
-            let roles = self.items_store.get_access_roles(package_id, session).await?;
-            Ok(roles.into_iter()
-                .map(|r| r.role)
-                .collect())
-        } else {
-            Ok(vec![])
-        }
-    }
+    //     let rows = self.items_store.list_shapes(package_id).await?;
+    //     Ok(rows.into_iter().map(|r| r.into()).collect())
+    // }
 }
 
-// --- helpers and conversions ---
-
-impl From<PackageAccessRolesDb> for PackageAccessRoles {
-    fn from(value: PackageAccessRolesDb) -> Self {
-        Self { package_id: value.package_id, address: value.address, role: value.role }
-    }
-}
-
-impl From<PackageAccessRoleDb> for PackageAccessRole {
-    fn from(item: PackageAccessRoleDb) -> Self {
-        Self { role: item.role.into() }
-    }
-}

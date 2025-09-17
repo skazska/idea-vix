@@ -28,15 +28,11 @@ pub struct ConfirmSessionDb<'a> {
 /// A session store
 /// This store handles user sessions, including initialization and confirmation.
 pub struct SessionStore {
-    pub pool: Arc<sqlx::Pool<sqlx::Sqlite>>,
+    pool: Arc<sqlx::Pool<sqlx::Sqlite>>,
 }
 
 impl<'a> SessionStore {
-    pub fn new(pool: Arc<sqlx::Pool<sqlx::Sqlite>>) -> Self {
-        Self { 
-            pool,
-        }
-    }
+    pub fn new(pool: Arc<sqlx::Pool<sqlx::Sqlite>>) -> Self { Self { pool } }
 
     /// Initializes a session by storing the address, code, and sent time in the database
     pub async fn init_session(&self, item: InitSessionDb<'a>) -> Result<SessionDb, sqlx::Error> {

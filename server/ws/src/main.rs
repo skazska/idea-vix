@@ -4,7 +4,7 @@ use axum::{
     routing::{get}, Router
 };
 
-use ws::{boards, config::Config, package, db, session};
+use ws::{boards, config::Config, package, db, session, workshop};
 
 // #[tokio::main]
 #[tokio::main(flavor = "current_thread")]
@@ -29,9 +29,10 @@ async fn main() {
 
     let jwt_service = Arc::new(session::session_jwt::SessionJWTService::new(jwt_adapter));
 
-    let package_router = package::get_router(connection.get(), jwt_service.clone()).await;
+    let package_router = package::get_router(connection.get_transaction_starter(), jwt_service.clone()).await;
     let boards_router = boards::get_router(connection.get(), jwt_service.clone()).await;
     let session_router = session::get_router(connection.get(), jwt_service.clone()).await;
+    let workshop_router = workshop::get_router(connection.get(), jwt_service.clone()).await;
 
     let app = Router::new()
         .route("/", get(root))
@@ -39,7 +40,8 @@ async fn main() {
         .route("/wait_sync", get(wait_sync))
         .nest("/api/board", boards_router)
         .nest("/api/package", package_router)
-        .nest("/api/session", session_router);
+        .nest("/api/session", session_router)
+        .nest("/api/workshop", workshop_router);
 
     let listener = tokio::net::TcpListener::bind(format!("{}:{}", config.host, config.port))
         .await

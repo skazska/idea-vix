@@ -2,10 +2,14 @@
 CREATE TABLE `board`(
 	`id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	`name` VARCHAR(100) NOT NULL,
+    `slug` VARCHAR(100) NOT NULL,
 	`description` VARCHAR(500) DEFAULT NULL,
 	`icon` VARCHAR(255) DEFAULT NULL,
 	`is_public` BOOLEAN NOT NULL DEFAULT FALSE
 );
+
+-- Create index for slug lookups (important for text-based references)
+CREATE INDEX idx_board_slug ON board(`slug`);
 
 CREATE TABLE `board_package` (
     board_id INTEGER NOT NULL,

@@ -16,6 +16,7 @@ impl Into<(StatusCode, String)> for ModelError {
             ModelError::Timeout(msg) => (StatusCode::GATEWAY_TIMEOUT, msg),
             ModelError::Unavailable(msg) => (StatusCode::SERVICE_UNAVAILABLE, msg),
             ModelError::Forbidden(msg) => (StatusCode::FORBIDDEN, msg),
+            ModelError::Conflict(msg) => (StatusCode::CONFLICT, msg),
         }
     }
 }

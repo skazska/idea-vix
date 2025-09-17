@@ -17,7 +17,6 @@ Enum role {
 table shape {
     id integer [pk, increment]
     name VARCHAR(100) [not null]
-    slug VARCHAR(100) [unique, note: 'semantic identifier for text-based references']
     description VARCHAR(500)
     definition text [note: 'JSON definition of shape properties']
     created_at datetime [default: `CURRENT_TIMESTAMP`]
