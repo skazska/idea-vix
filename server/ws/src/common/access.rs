@@ -114,13 +114,13 @@ pub trait ItemAccess {
     type Id: Clone + Send + Sync; // + Unpin;
 
     /// Add a new access role to an item.
-    fn add_access_role(&self, role: ItemRoleDto<Self::Id>, session: Self::SessionData) -> impl Future<Output=Result<ItemRole<Self::Id>, ModelError>>;
+    fn add_access_role(&self, role: ItemRoleDto<Self::Id>, session: &Self::SessionData) -> impl Future<Output=Result<ItemRole<Self::Id>, ModelError>>;
     /// Revoke an access role from an item.
-    fn revoke_access_role(&self, role: ItemRoleDto<Self::Id>, session: Self::SessionData) -> impl Future<Output=Result<ItemRole<Self::Id>, ModelError>>;
+    fn revoke_access_role(&self, role: ItemRoleDto<Self::Id>, session: &Self::SessionData) -> impl Future<Output=Result<ItemRole<Self::Id>, ModelError>>;
     /// Revoke all access roles of an address from a specific item.
-    fn revoke_access_roles(&self, item_id: Self::Id, address: String, session: Self::SessionData) -> impl Future<Output=Result<Vec<ItemRole<Self::Id>>, ModelError>>;
+    fn revoke_access_roles(&self, item_id: Self::Id, address: String, session: &Self::SessionData) -> impl Future<Output=Result<Vec<ItemRole<Self::Id>>, ModelError>>;
     /// List all access roles for a specific item.
-    fn list_access_roles(&self, item_id: Self::Id, session: Self::SessionData) -> impl Future<Output=Result<Vec<ItemRole<Self::Id>>, ModelError>>;
+    fn list_access_roles(&self, item_id: Self::Id, session: &Self::SessionData) -> impl Future<Output=Result<Vec<ItemRole<Self::Id>>, ModelError>>;
 }
 
 pub struct CommonItemAccess {
@@ -147,14 +147,14 @@ impl ItemAccess for CommonItemAccess {
     type SessionData = SessionData;
     type Id = i64;
 
-    async fn add_access_role(&self, role_dto: ItemRoleDto<Self::Id>, session: Self::SessionData) -> Result<ItemRole<Self::Id>, ModelError> {
+    async fn add_access_role(&self, role_dto: ItemRoleDto<Self::Id>, session: &Self::SessionData) -> Result<ItemRole<Self::Id>, ModelError> {
         let trx =  self.transaction_starter.begin().await?;
 
         let item_id = role_dto.item_id;
         let role = ItemRole::from(&role_dto);
 
         let result = trx.run(async move |transaction| {
-            self.check_am_owner(item_id, &session, transaction).await?;
+            self.check_am_owner(item_id, session, transaction).await?;
 
             if validate_grant_role(&role_dto.role).is_err() {
                 return Err(ModelError::BadRequest("Invalid role".to_string()));
@@ -168,14 +168,14 @@ impl ItemAccess for CommonItemAccess {
         Ok(<ItemRole<Self::Id>>::from((item_id, &result)))
     }
 
-    async fn revoke_access_role(&self, role_dto: ItemRoleDto<Self::Id>, session: SessionData) -> Result<ItemRole<Self::Id>, ModelError> {
+    async fn revoke_access_role(&self, role_dto: ItemRoleDto<Self::Id>, session: &SessionData) -> Result<ItemRole<Self::Id>, ModelError> {
         let trx =  self.transaction_starter.begin().await?;
 
         let role = ItemRole::from(&role_dto);
         let item_id = role.item_id;
 
         let result = trx.run(async move |transaction| {
-            self.check_am_owner(item_id, &session, transaction).await?;
+            self.check_am_owner(item_id, session, transaction).await?;
 
             if validate_grant_role(&role_dto.role).is_err() {
                 return Err(ModelError::BadRequest("Invalid role".to_string()));
@@ -189,11 +189,11 @@ impl ItemAccess for CommonItemAccess {
         Ok(<ItemRole<Self::Id>>::from((role_dto.item_id, &result)))
     }
 
-    async fn revoke_access_roles(&self, item_id: Self::Id, address: String, session: SessionData) -> Result<Vec<ItemRole<Self::Id>>, ModelError> {
+    async fn revoke_access_roles(&self, item_id: Self::Id, address: String, session: &SessionData) -> Result<Vec<ItemRole<Self::Id>>, ModelError> {
         let trx =  self.transaction_starter.begin().await?;
 
         let result = trx.run(async move |transaction| {
-            self.check_am_owner(item_id, &session, transaction).await?;
+            self.check_am_owner(item_id, session, transaction).await?;
             ensure_not_self(&address, &session.address)?;
             let revoked = self.queries.revoke_access_roles(item_id, &address, transaction).await?;
             Ok(revoked)
@@ -202,11 +202,11 @@ impl ItemAccess for CommonItemAccess {
         Ok(result.into_iter().map(|r| ItemRole::from((item_id, &r))).collect())
     }
 
-    async fn list_access_roles(&self, item_id: Self::Id, session: SessionData) -> Result<Vec<ItemRole<Self::Id>>, ModelError> {
+    async fn list_access_roles(&self, item_id: Self::Id, session: &SessionData) -> Result<Vec<ItemRole<Self::Id>>, ModelError> {
         let trx = self.transaction_starter.begin().await?;
 
         let result = trx.run(async move |transaction| {
-                self.check_am_owner(item_id, &session, transaction).await?;
+                self.check_am_owner(item_id, session, transaction).await?;
                 let rows = self.queries.list_access_roles(item_id, transaction).await?;
                 Ok(rows)
         }).await?;

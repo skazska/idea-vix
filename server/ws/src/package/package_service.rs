@@ -154,9 +154,9 @@ impl CrudService for PackageService {
     /// Create a new package for the authenticated user.
     /// - Persists a new package via the store
     /// - Grants the caller the `owner` role
-    async fn add_item(&self, item: Self::NewItem, session: &Self::SessionData) -> Result<Self::Item, ModelError> {
+    async fn add_item<'r>(&self, item: &'r Self::NewItem, session: &'r Self::SessionData) -> Result<Self::Item, ModelError> {
         let trx = self.transaction_starter.begin().await?;
-        let db_item = NewPackageDb::from(&item);
+        let db_item = NewPackageDb::from(item);
 
         let result = trx.run(async move |transaction| {
                 let item = self.items_store.add_item(&db_item, transaction).await?;
@@ -173,20 +173,20 @@ impl CrudService for PackageService {
     /// List packages visible to the optional session.
     /// - When `session` is `None`, returns only public packages
     /// - Otherwise, returns public plus accessible packages
-    async fn get_items(&self, lister: Self::Lister, session: Option<&Self::SessionData>) -> Result<Vec<Self::Item>, ModelError> {
+    async fn get_items<'r>(&self, lister: &'r Self::Lister, session: Option<&'r Self::SessionData>) -> Result<Vec<Self::Item>, ModelError> {
         let trx = self.transaction_starter.begin().await?;
 
         let mut lister = QueryLister::from(lister);
         if let Some(sess) = session {
             if lister.filter.is_none() {
                 lister.filter = Some(QueryFilter {
-                    access: Some(sess.address.clone()),
+                    access: Some(sess.address.as_str()),
                     filter: None,
                     ids: None,
                     search: None,
                 });
             } else if let Some(f) = &mut lister.filter {
-                f.access = Some(sess.address.clone());
+                f.access = Some(sess.address.as_str());
             }
         }
 
@@ -200,7 +200,7 @@ impl CrudService for PackageService {
     }
 
     /// Get a single package by id if visible to the session.
-    async fn get_item(&self, item_id: Self::Id, session: Option<&Self::SessionData>) -> Result<Self::Item, ModelError> {
+    async fn get_item<'r>(&self, item_id: Self::Id, session: Option<&'r Self::SessionData>) -> Result<Self::Item, ModelError> {
         let trx = self.transaction_starter.begin().await?;
         let access = session.map(|s| s.address.as_str());
 
@@ -216,10 +216,10 @@ impl CrudService for PackageService {
     /// Update a package.
     /// - Verifies the caller has `owner` or `manage` role
     /// - Applies partial updates via the store
-    async fn update_item(&self, id: Self::Id, item: Self::PatchItem, session: &Self::SessionData) -> Result<Self::Item, ModelError> {
+    async fn update_item<'r>(&self, id: Self::Id, item: &'r Self::PatchItem, session: &'r Self::SessionData) -> Result<Self::Item, ModelError> {
         let trx = self.transaction_starter.begin().await?;
         
-        let db_item = PatchPackageDb::from(&item);
+        let db_item = PatchPackageDb::from(item);
 
         let result = trx.run(async move |transaction| {
             let roles = self.access_store.get_access_roles(id, session, Some(&Vec::from([ROLE_OWNER])), transaction).await?;

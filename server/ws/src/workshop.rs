@@ -3,7 +3,11 @@
 //! The workshop provides global management of diagram element blueprints.
 //! These elements can be referenced by packages and used in boards.
 
+use std::sync::Arc;
+use crate::common::crud::{CrudService, ListParams};
 use crate::common::workshop::shape_service::{NewShapeItem, PatchShapeItem, Shape, ShapeService};
+use crate::common::workshop::shape_store::ShapeStore;
+use crate::db::TransactionStarter;
 use crate::api::{deserialize::AuthToken, validation::ValidatedJson};
 use crate::session::session_jwt::SessionJWTService;
 use axum::extract::Query;
@@ -15,7 +19,6 @@ use axum::{
     Router,
 };
 use serde::Deserialize;
-use std::sync::Arc;
 
 /// Shared state for the workshop routes.
 struct RouteState {
@@ -24,10 +27,13 @@ struct RouteState {
 }
 
 /// Create the workshop router with all shape routes.
-pub fn router(
-    shape_service: ShapeService,
+pub fn get_router(
+    transaction_starter: Arc<TransactionStarter>,
     jwt_service: Arc<SessionJWTService>,
 ) -> Router {
+    let shape_store = Arc::new(ShapeStore::new());
+    let shape_service = ShapeService::new(transaction_starter, shape_store);
+
     let state = Arc::new(RouteState {
         shape_service,
         jwt_service,
@@ -35,7 +41,8 @@ pub fn router(
 
     Router::new()
         // Global workshop shape routes
-        .route("/workshop/shapes", get(list_shapes).post(create_shape))
+        .route("/workshop/shapes", get(list_shapes))
+        .route("/workshop/shapes", post(create_shape))
         .route("/workshop/shapes/:id", get(get_shape).patch(update_shape))
         .route("/workshop/shapes/by-slug/:slug", get(get_shape_by_slug))
         .with_state(state)
@@ -55,15 +62,25 @@ async fn list_shapes(State(state): State<Arc<RouteState>>, Query(params): Query<
         return Err((StatusCode::BAD_REQUEST, "Missing or invalid 'id' query parameter".into()));
     }
 
-    let shapes = state.shape_service.get_items(&params.ids).await.map_err(|e| e.into())?;
+    // Create a lister with the requested IDs
+    let lister = ListParams {
+        filter: Some(crate::common::crud::ListFilter {
+            filter: None,
+            ids: Some(params.ids),
+            search: None,
+        }),
+        pager: None,
+    };
+
+    let shapes = state.shape_service.get_items(&lister, None).await.map_err(|e| e.into())?;
     Ok(Json(shapes))
 }
 
 /// Handler: get a shape by id.
 /// - No authentication required for reading
 /// - Returns single shape or 404
-async fn get_shape(State(state): State<Arc<RouteState>>, Path(id): Path<i32>) -> Result<Json<Shape>, (StatusCode, String)> {
-    let shape = state.shape_service.get_item(id).await.map_err(|e| e.into())?;
+async fn get_shape(State(state): State<Arc<RouteState>>, Path(id): Path<i64>) -> Result<Json<Shape>, (StatusCode, String)> {
+    let shape = state.shape_service.get_item(id, None).await.map_err(|e| e.into())?;
     Ok(Json(shape))
 }
 
@@ -96,7 +113,7 @@ async fn create_shape(
 async fn update_shape(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
-    Path(id): Path<i32>,
+    Path(id): Path<i64>,
     ValidatedJson(item): ValidatedJson<PatchShapeItem>,
 ) -> Result<Json<Shape>, (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;

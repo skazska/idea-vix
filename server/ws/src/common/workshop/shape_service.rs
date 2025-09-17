@@ -6,9 +6,12 @@
 //! - Convert storage models to API responses
 //! - Delegate persistence to the storage layer (`ShapeStore`)
 
+use std::sync::Arc;
+use crate::common::crud::{CrudQueries, CrudService, ListParams, QueryFilter, QueryLister};
+use crate::db::{ TransactionHandler, TransactionStarter };
 use crate::error::ModelError;
 use crate::session::session_service::SessionData;
-use crate::common::workshop::shape_store::{GetBy, NewShapeDb, PatchShapeDb, ShapeDb, ShapeStore};
+use crate::common::workshop::shape_store::{NewShapeDb, PatchShapeDb, ShapeDb, ShapeStore};
 use serde::{Deserialize, Serialize};
 use validator::{Validate};
 use lazy_static::lazy_static;
@@ -108,54 +111,125 @@ pub struct UpdatePackageShapeItem {
 
 
 
+/// Lister for shapes
+pub type ShapeLister = ListParams;
+
 /// Service layer encapsulating business logic for workshop shapes.
+///
+/// Responsibilities:
+/// - Validation and conversion between API payloads and storage models
+/// - Access control decisions that require knowing the caller's session
+/// - Delegating persistence to `ShapeStore`
 pub struct ShapeService {
-    items_store: ShapeStore,
+    transaction_starter: Arc<TransactionStarter>,
+    items_store: Arc<ShapeStore>,
 }
 
 impl ShapeService {
-    /// Create a new `ShapeService` with the given store.
-    pub fn new(shape_store: ShapeStore) -> Self {
-        Self { items_store: shape_store }
-    }
-
-    /// Returns the created shape or an error.
-    /// No access control here use from 
-    pub async fn add_item(&self, item: &NewShapeItem, _session: &SessionData) -> Result<Shape, ModelError> {
-        // Attempt to create the shape
-        let result = self.items_store.add_item(item.into()).await?;
-
-        Ok(result.into())
-    }
-
-    /// Get a shape by its unique ID.
-    pub async fn get_item(&self, id: i32) -> Result<Shape, ModelError> {
-        let item = self.items_store.get_item(GetBy::Id(id)).await?;
-
-        Ok(item.into())
+    /// Create a new service with the provided dependencies.
+    pub fn new(transaction_starter: Arc<TransactionStarter>, items_store: Arc<ShapeStore>) -> Self {
+        Self {
+            transaction_starter,
+            items_store,
+        }
     }
 
     /// Get a shape by its unique slug.
     pub async fn get_shape_by_slug(&self, slug: &str) -> Result<Shape, ModelError> {
-        let item = self.items_store.get_item(GetBy::Slug(slug.to_string())).await?;
+        let trx = self.transaction_starter.begin().await?;
+        
+        let result = trx.run(async move |transaction| {
+            // Create a lister to find shape by slug using search functionality
+            let lister = QueryLister {
+                filter: Some(QueryFilter {
+                    access: None,
+                    filter: None,
+                    ids: None,
+                    search: Some(slug), // Assuming slug search works
+                }),
+                pager: crate::common::crud::QueryPager { limit: 1, offset: None },
+            };
+            
+            let items = self.items_store.get_items(&lister, transaction).await?;
+            let item = items.into_iter().find(|s| s.slug == slug)
+                .ok_or(ModelError::NotFound("Shape not found".to_string()))?;
 
-        Ok(item.into())
+            Ok(item)
+        }).await?;
+
+        Ok(Shape::from(result))
     }
 
-    /// Update an existing shape.
-    /// No access control here use from package or board context
-    pub async fn update_item(&self, id: i32, item: &PatchShapeItem, _session: &SessionData) -> Result<Shape, ModelError> {
-        let result = self.items_store.update_item(id, item.into()).await?;
+}
 
-        Ok(result.into())
+impl CrudService for ShapeService {
+    type Item = Shape;
+    type NewItem = NewShapeItem;
+    type PatchItem = PatchShapeItem;
+    type SessionData = SessionData;
+    type Lister = ShapeLister;
+    type Id = i64;
+
+    /// Create a new shape for the authenticated user.
+    async fn add_item<'r>(&self, item: &'r Self::NewItem, _session: &'r Self::SessionData) -> Result<Self::Item, ModelError> {
+        let trx = self.transaction_starter.begin::<'r>().await?;
+        let db_item = NewShapeDb::from(item);
+
+        let result = trx.run(async move |transaction| {
+            let item = self.items_store.add_item(&db_item, transaction).await?;
+            Ok(item)
+        }).await?;
+        println!("{:?}", item);
+        Ok(Self::Item::from(result))
     }
 
+    /// List shapes based on the provided lister parameters.
+    async fn get_items<'r>(&self, lister: &'r Self::Lister, _session: Option<&'r Self::SessionData>) -> Result<Vec<Self::Item>, ModelError> {
+        let trx = self.transaction_starter.begin().await?;
+        let lister = QueryLister::from(lister);
 
-    /// List all shapes in the global workshop catalog.
-    pub async fn get_items(&self, ids: &Vec<i64>) -> Result<Vec<Shape>, ModelError> {
-        let items = self.items_store.get_items(ids).await?;
+        let result = trx.run(async move |transaction| {
+            let items = self.items_store.get_items(&lister, transaction).await?;
+            Ok(items)
+        }).await?;
 
-        Ok(items.into_iter().map(|item| item.into()).collect())
+        Ok(result.into_iter().map(|item| Self::Item::from(item)).collect())
     }
 
+    /// Get a single shape by id.
+    async fn get_item(&self, item_id: Self::Id, _session: Option<&Self::SessionData>) -> Result<Self::Item, ModelError> {
+        let trx = self.transaction_starter.begin().await?;
+
+        let result = trx.run(async move |transaction| {
+            let item = self.items_store.get_item(item_id, None, transaction).await?;
+            Ok(item)
+        }).await?;
+
+        Ok(Self::Item::from(result))
+    }
+
+    /// Update a shape.
+    async fn update_item<'r>(&self, id: Self::Id, item: &'r Self::PatchItem, _session: &'r Self::SessionData) -> Result<Self::Item, ModelError> {
+        let trx = self.transaction_starter.begin().await?;
+        let db_item = PatchShapeDb::from(item);
+
+        let result = trx.run(async move |transaction| {
+            let updated_item = self.items_store.update_item(id, &db_item, transaction).await?;
+            Ok(updated_item)
+        }).await?;
+
+        Ok(Self::Item::from(result))
+    }
+
+    /// Delete a shape.
+    async fn delete_item(&self, id: Self::Id, _session: &Self::SessionData) -> Result<Self::Item, ModelError> {
+        let trx = self.transaction_starter.begin().await?;
+
+        let result = trx.run(async move |transaction| {
+            let deleted_item = self.items_store.delete_item(id, transaction).await?;
+            Ok(deleted_item)
+        }).await?;
+
+        Ok(Self::Item::from(result))
+    }
 }

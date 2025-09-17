@@ -97,7 +97,7 @@ impl<'a> CrudQueries<'a> for ShapeStore {
     type Id = i64;
 
     /// Create a new shape in the global workshop.
-    async fn add_item(&self, shape: &NewShapeDb<'a>, transaction: &mut Self::Transaction) -> Result<Self::Item, Self::Error> {
+    async fn add_item<'r>(&self, shape: &NewShapeDb<'r>, transaction: &mut Self::Transaction) -> Result<Self::Item, Self::Error> {
         let now: i64 = to_unix_timestamp(SystemTime::now()).try_into().unwrap_or(0);
 
         let result = sqlx::query_as::<_, Self::Item>(
