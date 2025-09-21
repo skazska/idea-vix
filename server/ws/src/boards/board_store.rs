@@ -36,6 +36,7 @@ pub type BoardLister<'a> = QueryLister<'a>;
 pub struct BoardDb {
     pub id: i64,
     pub name: String,
+    pub slug: String,
     pub description: Option<String>,
     pub icon: Option<String>,
     pub is_public: bool,
@@ -45,6 +46,7 @@ pub struct BoardDb {
 #[derive(Debug)]
 pub struct NewBoardDb<'a> {
     pub name: &'a str,
+    pub slug: &'a str,
     pub description: Option<&'a str>,
     pub icon: Option<&'a str>,
     pub is_public: bool,
@@ -55,6 +57,7 @@ pub struct NewBoardDb<'a> {
 #[derive(Debug)]
 pub struct PatchBoardDb<'a> {
     pub name: Option<&'a str>,
+    pub slug: Option<&'a str>,
     pub description: Option<Option<&'a str>>,
     pub icon: Option<Option<&'a str>>,
     pub is_public: Option<bool>,
@@ -73,9 +76,10 @@ impl<'d> CrudQueries<'d> for BoardStore {
         let transaction = trx.get_mut();
 
         let result = sqlx::query_as::<_, Self::Item>(
-            "INSERT INTO board (name, description, icon, is_public) VALUES (?, ?, ?, ?) RETURNING id, name, description, icon, is_public",
+            "INSERT INTO board (name, slug, description, icon, is_public) VALUES (?, ?, ?, ?, ?) RETURNING id, name, slug, description, icon, is_public",
         )
             .bind(item.name)
+            .bind(item.slug)
             .bind(item.description)
             .bind(item.icon)
             .bind(item.is_public)
@@ -90,7 +94,7 @@ impl<'d> CrudQueries<'d> for BoardStore {
     async fn get_items(&self, lister: &Self::Lister, trx: &mut Trx) -> Result<Vec<Self::Item>, DbErr> {
         let transaction = trx.get_mut();
 
-        let select = Vec::from([String::from("b.id"), String::from("b.name"), String::from("b.description"), String::from("b.icon"), String::from("b.is_public")]);
+        let select = Vec::from([String::from("b.id"), String::from("b.name"), String::from("b.slug"), String::from("b.description"), String::from("b.icon"), String::from("b.is_public")]);
         let from = Vec::from([String::from("board b")]);
         let mut where_clauses: Vec<String> = Vec::new();
         let mut paging = Vec::new();
@@ -163,7 +167,7 @@ impl<'d> CrudQueries<'d> for BoardStore {
 
         let query = if let Some(address) = access {
             sqlx::query_as::<_, Self::Item>(
-                "SELECT b.id, b.name, b.description, b.icon, b.is_public
+                "SELECT b.id, b.name, b.slug, b.description, b.icon, b.is_public
                  FROM board b
                  LEFT JOIN board_access_roles bar ON b.id = bar.board_id
                  WHERE b.id = ? AND (b.is_public = 1 OR (bar.address = ? AND bar.role IN ('owner', 'manage', 'edit', 'view')))",
@@ -172,7 +176,7 @@ impl<'d> CrudQueries<'d> for BoardStore {
             .bind(address)
         } else {
             sqlx::query_as::<_, Self::Item>(
-                "SELECT id, name, description, icon, is_public FROM board WHERE id = ? AND is_public = 1",
+                "SELECT id, name, slug, description, icon, is_public FROM board WHERE id = ? AND is_public = 1",
             )
             .bind(item_id)
         };
@@ -191,6 +195,9 @@ impl<'d> CrudQueries<'d> for BoardStore {
         if item.name.is_some() {
             query_parts.push("name = ?");
         }
+        if item.slug.is_some() {
+            query_parts.push("slug = ?");
+        }
         if item.description.is_some() {
             query_parts.push("description = ?");
         }
@@ -203,14 +210,14 @@ impl<'d> CrudQueries<'d> for BoardStore {
 
         if query_parts.is_empty() {
             // Nothing to update, fetch the current item
-            return sqlx::query_as::<_, Self::Item>("SELECT id, name, description, icon, is_public FROM board WHERE id = ?")
+            return sqlx::query_as::<_, Self::Item>("SELECT id, name, slug, description, icon, is_public FROM board WHERE id = ?")
                 .bind(id)
                 .fetch_one(&mut **transaction)
                 .await;
         }
 
         let query_str = format!(
-            "UPDATE board SET {} WHERE id = ? RETURNING id, name, description, icon, is_public",
+            "UPDATE board SET {} WHERE id = ? RETURNING id, name, slug, description, icon, is_public",
             query_parts.join(", ")
         );
 
@@ -219,6 +226,9 @@ impl<'d> CrudQueries<'d> for BoardStore {
         // Bind values in the order they appear in the SET clause
         if let Some(name) = item.name {
             query = query.bind(name);
+        }
+        if let Some(slug) = item.slug {
+            query = query.bind(slug);
         }
         if let Some(description) = item.description {
             query = query.bind(description);
@@ -242,7 +252,7 @@ impl<'d> CrudQueries<'d> for BoardStore {
     async fn delete_item(&self, id: Self::Id, trx: &mut Trx) -> Result<Self::Item, DbErr> {
         let transaction = trx.get_mut();
 
-        let result = sqlx::query_as::<_, Self::Item>("DELETE FROM board WHERE id = ? RETURNING id, name, description, icon, is_public")
+        let result = sqlx::query_as::<_, Self::Item>("DELETE FROM board WHERE id = ? RETURNING id, name, description, icon, is_public, slug")
             .bind(id)
             .fetch_one(&mut **transaction)
             .await;

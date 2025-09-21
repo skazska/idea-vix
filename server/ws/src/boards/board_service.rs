@@ -33,6 +33,7 @@ use std::sync::Arc;
 
 use crate::common::access::{ ItemAccessQueries, ItemRoleDb, SqliteItemAccessQueries, ROLE_OWNER };
 use crate::common::crud::{CrudQueries, CrudService, ListParams, QueryFilter, QueryLister};
+use crate::common::slug::generate_slug;
 use crate::db::TransactionStarter;
 use crate::error::ModelError;
 use crate::boards::board_store::{BoardDb, BoardStore, NewBoardDb, PatchBoardDb};
@@ -49,6 +50,7 @@ pub use crate::common::access::ItemAccessGrantDto as NewBoardAccessItem;
 pub struct Board {
     pub id: i64,
     pub name: String,
+    pub slug: String,
     pub description: Option<String>,
     pub icon: Option<String>,
     pub is_public: bool,
@@ -71,8 +73,14 @@ pub struct PatchBoardItem {
 /// implements direct conversion from NewBoardItem to NewBoardDb
 impl<'a> From<&'a NewBoardItem> for NewBoardDb<'a> {
     fn from(item: &'a NewBoardItem) -> Self {
+        let slug= match &item.base.slug {
+            Some(s) => s,
+            None => panic!("Slug must be provided or generated in the service layer"),
+        };
+
         Self {
             name: &item.base.name,
+            slug,
             description: item.base.description.as_deref(),
             icon: item.base.icon.as_deref(),
             is_public: item.base.is_public.unwrap_or(false),
@@ -86,6 +94,7 @@ impl<'a> From<&'a PatchBoardItem> for PatchBoardDb<'a> {
     fn from(item: &'a PatchBoardItem) -> Self {
         Self {
             name: item.base.name.as_deref(),
+            slug: None, // Slug cannot be changed after creation
             description: item.base.description.as_ref().map(|d| d.as_deref()),
             icon: item.base.icon.as_ref().map(|i| i.as_deref()),
             is_public: item.base.is_public,
@@ -99,6 +108,7 @@ impl From<BoardDb> for Board {
         Self {
             id: item.id,
             name: item.name,
+            slug: item.slug,
             description: item.description,
             icon: item.icon,
             is_public: item.is_public,
@@ -143,9 +153,14 @@ impl CrudService for BoardService {
     /// Create a new board for the authenticated user.
     /// - Persists a new board via the store
     /// - Grants the caller the `owner` role
-    async fn add_item<'r>(&'r self, item: &'r Self::NewItem, session: &'r Self::SessionData) -> Result<Self::Item, ModelError> {
+    async fn add_item<'r>(&'r self, item: &'r mut Self::NewItem, session: &'r Self::SessionData) -> Result<Self::Item, ModelError> {
+        // generate slug if not provided and set in the item
+        if item.base.slug.is_none() {
+            let slug = generate_slug(&item.base.name);
+            item.base.slug = Some(slug);
+        }
 
-        let db_item = NewBoardDb::from(item);
+        let db_item = NewBoardDb::from(& *item);
 
         let result = self.transaction_starter.run_in_transaction(async move |trx| {
             let item = self.items_store.add_item(&db_item, trx).await?;

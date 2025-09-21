@@ -99,9 +99,9 @@ async fn get_items(AuthToken(token): AuthToken, State(state): State<Arc<RouteSta
 /// ```json
 /// { "name": "My Board", "description": "optional", "is_public": true }
 /// ```
-async fn add_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>, ValidatedJson(item): ValidatedJson<NewBoardItem>) -> Result<(StatusCode, Json<Board>), (StatusCode, String)> {
+async fn add_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>, ValidatedJson(mut item): ValidatedJson<NewBoardItem>) -> Result<(StatusCode, Json<Board>), (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    let result = state.service.add_item(&item, &session).await.map_err(|e| e.into())?;
+    let result = state.service.add_item(&mut item, &session).await.map_err(|e| e.into())?;
     Ok((StatusCode::CREATED, Json(result)))
 }
 

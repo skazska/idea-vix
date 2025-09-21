@@ -9,7 +9,7 @@ pub trait CrudService {
     type Lister;
     type Id;
 
-    fn add_item<'r>(&'r self, item: &'r Self::NewItem, session: &'r Self::SessionData) -> impl Future<Output = Result<Self::Item, ModelError>> + 'r;
+    fn add_item<'r>(&'r self, item: &'r mut Self::NewItem, session: &'r Self::SessionData) -> impl Future<Output = Result<Self::Item, ModelError>> + 'r;
     fn get_items<'r>(&'r self, lister: &'r Self::Lister, session: Option<&'r Self::SessionData>) -> impl Future<Output = Result<Vec<Self::Item>, ModelError>>;
     fn get_item<'r>(&'r self, id: Self::Id, session: Option<&'r Self::SessionData>) -> impl Future<Output = Result<Self::Item, ModelError>>;
     fn update_item<'r>(&'r self, id: Self::Id, item: &'r Self::PatchItem, session: &'r Self::SessionData) -> impl Future<Output = Result<Self::Item, ModelError>>;

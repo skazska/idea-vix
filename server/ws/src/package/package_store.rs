@@ -40,6 +40,7 @@ pub type PackageLister<'a> = QueryLister<'a>;
 pub struct PackageDb {
     pub id: i64,
     pub name: String,
+    pub slug: String,
     pub description: Option<String>,
     pub icon: Option<String>,
     pub is_public: bool,
@@ -49,6 +50,7 @@ pub struct PackageDb {
 #[derive(Debug)]
 pub struct NewPackageDb<'d> {
     pub name: &'d str,
+    pub slug: &'d str,
     pub description: Option<&'d str>,
     pub icon: Option<&'d str>,
     pub is_public: bool,
@@ -59,6 +61,7 @@ pub struct NewPackageDb<'d> {
 /// Notes about nested options:
 /// - `description: Option<Option<&str>>`: `None` -> not provided; `Some(None)` -> set NULL; `Some(Some(v))` -> set value
 /// - `icon` follows the same pattern.
+/// - `slug` is not included because slugs cannot be changed after creation
 #[derive(Debug)]
 pub struct PatchPackageDb<'d> {
     pub name: Option<&'d str>,
@@ -80,9 +83,10 @@ impl<'d> CrudQueries<'d> for PackageStore {
         let transaction = trx.get_mut();
 
         let result = sqlx::query_as::<_, Self::Item>(
-            "INSERT INTO package (name, description, icon, is_public) VALUES (?, ?, ?, ?) RETURNING id, name, description, icon, is_public",
+            "INSERT INTO package (name, slug, description, icon, is_public) VALUES (?, ?, ?, ?, ?) RETURNING id, name, slug, description, icon, is_public",
         )
             .bind(item.name)
+            .bind(item.slug)
             .bind(item.description)
             .bind(item.icon)
             .bind(item.is_public)
@@ -97,14 +101,14 @@ impl<'d> CrudQueries<'d> for PackageStore {
     async fn get_items(&self, lister: &Self::Lister, trx: &mut Trx) -> Result<Vec<Self::Item>, DbErr> {
         let transaction = trx.get_mut();
 
-        let select = Vec::from([String::from("p.id"), String::from("p.name"), String::from("p.description"), String::from("p.icon"), String::from("p.is_public")]);
+        let select = Vec::from([String::from("p.id"), String::from("p.name"), String::from("p.slug"), String::from("p.description"), String::from("p.icon"), String::from("p.is_public")]);
         let from = Vec::from([String::from("package p")]);
         let mut where_clauses: Vec<String> = Vec::new();
         let mut paging = Vec::new();
 
         if let Some(filter) = &lister.filter {
             if let Some(_access) = &filter.access {
-                where_clauses.push(String::from("(b.is_public = 1 OR EXISTS (SELECT 1 FROM package_access pa WHERE pa.package_id = p.id AND pa.address = ?))"));
+                where_clauses.push(String::from("(p.is_public = 1 OR EXISTS (SELECT 1 FROM package_access pa WHERE pa.package_id = p.id AND pa.address = ?))"));
             } else {
                 where_clauses.push(String::from("p.is_public = 1"));
             }
@@ -203,7 +207,7 @@ impl<'d> CrudQueries<'d> for PackageStore {
 
         // Ok(item)
 
-        let select = Vec::from([String::from("p.id"), String::from("p.name"), String::from("p.description"), String::from("p.icon"), String::from("p.is_public")]);
+        let select = Vec::from([String::from("p.id"), String::from("p.name"), String::from("p.slug"), String::from("p.description"), String::from("p.icon"), String::from("p.is_public")]);
         let from = Vec::from([String::from("package p")]);
         let mut where_clauses: Vec<String> = Vec::new();
 
@@ -265,7 +269,7 @@ impl<'d> CrudQueries<'d> for PackageStore {
             ));
         }
         let query = format!(
-            "UPDATE package SET {} WHERE id = ? RETURNING id, name, description, icon, is_public",
+            "UPDATE package SET {} WHERE id = ? RETURNING id, name, slug, description, icon, is_public",
             set
         );
 
@@ -314,7 +318,7 @@ impl<'d> CrudQueries<'d> for PackageStore {
     async fn delete_item(&self, id: Self::Id, trx: &mut Trx) -> Result<Self::Item, DbErr> {
         let transaction = trx.get_mut();
 
-        let result = sqlx::query_as::<_, Self::Item>("DELETE FROM package WHERE id = ? RETURNING id, name, description, icon, is_public")
+        let result = sqlx::query_as::<_, Self::Item>("DELETE FROM package WHERE id = ? RETURNING id, name, slug, description, icon, is_public")
             .bind(id)
             .fetch_one(&mut **transaction)
             .await;

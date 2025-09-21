@@ -11,6 +11,13 @@ async fn boards_crud_ok() {
 
     // create board
     let resp = helpers::post_json(&app.router, "/api/board", r#"{"name":"Demo Board","description":"desc","is_public":true}"#, Some(&cookie_hdr)).await;
+    if resp.status() != StatusCode::CREATED {
+        let status = resp.status();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = String::from_utf8_lossy(&body);
+        println!("Error response: {} - {}", status, body_str);
+        panic!("Expected 201, got {}", status);
+    }
     assert_eq!(resp.status(), StatusCode::CREATED);
 
     // list boards (no auth) should include public
@@ -29,7 +36,7 @@ async fn board_access_invite_and_permissions() {
     let resp = helpers::post_json(&app.router, "/api/board", r#"{"name":"Secret Board","description":"hidden","is_public":false}"#, Some(&owner_cookie)).await;
     assert_eq!(resp.status(), StatusCode::CREATED);
     #[derive(serde::Deserialize)]
-    struct BoardResp { id: i32, name: String }
+    struct BoardResp { id: i64, name: String }
     let (_status, created): (StatusCode, BoardResp) = helpers::read_json(resp).await;
     let board_id = created.id;
 
@@ -47,7 +54,7 @@ async fn board_access_invite_and_permissions() {
     // Owner can list access and should see owner + guest mapping
     let resp = helpers::get(&app.router, &format!("/api/board/{}/access", board_id), Some(&owner_cookie)).await;
     #[derive(serde::Deserialize)]
-    struct AccessMapping { board_id: i32, address: String, role: String }
+    struct AccessMapping { board_id: i64, address: String, role: String }
     let (_status, list): (StatusCode, Vec<AccessMapping>) = helpers::read_json(resp).await;
     assert!(list.iter().any(|m| m.address == "owner@example.com" && m.role == "owner"));
     assert!(list.iter().any(|m| m.address == "guest@example.com" && m.role == "view"));

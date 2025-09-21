@@ -9,7 +9,7 @@ CREATE TABLE `package`(
 );
 
 -- Create index for slug lookups (important for text-based references)
-CREATE INDEX idx_package_slug ON package(`slug`);
+CREATE UNIQUE INDEX idx_package_slug ON package(`slug`);
 
 CREATE TABLE `package_shape` (
     package_id INTEGER NOT NULL,

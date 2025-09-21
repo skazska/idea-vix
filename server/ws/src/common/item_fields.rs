@@ -2,12 +2,24 @@ use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 use crate::api::deserialize::deserialize_some;
+use crate::common::slug::is_valid_slug;
+
+/// Custom validation function for slug format
+fn validate_slug_format(slug: &str) -> Result<(), validator::ValidationError> {
+    if is_valid_slug(slug) {
+        Ok(())
+    } else {
+        Err(validator::ValidationError::new("slug_format"))
+    }
+}
 
 /// Shared new-item fields used by boards and packages.
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
 pub struct NewItemFields {
     #[validate(length(min = 3, max = 100))]
     pub name: String,
+    #[validate(length(min = 3, max = 100), custom(function = "validate_slug_format"))]
+    pub slug: Option<String>,
     #[validate(length(max = 500))]
     pub description: Option<String>,
     #[validate(length(max = 255))]
@@ -38,6 +50,7 @@ mod tests {
     fn new_item_fields_valid() {
         let item = NewItemFields {
             name: "Valid Name".to_string(),
+            slug: Some("valid-name".to_string()),
             description: Some("desc".to_string()),
             icon: Some("icon".to_string()),
             is_public: None,
@@ -47,7 +60,31 @@ mod tests {
 
     #[test]
     fn new_item_fields_name_too_short() {
-        let item = NewItemFields { name: "ab".to_string(), description: None, icon: None, is_public: None };
+        let item = NewItemFields { name: "ab".to_string(), slug: None, description: None, icon: None, is_public: None };
+        assert!(item.validate().is_err());
+    }
+
+    #[test]
+    fn new_item_fields_valid_slug() {
+        let item = NewItemFields {
+            name: "Valid Name".to_string(),
+            slug: Some("valid-slug".to_string()),
+            description: None,
+            icon: None,
+            is_public: None,
+        };
+        assert!(item.validate().is_ok());
+    }
+
+    #[test]
+    fn new_item_fields_invalid_slug_format() {
+        let item = NewItemFields {
+            name: "Valid Name".to_string(),
+            slug: Some("123-invalid".to_string()), // starts with number
+            description: None,
+            icon: None,
+            is_public: None,
+        };
         assert!(item.validate().is_err());
     }
 

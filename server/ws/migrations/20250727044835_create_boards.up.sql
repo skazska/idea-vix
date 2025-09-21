@@ -9,7 +9,7 @@ CREATE TABLE `board`(
 );
 
 -- Create index for slug lookups (important for text-based references)
-CREATE INDEX idx_board_slug ON board(`slug`);
+CREATE UNIQUE INDEX idx_board_slug ON board(`slug`);
 
 CREATE TABLE `board_package` (
     board_id INTEGER NOT NULL,

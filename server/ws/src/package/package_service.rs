@@ -33,8 +33,9 @@ use std::sync::Arc;
 
 use crate::common::access::{ ItemAccessQueries, ItemRoleDb, SqliteItemAccessQueries, ROLE_OWNER };
 use crate::common::crud::{CrudQueries, CrudService, ListParams, QueryFilter, QueryLister};
-use crate::common::workshop::shape_service::{Shape, ShapeService};
-use crate::db::{ TrxRun, TransactionStarter };
+use crate::common::slug::generate_slug;
+use crate::common::workshop::shape_service::ShapeService;
+use crate::db::TransactionStarter;
 use crate::error::ModelError;
 use crate::package::package_store::{NewPackageDb, PackageDb, PackageStore, PatchPackageDb};
 use crate::session::session_service::SessionData;
@@ -49,6 +50,8 @@ pub struct Package {
     pub id: i64,
     /// Human-readable name of the package.
     pub name: String,
+    /// URL-safe semantic identifier.
+    pub slug: String,
     /// Optional description shown in listings and details.
     pub description: Option<String>,
     /// Optional icon URL or identifier.
@@ -83,6 +86,7 @@ impl<'d> From<&'d NewPackageItem> for NewPackageDb<'d> {
     fn from(item: &'d NewPackageItem) -> Self {
         Self {
             name: &item.base.name,
+            slug: "", // Slug will be generated in the service layer
             description: item.base.description.as_deref(),
             icon: item.base.icon.as_deref(),
             is_public: item.base.is_public.unwrap_or(false),
@@ -108,6 +112,7 @@ impl From<PackageDb> for Package {
         Self {
             id: item.id,
             name: item.name,
+            slug: item.slug,
             description: item.description,
             icon: item.icon,
             is_public: item.is_public,
@@ -154,9 +159,20 @@ impl CrudService for PackageService {
     /// Create a new package for the authenticated user.
     /// - Persists a new package via the store
     /// - Grants the caller the `owner` role
-    async fn add_item<'r>(&'r self, item: &'r Self::NewItem, session: &'r Self::SessionData) -> Result<Self::Item, ModelError> {
+    async fn add_item<'r>(&'r self, item: &'r mut Self::NewItem, session: &'r Self::SessionData) -> Result<Self::Item, ModelError> {
 
-        let db_item = NewPackageDb::from(item);
+        // Use provided slug or generate from name
+        let slug = item.base.slug.as_ref()
+            .map(|s| s.clone())
+            .unwrap_or_else(|| generate_slug(&item.base.name));
+        
+        let db_item = NewPackageDb {
+            name: &item.base.name,
+            slug: &slug,
+            description: item.base.description.as_deref(),
+            icon: item.base.icon.as_deref(),
+            is_public: item.base.is_public.unwrap_or(false),
+        };
 
         let result = self.transaction_starter.run_in_transaction(async move |trx| {
             let item = self.items_store.add_item(&db_item, trx).await?;
