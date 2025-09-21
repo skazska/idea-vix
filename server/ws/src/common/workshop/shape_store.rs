@@ -13,14 +13,14 @@
 use std::{time::SystemTime};
 use sqlx::Error;
 
-use crate::{common::crud::{QueryLister, QueryPager, CrudQueries}, db::to_unix_timestamp};
+use crate::{common::crud::{CrudQueries, QueryLister}, db::{to_unix_timestamp, DbErr, Trx, TrxTrait}};
 
 /***
  * Shape CRUD operations
  */
 
 /// Lister
-pub type ShapeLister = QueryLister;
+pub type ShapeLister<'a> = QueryLister<'a>;
 
 
 /// Database model for a shape row.
@@ -91,14 +91,14 @@ impl<'a> CrudQueries<'a> for ShapeStore {
     type Item = ShapeDb;
     type NewItem = NewShapeDb<'a>;
     type PatchItem = PatchShapeDb<'a>;
-    type Lister = ShapeLister;
-    type Error = Error;
-    type Transaction = sqlx::Transaction<'a, sqlx::Sqlite>;
+    type Lister = ShapeLister<'a>;
     type Id = i64;
 
     /// Create a new shape in the global workshop.
-    async fn add_item<'r>(&self, shape: &NewShapeDb<'r>, transaction: &mut Self::Transaction) -> Result<Self::Item, Self::Error> {
+    async fn add_item(&self, shape: &Self::NewItem, trx: &mut Trx) -> Result<Self::Item, DbErr> {
         let now: i64 = to_unix_timestamp(SystemTime::now()).try_into().unwrap_or(0);
+
+        let transaction = trx.get_mut();
 
         let result = sqlx::query_as::<_, Self::Item>(
             r#"
@@ -132,7 +132,9 @@ impl<'a> CrudQueries<'a> for ShapeStore {
 
     /// List all shapes.
     /// No access control here use from service layer.
-    async fn get_items(&self, lister: &Self::Lister, transaction: &mut Self::Transaction) -> Result<Vec<Self::Item>, Self::Error> {
+    async fn get_items(&self, lister: &Self::Lister, trx: &mut Trx) -> Result<Vec<Self::Item>, DbErr> {
+        let transaction = trx.get_mut();
+
         let select = Vec::from([String::from("s.id"), String::from("s.name"), String::from("s.slug"), String::from("s.description"), String::from("s.definition"), String::from("s.created_at"), String::from("s.updated_at")]);
         let from = Vec::from([String::from("shape s")]);
         let mut where_clauses = Vec::new();
@@ -208,24 +210,51 @@ impl<'a> CrudQueries<'a> for ShapeStore {
     }
 
     /// Get a shape by id.
-    async fn get_item(&self, id: Self::Id, access: Option<&'a str>, transaction: &mut Self::Transaction) -> Result<Self::Item, Self::Error> {
-        let items = self.get_items(&Self::Lister {
-            filter: Some(crate::common::crud::QueryFilter {
-                access: access.map(|s| s.to_string()),
-                filter: None,
-                ids: Some(Vec::from([id])),
-                search: None,
-            }),
-            pager: QueryPager { limit: 1, offset: None },
-        }, transaction).await?;
+    async fn get_item(&self, id: Self::Id, _access: Option<&'a str>, trx: &mut Trx) -> Result<Self::Item, DbErr> {
+        let transaction = trx.get_mut();
 
-        let item = items.get(0).cloned().ok_or(Error::RowNotFound)?;
+        // FIXME: impl needs to be lifetimed to set in lifetimed types,
+        //               impl lifetime must apply to something but types...
+        //               so added lifetime to trait, but...  
+        //               trait defined lifetime applies methods too....
+        //               so each method needs params of own lifetime....
+        //               actually each method needs own lifetime to uniform their params lifetimes and `transaction` param is important here...
+        //               so cannot pass local references of one method when call another...   
+        //               like this:
+        // let items = self.get_items(&Self::Lister {
+        //     filter: Some(crate::common::crud::QueryFilter {
+        //         access: access.map(|s| s.to_string()),
+        //         filter: None,
+        //         ids: Some(Vec::from([id])),
+        //         search: None,
+        //     }),
+        //     pager: QueryPager { limit: 1, offset: None },
+        // }, transaction).await?;
 
-        Ok(item)
+        // let item = items.get(0).cloned().ok_or(Error::RowNotFound)?;
+
+        // Ok(item)
+
+        let select = Vec::from([String::from("s.id"), String::from("s.name"), String::from("s.slug"), String::from("s.description"), String::from("s.definition"), String::from("s.created_at"), String::from("s.updated_at")]);
+        let from = Vec::from([String::from("shape s")]);
+        let where_clauses = Vec::from([String::from("s.id = ?1")]);
+
+        let sql = format!(
+            "SELECT {} FROM {} WHERE {}",
+            select.join(", "),
+            from.join(", "),
+            where_clauses.join(" AND ")
+        );
+
+        let q = sqlx::query_as::<_, Self::Item>(&sql).bind(id);
+        let result = q.fetch_one(&mut **transaction).await;
+
+        result
     }
 
     /// Update an existing shape.
-    async fn update_item(&self, id: Self::Id, patch: &Self::PatchItem, transaction: &mut Self::Transaction) -> Result<Self::Item, Self::Error> {
+    async fn update_item(&self, id: Self::Id, patch: &Self::PatchItem, trx: &mut Trx) -> Result<Self::Item, DbErr> {
+        let transaction = trx.get_mut();
         let now = to_unix_timestamp(SystemTime::now()).try_into().unwrap_or(0);
 
         let set = crate::sqlx_build_set!(
@@ -267,7 +296,8 @@ impl<'a> CrudQueries<'a> for ShapeStore {
     }
 
     /// Delete a shape by id.
-    async fn delete_item(&self, id: Self::Id, transaction: &mut Self::Transaction) -> Result<Self::Item, Self::Error> {
+    async fn delete_item(&self, id: Self::Id, trx: &mut Trx) -> Result<Self::Item, DbErr> {
+        let transaction = trx.get_mut();
         let result = sqlx::query_as::<_, Self::Item>("DELETE FROM shape WHERE id = ? RETURNING id, name, slug, description, definition, created_at, updated_at")
             .bind(id)
             .fetch_one(&mut **transaction)

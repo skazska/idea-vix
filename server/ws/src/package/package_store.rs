@@ -13,7 +13,7 @@
 //
 use sqlx::Error;
 
-use crate::common::crud::{CrudQueries, QueryFilter, QueryLister, QueryPager};
+use crate::{common::crud::{CrudQueries, QueryLister}, db::{DbErr, Trx, TrxTrait}};
 
 /// Storage layer for packages, backed by SQLx + SQLite.
 ///
@@ -33,7 +33,7 @@ impl PackageStore {
 */
 
 /// Lister
-pub type PackageLister = QueryLister;
+pub type PackageLister<'a> = QueryLister<'a>;
 
 /// Database model for a package row.
 #[derive(sqlx::FromRow, Debug, Clone)]
@@ -47,10 +47,10 @@ pub struct PackageDb {
 
 /// Insert model for a new package.
 #[derive(Debug)]
-pub struct NewPackageDb<'a> {
-    pub name: &'a str,
-    pub description: Option<&'a str>,
-    pub icon: Option<&'a str>,
+pub struct NewPackageDb<'d> {
+    pub name: &'d str,
+    pub description: Option<&'d str>,
+    pub icon: Option<&'d str>,
     pub is_public: bool,
 }
 
@@ -60,25 +60,25 @@ pub struct NewPackageDb<'a> {
 /// - `description: Option<Option<&str>>`: `None` -> not provided; `Some(None)` -> set NULL; `Some(Some(v))` -> set value
 /// - `icon` follows the same pattern.
 #[derive(Debug)]
-pub struct PatchPackageDb<'a> {
-    pub name: Option<&'a str>,
-    pub description: Option<Option<&'a str>>,
-    pub icon: Option<Option<&'a str>>,
+pub struct PatchPackageDb<'d> {
+    pub name: Option<&'d str>,
+    pub description: Option<Option<&'d str>>,
+    pub icon: Option<Option<&'d str>>,
     pub is_public: Option<bool>,
 }
 
-impl<'a> CrudQueries<'a> for PackageStore {
+impl<'d> CrudQueries<'d> for PackageStore {
     type Item = PackageDb;
-    type NewItem = NewPackageDb<'a>;
-    type PatchItem = PatchPackageDb<'a>;
-    type Lister = PackageLister;
-    type Error = Error;
-    type Transaction = sqlx::Transaction<'a, sqlx::Sqlite>;
+    type NewItem = NewPackageDb<'d>;
+    type PatchItem = PatchPackageDb<'d>;
+    type Lister = PackageLister<'d>;
     type Id = i64;
 
     /// Insert a new package and assign `owner` role to the provided session address.
     /// Uses a transaction to ensure both package row and access row are created.
-    async fn add_item(&self, item: &NewPackageDb<'a>, transaction: &mut Self::Transaction) -> Result<Self::Item, Self::Error> {
+    async fn add_item(&self, item: &Self::NewItem, trx: &mut Trx) -> Result<Self::Item, DbErr> {
+        let transaction = trx.get_mut();
+
         let result = sqlx::query_as::<_, Self::Item>(
             "INSERT INTO package (name, description, icon, is_public) VALUES (?, ?, ?, ?) RETURNING id, name, description, icon, is_public",
         )
@@ -94,7 +94,9 @@ impl<'a> CrudQueries<'a> for PackageStore {
 
     /// Retrieve packages visible to the optional session.
     /// When `session` is `None`, only public packages are returned.
-    async fn get_items(&self, lister: &Self::Lister, transaction: &mut Self::Transaction) -> Result<Vec<Self::Item>, Self::Error> {
+    async fn get_items(&self, lister: &Self::Lister, trx: &mut Trx) -> Result<Vec<Self::Item>, DbErr> {
+        let transaction = trx.get_mut();
+
         let select = Vec::from([String::from("p.id"), String::from("p.name"), String::from("p.description"), String::from("p.icon"), String::from("p.is_public")]);
         let from = Vec::from([String::from("package p")]);
         let mut where_clauses: Vec<String> = Vec::new();
@@ -175,20 +177,65 @@ impl<'a> CrudQueries<'a> for PackageStore {
     }
 
     /// Retrieve a single package by id if visible to the optional session.
-    async fn get_item(&self, id: Self::Id, access: Option<&'a str>, transaction: &mut Self::Transaction) -> Result<Self::Item, Self::Error> {
-        let items = self.get_items(&Self::Lister {
-            filter: Some(QueryFilter {
-                access: access.map(|s| s.to_string()),
-                filter: None,
-                ids: Some(vec![id]),
-                search: None,
-            }),
-            pager: QueryPager { limit: 1, offset: None },
-        }, transaction).await?;
+    async fn get_item(&self, id: Self::Id, access: Option<&'d str>, trx: &mut Trx) -> Result<Self::Item, DbErr> {
+        let transaction = trx.get_mut();
+        // FIXME: impl needs to be lifetimed to set in lifetimed types,
+        //               impl lifetime must apply to something but types...
+        //               so added lifetime to trait, but...  
+        //               trait defined lifetime applies methods too....
+        //               so each method needs params of own lifetime....
+        //               actually each method needs own lifetime to uniform their params lifetimes and `transaction` param is important here...
+        //               so cannot pass local references of one method when call another...
+        //               like this:
+        // let ids = vec![id];
+        // let lister = QueryLister {
+        //     filter: Some(QueryFilter {
+        //         access: access.map(|s| s),
+        //         filter: None,
+        //         ids: Some(ids.as_ref()),
+        //         search: None,
+        //     }),
+        //     pager: QueryPager { limit: 1, offset: None },
+        // };
+        // let items = self.get_items(&lister, transaction).await?;
 
-        let item = items.get(0).cloned().ok_or(Error::RowNotFound)?;
+        // let item = items.get(0).cloned().ok_or(Error::RowNotFound)?;
 
-        Ok(item)
+        // Ok(item)
+
+        let select = Vec::from([String::from("p.id"), String::from("p.name"), String::from("p.description"), String::from("p.icon"), String::from("p.is_public")]);
+        let from = Vec::from([String::from("package p")]);
+        let mut where_clauses: Vec<String> = Vec::new();
+
+        if let Some(_access) = access {
+            where_clauses.push(String::from("(p.is_public = 1 OR EXISTS (SELECT 1 FROM package_access pa WHERE pa.package_id = p.id AND pa.address = ?))"));
+        } else {
+            where_clauses.push(String::from("p.is_public = 1"));
+        }
+
+        where_clauses.push(String::from("p.id = ?"));
+
+        let sql = format!(
+            "SELECT {} FROM {}{}",
+            select.join(", "),
+            from.join(", "),
+            if where_clauses.is_empty() {
+                String::new()
+            } else {
+                format!(" WHERE {}", where_clauses.join(" AND "))
+            }
+        );
+
+        let q = sqlx::query_as::<_, Self::Item>(&sql);
+
+        let q = match access {
+            Some(access) => q.bind(access).bind(id),
+            None => q.bind(id),
+        };
+
+        let result = q.fetch_one(&mut **transaction).await;
+
+        result
     }
 
     /// Update a package row. Access is validated by the service layer.
@@ -203,7 +250,8 @@ impl<'a> CrudQueries<'a> for PackageStore {
     ///   - `Some(None)` sets the column to `NULL`.
     ///   - `None` means "do not update this column".
     /// - If no fields are provided, returns `Error::InvalidArgument`.
-    async fn update_item(&self, id: Self::Id, item: &PatchPackageDb<'a>, transaction: &mut Self::Transaction) -> Result<Self::Item, Self::Error> {
+    async fn update_item(&self, id: Self::Id, item: &Self::PatchItem, trx: &mut Trx) -> Result<Self::Item, DbErr> {
+        let transaction = trx.get_mut();
         let set = crate::sqlx_build_set!(
             item.name.is_some() => "name = ?",
             item.description.is_some() => "description = ?",
@@ -263,7 +311,9 @@ impl<'a> CrudQueries<'a> for PackageStore {
     }
 
     /// Delete a package row and its access entries within a transaction.
-    async fn delete_item(&self, id: Self::Id, transaction: &mut Self::Transaction) -> Result<Self::Item, self::Error> {
+    async fn delete_item(&self, id: Self::Id, trx: &mut Trx) -> Result<Self::Item, DbErr> {
+        let transaction = trx.get_mut();
+
         let result = sqlx::query_as::<_, Self::Item>("DELETE FROM package WHERE id = ? RETURNING id, name, description, icon, is_public")
             .bind(id)
             .fetch_one(&mut **transaction)

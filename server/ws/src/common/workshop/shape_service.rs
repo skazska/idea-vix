@@ -8,7 +8,7 @@
 
 use std::sync::Arc;
 use crate::common::crud::{CrudQueries, CrudService, ListParams, QueryFilter, QueryLister};
-use crate::db::{ TransactionHandler, TransactionStarter };
+use crate::db::{ TransactionStarter, Trx, TrxRun };
 use crate::error::ModelError;
 use crate::session::session_service::SessionData;
 use crate::common::workshop::shape_store::{NewShapeDb, PatchShapeDb, ShapeDb, ShapeStore};
@@ -135,10 +135,8 @@ impl ShapeService {
     }
 
     /// Get a shape by its unique slug.
-    pub async fn get_shape_by_slug(&self, slug: &str) -> Result<Shape, ModelError> {
-        let trx = self.transaction_starter.begin().await?;
-        
-        let result = trx.run(async move |transaction| {
+    pub async fn get_shape_by_slug<'r>(&'r self, slug: &'r str) -> Result<Shape, ModelError> {
+        let result = self.transaction_starter.run_in_transaction(async move |transaction| {
             // Create a lister to find shape by slug using search functionality
             let lister = QueryLister {
                 filter: Some(QueryFilter {
@@ -171,24 +169,23 @@ impl CrudService for ShapeService {
     type Id = i64;
 
     /// Create a new shape for the authenticated user.
-    async fn add_item<'r>(&self, item: &'r Self::NewItem, _session: &'r Self::SessionData) -> Result<Self::Item, ModelError> {
-        let trx = self.transaction_starter.begin::<'r>().await?;
+    async fn add_item<'r>(&'r self, item: &'r Self::NewItem, _session: &'r Self::SessionData) -> Result<Self::Item, ModelError> {
         let db_item = NewShapeDb::from(item);
 
-        let result = trx.run(async move |transaction| {
-            let item = self.items_store.add_item(&db_item, transaction).await?;
+        let result = self.transaction_starter.run_in_transaction(async move |trx| {
+            let item = self.items_store.add_item(&db_item, trx).await?;
             Ok(item)
         }).await?;
-        println!("{:?}", item);
+
         Ok(Self::Item::from(result))
     }
 
+
     /// List shapes based on the provided lister parameters.
-    async fn get_items<'r>(&self, lister: &'r Self::Lister, _session: Option<&'r Self::SessionData>) -> Result<Vec<Self::Item>, ModelError> {
-        let trx = self.transaction_starter.begin().await?;
+    async fn get_items<'r>(&'r self, lister: &'r Self::Lister, _session: Option<&'r Self::SessionData>) -> Result<Vec<Self::Item>, ModelError> {
         let lister = QueryLister::from(lister);
 
-        let result = trx.run(async move |transaction| {
+        let result = self.transaction_starter.run_in_transaction(async move |transaction| {
             let items = self.items_store.get_items(&lister, transaction).await?;
             Ok(items)
         }).await?;
@@ -197,10 +194,8 @@ impl CrudService for ShapeService {
     }
 
     /// Get a single shape by id.
-    async fn get_item(&self, item_id: Self::Id, _session: Option<&Self::SessionData>) -> Result<Self::Item, ModelError> {
-        let trx = self.transaction_starter.begin().await?;
-
-        let result = trx.run(async move |transaction| {
+    async fn get_item<'r>(&'r self, item_id: Self::Id, _session: Option<&'r Self::SessionData>) -> Result<Self::Item, ModelError> {
+        let result = self.transaction_starter.run_in_transaction(async move |transaction| {
             let item = self.items_store.get_item(item_id, None, transaction).await?;
             Ok(item)
         }).await?;
@@ -209,11 +204,10 @@ impl CrudService for ShapeService {
     }
 
     /// Update a shape.
-    async fn update_item<'r>(&self, id: Self::Id, item: &'r Self::PatchItem, _session: &'r Self::SessionData) -> Result<Self::Item, ModelError> {
-        let trx = self.transaction_starter.begin().await?;
+    async fn update_item<'r>(&'r self, id: Self::Id, item: &'r Self::PatchItem, _session: &'r Self::SessionData) -> Result<Self::Item, ModelError> {
         let db_item = PatchShapeDb::from(item);
 
-        let result = trx.run(async move |transaction| {
+        let result = self.transaction_starter.run_in_transaction(async move |transaction| {
             let updated_item = self.items_store.update_item(id, &db_item, transaction).await?;
             Ok(updated_item)
         }).await?;
@@ -222,10 +216,8 @@ impl CrudService for ShapeService {
     }
 
     /// Delete a shape.
-    async fn delete_item(&self, id: Self::Id, _session: &Self::SessionData) -> Result<Self::Item, ModelError> {
-        let trx = self.transaction_starter.begin().await?;
-
-        let result = trx.run(async move |transaction| {
+    async fn delete_item<'r>(&'r self, id: Self::Id, _session: &'r Self::SessionData) -> Result<Self::Item, ModelError> {
+        let result = self.transaction_starter.run_in_transaction(async move |transaction| {
             let deleted_item = self.items_store.delete_item(id, transaction).await?;
             Ok(deleted_item)
         }).await?;

@@ -1,7 +1,6 @@
 /// Common module for database infrastructure.
 
 use std::{ pin::Pin, sync::Arc, time::SystemTime };
-use sqlx::sqlite::SqliteJournalMode;
 
 use crate::error::ModelError;
 
@@ -15,99 +14,77 @@ pub fn from_unix_timestamp(timestamp: u64) -> SystemTime {
     SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(timestamp)
 }
 
-pub trait QueriesIntId {
-    type Id: Send + Sync + Unpin;
+//***** SQLite */
+pub type DbErr = sqlx::Error;
 
-    fn get_id(&self, id: Self::Id) -> impl sqlx::Encode<'_, sqlx::Sqlite> + sqlx::Type<sqlx::Sqlite> + '_;
+
+pub trait TrxTrait<T> {
+    fn get_mut(&mut self) -> &mut T;
+    async fn commit(self) -> Result<(), DbErr>;
+    async fn rollback(self) -> Result<(), DbErr>;
 }
 
-
-pub trait TransactionHandler {
-    type Error;
-    type ModelError;
-    type Transaction;
-
-    fn get(&mut self) -> &mut Self::Transaction;
-
-    async fn commit(self) -> Result<(), Self::ModelError>;
-
-    async fn rollback(self) -> Result<(), Self::ModelError>;
-
-    async fn exec_box<R>(&mut self, func: Box<dyn Fn(&mut Self::Transaction) -> Pin<Box<dyn Future<Output=Result<R, Self::ModelError>> + '_>>>) -> Result<R, Self::ModelError>
-    where
-        Self: Sized,
-    {
-        func(self.get()).await
-    }
-
-    async fn exec<R>(&mut self, func: impl AsyncFnOnce(&mut Self::Transaction) -> Result<R, Self::ModelError> + '_) -> Result<R, Self::ModelError>
-    {
-        func(self.get()).await
-    }
-
-
-    async fn end<R>(self, result: Result<R, Self::ModelError>) -> Result<R, Self::ModelError>
-    where
-        Self: Sized,
-    {
-        match result {
-            Ok(val) => {
-                self.commit().await?;
-                Ok(val)
-            },
-            Err(err) => {
-                self.rollback().await?;
-                Err(err)
-            }
-        }
-    }
-
-    async fn run_box<R>(self, func: Box<dyn Fn(&mut Self::Transaction) -> Pin<Box<dyn Future<Output=Result<R, Self::ModelError>> + '_>>> ) -> Result<R, Self::ModelError>
-    where
-        Self: Sized,
-    {
-        let mut tx = self;
-        let res = tx.exec_box(func).await;
-        tx.end(res).await
-    }
-
-    async fn run<R>(self, func: impl AsyncFnOnce(&mut Self::Transaction) -> Result<R, Self::ModelError> + '_) -> Result<R, Self::ModelError>
-    where
-        Self: Sized,
-    {
-        let mut tx = self;
-        let res = tx.exec(func).await;
-        tx.end(res).await
-    } 
+pub struct Trx {
+    transaction: sqlx::Transaction<'static, sqlx::Sqlite>,
 }
 
-pub struct SqliteTransaction<'t> {
-    transaction: sqlx::Transaction<'t, sqlx::Sqlite>,
-}
-
-impl<'t> SqliteTransaction<'t> {
-    pub fn new(transaction: sqlx::Transaction<'t, sqlx::Sqlite>) -> Self {
+impl Trx {
+    pub fn new(transaction: sqlx::Transaction<'static, sqlx::Sqlite>) -> Self {
         Self { transaction }
     }
 }
 
-impl<'t> TransactionHandler for SqliteTransaction<'t> {
-    type Error = sqlx::Error;
-    type ModelError = ModelError;
-    type Transaction = sqlx::Transaction<'t, sqlx::Sqlite>;
-
-    fn get(&mut self) -> &mut Self::Transaction {
+impl TrxTrait<sqlx::Transaction<'static, sqlx::Sqlite>> for Trx {
+    fn get_mut(&mut self) -> &mut sqlx::Transaction<'static, sqlx::Sqlite> {
         &mut self.transaction
     }
-
-    async fn commit(self) -> Result<(), Self::ModelError> {
-        self.transaction.commit().await.map_err(|e| e.into())
+    async fn commit(self) -> Result<(), DbErr> {
+        self.transaction.commit().await
     }
-
-    async fn rollback(self) -> Result<(), Self::ModelError> {
-        self.transaction.rollback().await.map_err(|e| e.into())
+    async fn rollback(self) -> Result<(), DbErr> {
+        self.transaction.rollback().await
     }
 }
+
+pub trait QueriesIntId<'q> {
+    type Id: Send + Sync + Unpin;
+
+    fn get_id(&self, id: Self::Id) -> impl sqlx::Encode<'q, sqlx::Sqlite> + sqlx::Type<sqlx::Sqlite> + 'q;
+}
+
+pub struct TrxRun<F>
+{
+    trx: Trx,
+    f: F
+}
+
+
+impl<F, R> TrxRun<F>
+where
+    F: AsyncFnOnce(&mut Trx) -> Result<R, ModelError>,
+    R: Send,
+{
+    pub fn new(transaction: Trx, f: F) -> Self {
+        Self { trx: transaction, f }
+    }
+
+    pub async fn run(self) -> Result<R, ModelError> {
+        let mut tx = self.trx;
+        let res = (self.f)(&mut tx).await;
+
+        match res {
+            Ok(val) => {
+                tx.commit().await?;
+                Ok(val)
+            },
+            Err(err) => {
+                tx.rollback().await?;
+                Err(err)
+            }
+        }
+    }
+}
+
 
 pub struct TransactionStarter {
     pool: sqlx::Pool<sqlx::Sqlite>,
@@ -115,14 +92,33 @@ pub struct TransactionStarter {
 
 impl TransactionStarter {
     /// Starts a new transaction
-    pub async fn begin<'t>(&self) -> Result<SqliteTransaction<'t>, sqlx::Error> {
-        let transaction = self.pool.begin().await?;
-        Ok(SqliteTransaction::new(transaction))
-    }
-
     pub fn get_pool(&self) -> Arc<sqlx::Pool<sqlx::Sqlite>> {
         Arc::new(self.pool.clone())
     }
+
+    pub fn run_in_transaction<'c, F, R>(&'c self, f: F) -> impl std::future::Future<Output=Result<R, ModelError>> + 'c
+    where
+        F: AsyncFnOnce(&mut Trx) -> Result<R, ModelError> + 'c,
+        R: Send + 'c,
+    {
+        let pool = self.pool.clone();
+        async move {
+            let transaction = pool.begin().await?;
+            TrxRun::new(Trx { transaction }, f).run().await
+        }
+    }
+
+    // pub fn run_in_transaction<'c, F, R>(&'c self, f: F) -> impl std::future::Future<Output=Result<R, ModelError>> + 'c
+    // where
+    //     F: Fn(&mut Trx<'c>) -> Pin<Box<dyn Future<Output=Result<R, ModelError>> + 'c>> + 'c,
+    //     R: Send + 'c,
+    // {
+    //     let pool = self.pool.clone();
+    //     async move {
+    //         let transaction = pool.begin().await?;
+    //         TrxRun::new(transaction, f).run().await
+    //     }
+    // }
 }
 
 pub struct SqlitePool (Arc<TransactionStarter>);
@@ -132,7 +128,7 @@ impl SqlitePool {
     pub async fn new(url: &str, size: u8) -> Self {
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(url)
-            .journal_mode(SqliteJournalMode::Wal) // Use WAL mode for better concurrency
+            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal) // Use WAL mode for better concurrency
             .create_if_missing(true); // Create the database file if it doesn't exist
         let pool = sqlx::sqlite::SqlitePoolOptions::new()
             .max_connections(size.into())

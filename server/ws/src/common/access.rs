@@ -1,7 +1,7 @@
 use std::{sync::Arc};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
-use crate::{db::{QueriesIntId, TransactionHandler, TransactionStarter}, error::ModelError, session::session_service::SessionData};
+use crate::{db::{DbErr, QueriesIntId, TransactionStarter, Trx, TrxTrait}, error::ModelError, session::session_service::SessionData};
 
 
 /// Shared role enumeration used across features that implement access control.
@@ -133,8 +133,8 @@ impl CommonItemAccess {
         Self { queries, transaction_starter }
     }
 
-    async fn check_am_owner(&self, item_id: i64, session: &SessionData, transaction: &mut sqlx::Transaction<'static, sqlx::Sqlite>) -> Result<(), ModelError> {
-        let roles = self.queries.get_access_roles(item_id, session, Some(&Vec::from([ROLE_OWNER])), transaction).await?;
+    async fn check_am_owner(&self, item_id: i64, session: &SessionData, trx: &mut Trx) -> Result<(), ModelError> {
+        let roles = self.queries.get_access_roles(item_id, session, Some(&Vec::from([ROLE_OWNER])), trx).await?;
         if roles.len() == 0 {
             return Err(ModelError::Forbidden("Only owner can manage access".to_string()));
         }
@@ -148,20 +148,18 @@ impl ItemAccess for CommonItemAccess {
     type Id = i64;
 
     async fn add_access_role(&self, role_dto: ItemRoleDto<Self::Id>, session: &Self::SessionData) -> Result<ItemRole<Self::Id>, ModelError> {
-        let trx =  self.transaction_starter.begin().await?;
+        if validate_grant_role(&role_dto.role).is_err() {
+            return Err(ModelError::BadRequest("Invalid role".to_string()));
+        }
 
         let item_id = role_dto.item_id;
         let role = ItemRole::from(&role_dto);
+        let role_db = ItemRoleDb::from(&role);
 
-        let result = trx.run(async move |transaction| {
-            self.check_am_owner(item_id, session, transaction).await?;
-
-            if validate_grant_role(&role_dto.role).is_err() {
-                return Err(ModelError::BadRequest("Invalid role".to_string()));
-            }
-
+        let result = self.transaction_starter.run_in_transaction(async move |trx| {
+            self.check_am_owner(item_id, session, trx).await?;
             ensure_not_self(&role.address, &session.address)?;
-            let stored = self.queries.add_access_role(item_id, &ItemRoleDb::from(&role), transaction).await?;
+            let stored = self.queries.add_access_role(item_id, &role_db, trx).await?;
             Ok(stored)
         }).await?;
 
@@ -169,20 +167,18 @@ impl ItemAccess for CommonItemAccess {
     }
 
     async fn revoke_access_role(&self, role_dto: ItemRoleDto<Self::Id>, session: &SessionData) -> Result<ItemRole<Self::Id>, ModelError> {
-        let trx =  self.transaction_starter.begin().await?;
+        if validate_grant_role(&role_dto.role).is_err() {
+            return Err(ModelError::BadRequest("Invalid role".to_string()));
+        }
 
         let role = ItemRole::from(&role_dto);
         let item_id = role.item_id;
+        let role_db = ItemRoleDb::from(&role);
 
-        let result = trx.run(async move |transaction| {
-            self.check_am_owner(item_id, session, transaction).await?;
-
-            if validate_grant_role(&role_dto.role).is_err() {
-                return Err(ModelError::BadRequest("Invalid role".to_string()));
-            }
-
+        let result = self.transaction_starter.run_in_transaction(async move |trx| {
+            self.check_am_owner(item_id, session, trx).await?;
             ensure_not_self(&role.address, &session.address)?;
-            let revoked = self.queries.revoke_access_role(item_id, &ItemRoleDb::from(&role), transaction).await?;
+            let revoked = self.queries.revoke_access_role(item_id, &role_db, trx).await?;
             Ok(revoked)
         }).await?;
 
@@ -190,12 +186,11 @@ impl ItemAccess for CommonItemAccess {
     }
 
     async fn revoke_access_roles(&self, item_id: Self::Id, address: String, session: &SessionData) -> Result<Vec<ItemRole<Self::Id>>, ModelError> {
-        let trx =  self.transaction_starter.begin().await?;
+        ensure_not_self(&address, &session.address)?;
 
-        let result = trx.run(async move |transaction| {
-            self.check_am_owner(item_id, session, transaction).await?;
-            ensure_not_self(&address, &session.address)?;
-            let revoked = self.queries.revoke_access_roles(item_id, &address, transaction).await?;
+        let result = self.transaction_starter.run_in_transaction(async move |trx| {
+            self.check_am_owner(item_id, session, trx).await?;
+            let revoked = self.queries.revoke_access_roles(item_id, &address, trx).await?;
             Ok(revoked)
         }).await?;
 
@@ -203,11 +198,9 @@ impl ItemAccess for CommonItemAccess {
     }
 
     async fn list_access_roles(&self, item_id: Self::Id, session: &SessionData) -> Result<Vec<ItemRole<Self::Id>>, ModelError> {
-        let trx = self.transaction_starter.begin().await?;
-
-        let result = trx.run(async move |transaction| {
-                self.check_am_owner(item_id, session, transaction).await?;
-                let rows = self.queries.list_access_roles(item_id, transaction).await?;
+        let result = self.transaction_starter.run_in_transaction(async move |trx| {
+            self.check_am_owner(item_id, session, trx).await?;
+            let rows = self.queries.list_access_roles(item_id, trx).await?;
                 Ok(rows)
         }).await?;
 
@@ -242,20 +235,18 @@ impl<Id: Clone> From<&ItemRole<Id>> for ItemRoleDb {
 }
 
 pub trait ItemAccessQueries<'t> {
-    type Error;
-    type Transaction;
     type Id: Clone + Send + Sync; // + Unpin;
 
     /// Fetch all roles of session.address for a specific item  (for access check).
-    async fn get_access_roles(&self, item_id: Self::Id, session: &SessionData, roles: Option<&Vec<&str>>, transaction: &mut Self::Transaction) -> Result<Vec<RoleOnly>, Self::Error>;
+    async fn get_access_roles(&self, item_id: Self::Id, session: &SessionData, roles: Option<&Vec<&str>>, trx: &mut Trx) -> Result<Vec<RoleOnly>, DbErr>;
     /// List roles for a specific item.
-    async fn list_access_roles(&self, item_id: Self::Id, transaction: &mut Self::Transaction) -> Result<Vec<ItemRoleDb>, Self::Error>;
+    async fn list_access_roles(&self, item_id: Self::Id, trx: &mut Trx) -> Result<Vec<ItemRoleDb>, DbErr>;
     /// Grant address role to a specific item.
-    async fn add_access_role(&self, item_id: Self::Id, role: &ItemRoleDb, transaction: &mut Self::Transaction) -> Result<ItemRoleDb, Self::Error>;
+    async fn add_access_role(&self, item_id: Self::Id, role: &ItemRoleDb, trx: &mut Trx) -> Result<ItemRoleDb, DbErr>;
     /// Revoke all roles of address from a specific item.
-    async fn revoke_access_roles(&self, item_id: Self::Id, address: &str, transaction: &mut Self::Transaction) -> Result<Vec<ItemRoleDb>, Self::Error>;
+    async fn revoke_access_roles(&self, item_id: Self::Id, address: &str, trx: &mut Trx) -> Result<Vec<ItemRoleDb>, DbErr>;
     /// Revoke a specific role of address from a specific item.
-    async fn revoke_access_role(&self, item_id: Self::Id, role: &ItemRoleDb, transaction: &mut Self::Transaction) -> Result<ItemRoleDb, Self::Error>;
+    async fn revoke_access_role(&self, item_id: Self::Id, role: &ItemRoleDb, trx: &mut Trx) -> Result<ItemRoleDb, DbErr>;
 }
 
 trait ItemAccessQueriesMeta {
@@ -285,20 +276,19 @@ impl ItemAccessQueriesMeta for SqliteItemAccessQueries {
     
 }
 
-impl QueriesIntId for SqliteItemAccessQueries {
+impl<'d> QueriesIntId<'d> for SqliteItemAccessQueries {
     type Id = i64;
 
-    fn get_id(&self, id: Self::Id) -> impl sqlx::Encode<'_, sqlx::Sqlite> + sqlx::Type<sqlx::Sqlite> {
+    fn get_id(&self, id: Self::Id) -> impl sqlx::Encode<'d, sqlx::Sqlite> + sqlx::Type<sqlx::Sqlite> + 'd {
         id
     }
 }
 
 impl<'t> ItemAccessQueries<'t> for SqliteItemAccessQueries {
-    type Error = sqlx::Error;
-    type Transaction = sqlx::Transaction<'t, sqlx::Sqlite>;
     type Id = i64;
 
-    async fn get_access_roles(&self, item_id: Self::Id, session: &SessionData, roles: Option<&Vec<&str>>, transaction: &mut Self::Transaction) -> Result<Vec<RoleOnly>, Self::Error> {
+    async fn get_access_roles(&self, item_id: Self::Id, session: &SessionData, roles: Option<&Vec<&str>>, trx: &mut Trx) -> Result<Vec<RoleOnly>, DbErr> {
+        let transaction = trx.get_mut();
         let mut query = format!("SELECT role FROM {} WHERE {} = ? AND address = ?", self.get_table(), self.get_id_attr());
         if let Some(roles) = roles {
             if !roles.is_empty() {
@@ -316,7 +306,8 @@ impl<'t> ItemAccessQueries<'t> for SqliteItemAccessQueries {
         access
     }
 
-    async fn list_access_roles(&self, item_id: Self::Id, transaction: &mut Self::Transaction) -> Result<Vec<ItemRoleDb>, Self::Error> {
+    async fn list_access_roles(&self, item_id: Self::Id, trx: &mut Trx) -> Result<Vec<ItemRoleDb>, DbErr> {
+        let transaction = trx.get_mut();
         let rows = sqlx::query_as::<_, ItemRoleDb>(
             &format!("SELECT address, role FROM {} WHERE {} = ? ORDER BY address", self.get_table(), self.get_id_attr())
         )
@@ -327,7 +318,8 @@ impl<'t> ItemAccessQueries<'t> for SqliteItemAccessQueries {
         rows
     }
 
-    async fn add_access_role(&self, item_id: Self::Id, role: &ItemRoleDb, transaction: &mut Self::Transaction) -> Result<ItemRoleDb, Self::Error> {
+    async fn add_access_role(&self, item_id: Self::Id, role: &ItemRoleDb, trx: &mut Trx) -> Result<ItemRoleDb, DbErr> {
+        let transaction = trx.get_mut();
         let result = sqlx::query_as::<_, ItemRoleDb>(
             &format!("INSERT INTO {} ({}, address, role) VALUES (?, ?, ?) RETURNING address, role", self.get_table(), self.get_id_attr())
         )
@@ -340,7 +332,8 @@ impl<'t> ItemAccessQueries<'t> for SqliteItemAccessQueries {
         result
     }
 
-    async fn revoke_access_roles(&self, item_id: Self::Id, address: &str, transaction: &mut Self::Transaction) -> Result<Vec<ItemRoleDb>, Self::Error> {
+    async fn revoke_access_roles(&self, item_id: Self::Id, address: &str, trx: &mut Trx) -> Result<Vec<ItemRoleDb>, DbErr> {
+        let transaction = trx.get_mut();
         let result = sqlx::query_as::<_, ItemRoleDb>(
             &format!("DELETE FROM {} WHERE {} = ? AND address = ? RETURNING address, role", self.get_table(), self.get_id_attr())
         )
@@ -352,7 +345,8 @@ impl<'t> ItemAccessQueries<'t> for SqliteItemAccessQueries {
         result
     }
 
-    async fn revoke_access_role(&self, item_id: Self::Id, role: &ItemRoleDb, transaction: &mut Self::Transaction) -> Result<ItemRoleDb, Self::Error> {
+    async fn revoke_access_role(&self, item_id: Self::Id, role: &ItemRoleDb, trx: &mut Trx) -> Result<ItemRoleDb, DbErr> {
+        let transaction = trx.get_mut();
         let result = sqlx::query_as::<_, ItemRoleDb>(
             &format!("DELETE FROM {} WHERE {} = ? AND address = ? AND role = ? RETURNING address, role", self.get_table(), self.get_id_attr())
         )

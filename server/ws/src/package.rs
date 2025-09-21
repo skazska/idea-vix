@@ -36,7 +36,7 @@ use crate::{
         access::{self, ItemAccess, ItemRole, ItemRoleDto, SqliteItemAccessQueries},
         crud::CrudService,
         workshop::{
-            shape_service::{AddShapeToPackageItem, ShapeService},
+            shape_service::{ShapeService},
             shape_store::ShapeStore,
         }
     },

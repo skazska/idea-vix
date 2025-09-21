@@ -34,7 +34,7 @@ use std::sync::Arc;
 use crate::common::access::{ ItemAccessQueries, ItemRoleDb, SqliteItemAccessQueries, ROLE_OWNER };
 use crate::common::crud::{CrudQueries, CrudService, ListParams, QueryFilter, QueryLister};
 use crate::common::workshop::shape_service::{Shape, ShapeService};
-use crate::db::{ TransactionHandler, TransactionStarter };
+use crate::db::{ TrxRun, TransactionStarter };
 use crate::error::ModelError;
 use crate::package::package_store::{NewPackageDb, PackageDb, PackageStore, PatchPackageDb};
 use crate::session::session_service::SessionData;
@@ -154,16 +154,16 @@ impl CrudService for PackageService {
     /// Create a new package for the authenticated user.
     /// - Persists a new package via the store
     /// - Grants the caller the `owner` role
-    async fn add_item<'r>(&self, item: &'r Self::NewItem, session: &'r Self::SessionData) -> Result<Self::Item, ModelError> {
-        let trx = self.transaction_starter.begin().await?;
+    async fn add_item<'r>(&'r self, item: &'r Self::NewItem, session: &'r Self::SessionData) -> Result<Self::Item, ModelError> {
+
         let db_item = NewPackageDb::from(item);
 
-        let result = trx.run(async move |transaction| {
-                let item = self.items_store.add_item(&db_item, transaction).await?;
-                let role = ItemRoleDb { address: session.address.clone(), role: ROLE_OWNER.to_string() };
-                self.access_store.add_access_role(item.id, &role, transaction).await?;
+        let result = self.transaction_starter.run_in_transaction(async move |trx| {
+            let item = self.items_store.add_item(&db_item, trx).await?;
+            let role = ItemRoleDb { address: session.address.clone(), role: ROLE_OWNER.to_string() };
+            self.access_store.add_access_role(item.id, &role, trx).await?;
 
-                Ok(item)
+            Ok(item)
         }).await?;
 
         Ok(Self::Item::from(result))
@@ -173,9 +173,7 @@ impl CrudService for PackageService {
     /// List packages visible to the optional session.
     /// - When `session` is `None`, returns only public packages
     /// - Otherwise, returns public plus accessible packages
-    async fn get_items<'r>(&self, lister: &'r Self::Lister, session: Option<&'r Self::SessionData>) -> Result<Vec<Self::Item>, ModelError> {
-        let trx = self.transaction_starter.begin().await?;
-
+    async fn get_items(&self, lister: &Self::Lister, session: Option<&Self::SessionData>) -> Result<Vec<Self::Item>, ModelError> {
         let mut lister = QueryLister::from(lister);
         if let Some(sess) = session {
             if lister.filter.is_none() {
@@ -190,8 +188,8 @@ impl CrudService for PackageService {
             }
         }
 
-        let result = trx.run(async move |transaction| {
-            let items = self.items_store.get_items(&lister, transaction).await?;
+        let result = self.transaction_starter.run_in_transaction(async move |trx| {
+            let items = self.items_store.get_items(&lister, trx).await?;
 
             Ok(items)
         }).await?;
@@ -200,12 +198,11 @@ impl CrudService for PackageService {
     }
 
     /// Get a single package by id if visible to the session.
-    async fn get_item<'r>(&self, item_id: Self::Id, session: Option<&'r Self::SessionData>) -> Result<Self::Item, ModelError> {
-        let trx = self.transaction_starter.begin().await?;
+    async fn get_item(&self, item_id: Self::Id, session: Option<&Self::SessionData>) -> Result<Self::Item, ModelError> {
         let access = session.map(|s| s.address.as_str());
 
-        let result = trx.run(async move |transaction| {
-            let item = self.items_store.get_item(item_id, access, transaction).await?;
+        let result = self.transaction_starter.run_in_transaction(async move |trx| {
+            let item = self.items_store.get_item(item_id, access, trx).await?;
 
             Ok(item)
         }).await?;
@@ -216,19 +213,17 @@ impl CrudService for PackageService {
     /// Update a package.
     /// - Verifies the caller has `owner` or `manage` role
     /// - Applies partial updates via the store
-    async fn update_item<'r>(&self, id: Self::Id, item: &'r Self::PatchItem, session: &'r Self::SessionData) -> Result<Self::Item, ModelError> {
-        let trx = self.transaction_starter.begin().await?;
-        
+    async fn update_item(&self, id: Self::Id, item: &Self::PatchItem, session: &Self::SessionData) -> Result<Self::Item, ModelError> {
         let db_item = PatchPackageDb::from(item);
 
-        let result = trx.run(async move |transaction| {
-            let roles = self.access_store.get_access_roles(id, session, Some(&Vec::from([ROLE_OWNER])), transaction).await?;
+        let result = self.transaction_starter.run_in_transaction(async move |trx| {
+            let roles = self.access_store.get_access_roles(id, session, Some(&Vec::from([ROLE_OWNER])), trx).await?;
 
             if roles.len() == 0 {
                 return Err(ModelError::Forbidden("You are not allowed to update this package".to_string()));
             }
 
-            let updated_item = self.items_store.update_item(id, &db_item, transaction).await?;
+            let updated_item = self.items_store.update_item(id, &db_item, trx).await?;
 
             Ok(updated_item)
         }).await?;
@@ -240,16 +235,14 @@ impl CrudService for PackageService {
     /// - Verifies the caller has `owner` or `manage` role
     /// - Deletes the package (and related access rows in store)
     async fn delete_item(&self, id: Self::Id, session: &Self::SessionData) -> Result<Self::Item, ModelError> {
-        let trx = self.transaction_starter.begin().await?;
-
-        let result = trx.run(async move |transaction| {
-            let roles = self.access_store.get_access_roles(id, session, Some(&Vec::from([ROLE_OWNER])), transaction).await?;
+        let result = self.transaction_starter.run_in_transaction(async move |trx| {
+            let roles = self.access_store.get_access_roles(id, session, Some(&Vec::from([ROLE_OWNER])), trx).await?;
 
             if roles.len() == 0 {
                 return Err(ModelError::Forbidden("You are not allowed to delete this package".to_string()));
             }
 
-            let deleted_item = self.items_store.delete_item(id, transaction).await?;
+            let deleted_item = self.items_store.delete_item(id, trx).await?;
 
             Ok(deleted_item)
         }).await?;

@@ -4,6 +4,7 @@
 //! These elements can be referenced by packages and used in boards.
 
 use std::sync::Arc;
+use std::vec;
 use crate::common::crud::{CrudService, ListParams};
 use crate::common::workshop::shape_service::{NewShapeItem, PatchShapeItem, Shape, ShapeService};
 use crate::common::workshop::shape_store::ShapeStore;
@@ -41,10 +42,18 @@ pub fn get_router(
 
     Router::new()
         // Global workshop shape routes
-        .route("/workshop/shapes", get(list_shapes))
-        .route("/workshop/shapes", post(create_shape))
-        .route("/workshop/shapes/:id", get(get_shape).patch(update_shape))
-        .route("/workshop/shapes/by-slug/:slug", get(get_shape_by_slug))
+        .route("/workshop/shapes", get(|state: State<Arc<RouteState>>, params: Query<SearchParams>| async {
+            list_shapes(state, params).await
+        }))
+        .route("/workshop/shapes", post(|state: State<Arc<RouteState>>, token: AuthToken, item: ValidatedJson<NewShapeItem>| async {
+            create_shape(token, state, item).await
+        }))
+        .route("/workshop/shapes/:id", get(|state: State<Arc<RouteState>>, id: Path<i64>| async {
+            get_shape(state, id).await
+        }))
+        .route("/workshop/shapes/by-slug/:slug", get(|state: State<Arc<RouteState>>, slug: Path<String>| async {
+            get_shape_by_slug(state, slug).await
+        }))
         .with_state(state)
 }
 
@@ -73,7 +82,22 @@ async fn list_shapes(State(state): State<Arc<RouteState>>, Query(params): Query<
     };
 
     let shapes = state.shape_service.get_items(&lister, None).await.map_err(|e| e.into())?;
+
     Ok(Json(shapes))
+}
+
+/// Handler: create a new shape in the global workshop.
+/// - Requires authentication
+/// - Validates slug format and uniqueness
+/// - Returns 201 Created with the new shape
+async fn create_shape(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    ValidatedJson(item): ValidatedJson<NewShapeItem>,
+) -> Result<(StatusCode, Json<Shape>), (StatusCode, String)> {
+    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    let shape = state.shape_service.add_item(&item, &session).await.map_err(|e| e.into())?;
+    Ok((StatusCode::CREATED, Json(shape)))
 }
 
 /// Handler: get a shape by id.
@@ -90,20 +114,6 @@ async fn get_shape(State(state): State<Arc<RouteState>>, Path(id): Path<i64>) ->
 async fn get_shape_by_slug(State(state): State<Arc<RouteState>>, Path(slug): Path<String>) -> Result<Json<Shape>, (StatusCode, String)> {
     let shape = state.shape_service.get_shape_by_slug(&slug).await.map_err(|e| e.into())?;
     Ok(Json(shape))
-}
-
-/// Handler: create a new shape in the global workshop.
-/// - Requires authentication
-/// - Validates slug format and uniqueness
-/// - Returns 201 Created with the new shape
-async fn create_shape(
-    AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    ValidatedJson(item): ValidatedJson<NewShapeItem>,
-) -> Result<(StatusCode, Json<Shape>), (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    let shape = state.shape_service.add_item(&item, &session).await.map_err(|e| e.into())?;
-    Ok((StatusCode::CREATED, Json(shape)))
 }
 
 /// Handler: update an existing shape.
