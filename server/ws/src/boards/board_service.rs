@@ -29,12 +29,17 @@
 //!     assert!(visible.iter().any(|p| p.id == created.id));
 //! }
 //! ```
-//
+use std::sync::Arc;
+
+use crate::common::access::{ ItemAccessQueries, ItemRoleDb, SqliteItemAccessQueries, ROLE_OWNER };
+use crate::common::crud::{CrudQueries, CrudService, ListParams, QueryFilter, QueryLister};
+use crate::db::TransactionStarter;
 use crate::error::ModelError;
-use crate::boards::board_store::{BoardDb, BoardStore, NewBoardDb, PatchBoardDb, BoardAccessRoleDb, BoardAccessRolesDb, NewBoardAccessDb};
+use crate::boards::board_store::{BoardDb, BoardStore, NewBoardDb, PatchBoardDb};
 use crate::session::session_service::SessionData;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
+pub use crate::common::access::ItemRoleDto as NewBoardAccessItem;
 
 /// API representation of a board.
 ///
@@ -42,7 +47,7 @@ use validator::Validate;
 /// throughout the service layer. It is converted from the storage model (`BoardDb`).
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Board {
-    pub id: i32,
+    pub id: i64,
     pub name: String,
     pub description: Option<String>,
     pub icon: Option<String>,
@@ -101,142 +106,136 @@ impl From<BoardDb> for Board {
     }
 }
 
-pub use crate::common::access::RoleOnly as BoardAccessRole;
-pub use crate::common::access::ItemRoleDto as NewBoardAccessItem;
-use crate::common::access::validate_grant_role;
-use crate::common::service_access::{has_owner, has_owner_or_manage, ensure_not_self_revoke};
-
-/// Response model for a board access mapping.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct BoardAccessRoles {
-    pub board_id: i32,
-    pub address: String,
-    pub role: String,
-}
-
-impl From<BoardAccessRolesDb> for BoardAccessRoles {
-    fn from(value: BoardAccessRolesDb) -> Self {
-        Self { board_id: value.board_id, address: value.address, role: value.role }
-    }
-}
-
-// NewBoardAccessItem is re-exported from common::access::GrantRequest
+/// Lister for boards
+pub type BoardLister = ListParams;
 
 /// Service layer encapsulating business logic for boards.
+///
+/// Responsibilities:
+/// - Validation and conversion between API payloads and storage models
+/// - Access control decisions that require knowing the caller's session
+/// - Delegating persistence to `BoardStore`
 pub struct BoardService {
-    items_store: BoardStore,
+    transaction_starter: Arc<TransactionStarter>,
+    items_store: Arc<BoardStore>,
+    access_store: Arc<SqliteItemAccessQueries>,
 }
 
-impl<'a> BoardService {
-    pub fn new(items_store: BoardStore) -> Self {
+impl BoardService {
+    /// Create a new service with the provided store.
+    pub fn new(transaction_starter: Arc<TransactionStarter>, items_store: Arc<BoardStore>, access_store: Arc<SqliteItemAccessQueries>) -> Self {
         Self {
-            items_store: items_store,
-        }
-    }
-
-    pub async fn add_item(&self, item: &'a NewBoardItem, session: &SessionData) -> Result<Board, ModelError> {
-        let result = self.items_store.add_item(item.into(), session).await?;
-
-        Ok(result.into())
-    }
-
-    pub async fn get_items(&self, session: &Option<SessionData>) -> Result<Vec<Board>, ModelError> {
-        let items = self.items_store.get_items(session).await?;
-
-        Ok(items.into_iter().map(|item| item.into()).collect())
-    }
-
-    pub async fn get_item(&self, item_id: i32, session: &Option<SessionData>) -> Result<Board, ModelError> {
-        let item = self.items_store.get_item(item_id, session).await?;
-
-        Ok(item.into())
-    }
-
-    pub async fn update_item(&self, id: i32, item: &'a PatchBoardItem, session: &SessionData) -> Result<Board, ModelError> {
-        // access check moved to service: require owner or manage
-        let roles = self.items_store.get_access_roles(id, session).await?;
-        if !has_owner_or_manage(roles.iter().map(|r| r.role.as_str())) {
-            return Err(ModelError::Forbidden("You are not allowed to update this board".to_string()));
-        }
-
-        let updated_item = self.items_store.update_item(id, item.into()).await?;
-
-        Ok(updated_item.into())
-    }
-
-    pub async fn delete_item(&self, id: i32, session: &SessionData) -> Result<Board, ModelError> {
-        // access check moved to service: require owner or manage
-        let roles = self.items_store.get_access_roles(id, session).await?;
-        if !has_owner_or_manage(roles.iter().map(|r| r.role.as_str())) {
-            return Err(ModelError::Forbidden("You are not allowed to delete this board".to_string()));
-        }
-
-        let result = self.items_store.delete_item(id).await?;
-
-        Ok(result.into())
-    }
-
-    /// Grant access role to an address (owner only)
-    pub async fn add_access_role(&self, board_id: i32, item: &NewBoardAccessItem, session: &SessionData) -> Result<BoardAccessRoles, ModelError> {
-        // Only owner can manage access list
-        let roles = self.items_store.get_access_roles(board_id, session).await?;
-        if !has_owner(roles.iter().map(|r| r.role.as_str())) {
-            return Err(ModelError::Forbidden("Only owner can grant access".to_string()));
-        }
-
-        // validate role value
-    if validate_grant_role(&item.role).is_err() {
-            return Err(ModelError::BadRequest("Invalid role".to_string()));
-        }
-
-        // Build store model and insert
-        let db_item = NewBoardAccessDb { board_id, address: &item.address, role: &item.role };
-        let stored = self.items_store.add_access_role(db_item).await?;
-        Ok(stored.into())
-    }
-
-    /// Revoke access for an address (owner only)
-    pub async fn revoke_access_role(&self, board_id: i32, address: &str, session: &SessionData) -> Result<BoardAccessRoles, ModelError> {
-        let roles = self.items_store.get_access_roles(board_id, session).await?;
-        if !has_owner(roles.iter().map(|r| r.role.as_str())) {
-            return Err(ModelError::Forbidden("Only owner can revoke access".to_string()));
-        }
-        // Prevent owner from revoking their own access
-        ensure_not_self_revoke(address, &session.address)?;
-
-        let stored = self.items_store.revoke_access_role(board_id, address).await?;
-        Ok(stored.into())
-    }
-
-    /// List access mappings for a board (owner only)
-    pub async fn list_access_roles(&self, board_id: i32, session: &SessionData) -> Result<Vec<BoardAccessRoles>, ModelError> {
-        // Only owner can view access list
-        let roles = self.items_store.get_access_roles(board_id, session).await?;
-        if !has_owner(roles.iter().map(|r| r.role.as_str())) {
-            return Err(ModelError::Forbidden("Only owner can list access".to_string()));
-        }
-
-        let rows = self.items_store.list_access_roles(board_id).await?;
-        Ok(rows.into_iter().map(|r| r.into()).collect())
-    }
-
-    /// Check access for a specific address
-    /// Returns roles of invitations for the address
-    pub async fn check_access_role(&self, board_id: i32, session: Option<&SessionData>) -> Result<Vec<String>, ModelError> {
-        if let Some(session) = session {
-            let roles = self.items_store.get_access_roles(board_id, session).await?;
-            Ok(roles.into_iter()
-                .map(|r| r.role)
-                .collect())
-        } else {
-            Ok(vec![])
+            transaction_starter,
+            items_store,
+            access_store,
         }
     }
 }
 
-// --- helpers and conversions ---
-impl From<BoardAccessRoleDb> for BoardAccessRole {
-    fn from(item: BoardAccessRoleDb) -> Self {
-        Self { role: item.role.into() }
+impl CrudService for BoardService {
+    type Item = Board;
+    type NewItem = NewBoardItem;
+    type PatchItem = PatchBoardItem;
+    type SessionData = SessionData;
+    type Lister = BoardLister;
+    type Id = i64;
+
+    /// Create a new board for the authenticated user.
+    /// - Persists a new board via the store
+    /// - Grants the caller the `owner` role
+    async fn add_item<'r>(&'r self, item: &'r Self::NewItem, session: &'r Self::SessionData) -> Result<Self::Item, ModelError> {
+
+        let db_item = NewBoardDb::from(item);
+
+        let result = self.transaction_starter.run_in_transaction(async move |trx| {
+            let item = self.items_store.add_item(&db_item, trx).await?;
+            let role = ItemRoleDb { address: session.address.clone(), role: ROLE_OWNER.to_string() };
+            self.access_store.add_access_role(item.id, &role, trx).await?;
+
+            Ok(item)
+        }).await?;
+
+        Ok(Self::Item::from(result))
+
+    }
+
+    /// List boards visible to the optional session.
+    /// - When `session` is `None`, returns only public boards
+    /// - Otherwise, returns public plus accessible boards
+    async fn get_items(&self, lister: &Self::Lister, session: Option<&Self::SessionData>) -> Result<Vec<Self::Item>, ModelError> {
+        let mut lister = QueryLister::from(lister);
+        if let Some(sess) = session {
+            if lister.filter.is_none() {
+                lister.filter = Some(QueryFilter {
+                    access: Some(sess.address.as_str()),
+                    filter: None,
+                    ids: None,
+                    search: None,
+                });
+            } else if let Some(f) = &mut lister.filter {
+                f.access = Some(sess.address.as_str());
+            }
+        }
+
+        let result = self.transaction_starter.run_in_transaction(async move |trx| {
+            let items = self.items_store.get_items(&lister, trx).await?;
+
+            Ok(items)
+        }).await?;
+
+        Ok(result.into_iter().map(|item| Self::Item::from(item)).collect())
+    }
+
+    /// Get a single board by id if visible to the session.
+    async fn get_item(&self, item_id: Self::Id, session: Option<&Self::SessionData>) -> Result<Self::Item, ModelError> {
+        let access = session.map(|s| s.address.as_str());
+
+        let result = self.transaction_starter.run_in_transaction(async move |trx| {
+            let item = self.items_store.get_item(item_id, access, trx).await?;
+
+            Ok(item)
+        }).await?;
+
+        Ok(Self::Item::from(result))
+    }
+
+    /// Update a board.
+    /// - Verifies the caller has `owner` or `manage` role
+    /// - Applies partial updates via the store
+    async fn update_item(&self, id: Self::Id, item: &Self::PatchItem, session: &Self::SessionData) -> Result<Self::Item, ModelError> {
+        let db_item = PatchBoardDb::from(item);
+
+        let result = self.transaction_starter.run_in_transaction(async move |trx| {
+            let roles = self.access_store.get_access_roles(id, session, Some(&Vec::from([ROLE_OWNER])), trx).await?;
+
+            if roles.len() == 0 {
+                return Err(ModelError::Forbidden("You are not allowed to update this board".to_string()));
+            }
+
+            let updated_item = self.items_store.update_item(id, &db_item, trx).await?;
+
+            Ok(updated_item)
+        }).await?;
+
+        Ok(Self::Item::from(result))
+    }
+
+    /// Delete a board.
+    /// - Verifies the caller has `owner` or `manage` role
+    /// - Deletes the board (and related access rows in store)
+    async fn delete_item(&self, id: Self::Id, session: &Self::SessionData) -> Result<Self::Item, ModelError> {
+        let result = self.transaction_starter.run_in_transaction(async move |trx| {
+            let roles = self.access_store.get_access_roles(id, session, Some(&Vec::from([ROLE_OWNER])), trx).await?;
+
+            if roles.len() == 0 {
+                return Err(ModelError::Forbidden("You are not allowed to delete this board".to_string()));
+            }
+
+            let deleted_item = self.items_store.delete_item(id, trx).await?;
+
+            Ok(deleted_item)
+        }).await?;
+
+        Ok(Self::Item::from(result))
     }
 }

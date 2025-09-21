@@ -19,8 +19,12 @@ use axum::{ extract::{ Path, State }, http::StatusCode, Json };
 
 use crate::{
     api::{deserialize::AuthToken, validation::ValidatedJson},
-    boards::board_service::{Board, BoardAccessRoles, NewBoardAccessItem, NewBoardItem, PatchBoardItem},
-    common::{ access },
+    boards::board_service::{Board, NewBoardAccessItem, NewBoardItem, PatchBoardItem},
+    common::{
+        access::{self, ItemAccess, ItemRole, ItemRoleDto, SqliteItemAccessQueries},
+        crud::CrudService,
+    },
+    db::TransactionStarter,
     session::session_jwt::SessionJWTService
 };
 
@@ -33,11 +37,22 @@ struct RouteState {
     jwt_service: Arc<SessionJWTService>,
 }
 
-pub async fn get_router<'a>(connection: Arc<sqlx::Pool<sqlx::Sqlite>>, jwt_service: Arc<SessionJWTService>) -> axum::Router {
-    let items_store = board_store::BoardStore::new(connection);
-    let board_service = board_service::BoardService::new(items_store);
+pub async fn get_router<'a>(
+    transaction_starter: Arc<TransactionStarter>,
+    jwt_service: Arc<SessionJWTService>,
+) -> axum::Router {
+
+    let access_store = Arc::new(SqliteItemAccessQueries::new(
+        "board_access_roles",
+        "board_id",
+    ));
+    let access_service = access::CommonItemAccess::new(transaction_starter.clone(), access_store.clone());
+
+    let items_store = Arc::new(board_store::BoardStore::new());
+    let board_service = board_service::BoardService::new(transaction_starter, items_store, access_store);
 
     let state= Arc::new(RouteState {
+        access_service,
         service: board_service,
         jwt_service
     });
@@ -56,13 +71,20 @@ pub async fn get_router<'a>(connection: Arc<sqlx::Pool<sqlx::Sqlite>>, jwt_servi
 }
 
 // #[axum::debug_handler]
-/// Handler: list boards visible to the user.
-/// - Returns only public boards for unauthenticated users
-/// - Returns all boards with permissions for authenticated users
-/// - Returns JSON array of board objects
+/// Handler: list boards visible to the caller.
+/// - Returns only public boards when no valid JWT is provided
+/// - With a valid JWT, also returns boards accessible to the user
+/// - Returns a JSON array of `Board`
 async fn get_items(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>) -> Result<Json<Vec<Board>>, (StatusCode, String)> {
     let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
-    let result = state.service.get_items(&session).await.map_err(|e| e.into())?;
+    
+    // Create default list parameters
+    let lister = board_service::BoardLister {
+        filter: None,
+        pager: None,
+    };
+
+    let result = state.service.get_items(&lister, session.as_ref()).await.map_err(|e| e.into())?;
 
     Ok(Json(result))
 }
@@ -88,9 +110,9 @@ async fn add_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteStat
 /// - Returns public boards without authentication
 /// - Private boards require access for the caller
 /// - Returns `404` if the board is not accessible or does not exist
-async fn get_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>, axum::extract::Path(id): Path<i32>) -> Result<Json<Board>, (StatusCode, String)> {
+async fn get_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>, axum::extract::Path(id): Path<i64>) -> Result<Json<Board>, (StatusCode, String)> {
     let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
-    let result = state.service.get_item(id, &session).await.map_err(|e| e.into())?;
+    let result = state.service.get_item(id, session.as_ref()).await.map_err(|e| e.into())?;
     Ok(Json(result))
 }
 
@@ -105,7 +127,7 @@ async fn get_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteStat
 /// Example payloads:
 /// - Update name only: `{ "name": "New Name" }`
 /// - Clear description: `{ "description": null }`
-async fn update_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>, axum::extract::Path(id): Path<i32>, ValidatedJson(item): ValidatedJson<PatchBoardItem>) -> Result<Json<Board>, (StatusCode, String)> {
+async fn update_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>, axum::extract::Path(id): Path<i64>, ValidatedJson(item): ValidatedJson<PatchBoardItem>) -> Result<Json<Board>, (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
     let result = state.service.update_item(id, &item, &session).await.map_err(|e| e.into())?;
     Ok(Json(result))
@@ -116,7 +138,7 @@ async fn update_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteS
 /// - Authenticates via JWT
 /// - Requires `owner` or `manage` role
 /// - Returns `204 No Content` on success
-async fn delete_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>, axum::extract::Path(id): Path<i32>) -> Result<StatusCode, (StatusCode, String)> {
+async fn delete_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>, axum::extract::Path(id): Path<i64>) -> Result<StatusCode, (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
     // perform deletion, ignore returned entity for API contract
     let _ = state.service.delete_item(id, &session).await.map_err(|e| e.into())?;
@@ -132,11 +154,16 @@ async fn delete_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteS
 async fn add_access(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
-    axum::extract::Path(id): Path<i32>,
-    ValidatedJson(item): ValidatedJson<NewBoardAccessItem>,
-) -> Result<Json<BoardAccessRoles>, (StatusCode, String)> {
+    axum::extract::Path(id): Path<i64>,
+    ValidatedJson(item): ValidatedJson<NewBoardAccessItem<i64>>,
+) -> Result<Json<ItemRole<i64>>, (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    let result = state.service.add_access_role(id, &item, &session).await.map_err(|e| e.into())?;
+    let role_dto = ItemRoleDto {
+        address: item.address,
+        role: item.role,
+        item_id: id,
+    };
+    let result = state.access_service.add_access_role(role_dto, &session).await.map_err(|e| e.into())?;
     Ok(Json(result))
 }
 
@@ -148,10 +175,10 @@ async fn add_access(
 async fn revoke_access(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
-    Path((id, address)): Path<(i32, String)>,
-) -> Result<Json<BoardAccessRoles>, (StatusCode, String)> {
+    Path((id, address)): Path<(i64, String)>,
+) -> Result<Json<Vec<ItemRole<i64>>>, (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    let result = state.service.revoke_access_role(id, &address, &session).await.map_err(|e| e.into())?;
+    let result = state.access_service.revoke_access_roles(id, address, &session).await.map_err(|e| e.into())?;
     Ok(Json(result))
 }
 
@@ -163,10 +190,10 @@ async fn revoke_access(
 async fn list_access(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
-    Path(id): Path<i32>,
-) -> Result<Json<Vec<BoardAccessRoles>>, (StatusCode, String)> {
+    Path(id): Path<i64>,
+) -> Result<Json<Vec<ItemRole<i64>>>, (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    let result = state.service.list_access_roles(id, &session).await.map_err(|e| e.into())?;
+    let result = state.access_service.list_access_roles(id, &session).await.map_err(|e| e.into())?;
     Ok(Json(result))
 }
 
@@ -178,9 +205,16 @@ async fn list_access(
 async fn check_access(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
-    Path(id): Path<i32>,
+    Path(id): Path<i64>,
 ) -> Result<Json<Vec<String>>, (StatusCode, String)> {
     let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
-    let result = state.service.check_access_role(id, session.as_ref()).await.map_err(|e| e.into())?;
+    let result = match &session {
+        Some(s) => {
+            let roles = state.access_service.list_access_roles(id, &s).await.map_err(|e| e.into())?;
+
+            roles.into_iter().map(|r| r.role.into()).collect::<Vec<String>>()
+        },
+        None => vec![],
+    };
     Ok(Json(result))
 }

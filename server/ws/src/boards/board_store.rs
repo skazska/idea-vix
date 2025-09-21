@@ -3,23 +3,38 @@
 //! Scope:
 //! - CRUD on `board` rows
 //! - Visibility-filtered reads based on session address
-//! - Access role CRUD in `board_access`
 //!
 //! Design notes:
 //! - Uses explicit transactions where multi-step writes must be atomic
 //! - Leaves access control decisions to the service layer (except visibility filters)
 //! - Patch updates bind only provided fields, supporting NULL to clear values
 
-use std::{ops::Deref, sync::Arc};
+use crate::{common::crud::{CrudQueries, QueryLister}, db::{DbErr, Trx, TrxTrait}};
 
-use sqlx::Error;
+/// Storage layer for boards, backed by SQLx + SQLite.
+///
+/// Handles transactions and low-level SQL, without applying access-control decisions
+/// (those are enforced by the service layer where required).
+pub struct BoardStore {}
 
-use crate::session::session_service::SessionData;
+impl BoardStore {
+    /// Create a new store using the given pool.
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+/*******
+* Board CRUD operations
+*/
+
+/// Lister
+pub type BoardLister<'a> = QueryLister<'a>;
 
 // Board database content model
 #[derive(sqlx::FromRow, Debug)]
 pub struct BoardDb {
-    pub id: i32,
+    pub id: i64,
     pub name: String,
     pub description: Option<String>,
     pub icon: Option<String>,
@@ -45,327 +60,193 @@ pub struct PatchBoardDb<'a> {
     pub is_public: Option<bool>,
 }
 
-/// Database model for a single role value for a (board_id, address).
-#[derive(sqlx::FromRow, Debug)]
-pub struct BoardAccessRoleDb {
-    pub role: String,
-}
+impl<'d> CrudQueries<'d> for BoardStore {
+    type Item = BoardDb;
+    type NewItem = NewBoardDb<'d>;
+    type PatchItem = PatchBoardDb<'d>;
+    type Lister = BoardLister<'d>;
+    type Id = i64;
 
-/// Insert model for a board access role entry.
-#[derive(Debug)]
-pub struct NewBoardAccessDb<'a> {
-    pub board_id: i32,
-    pub address: &'a str,
-    pub role: &'a str,
-}
+    /// Insert a new board and assign `owner` role to the provided session address.
+    /// Uses a transaction to ensure both board row and access row are created.
+    async fn add_item(&self, item: &Self::NewItem, trx: &mut Trx) -> Result<Self::Item, DbErr> {
+        let transaction = trx.get_mut();
 
-/// Database model representing an access role mapping row.
-#[derive(sqlx::FromRow, Debug)]
-pub struct BoardAccessRolesDb {
-    pub board_id: i32,
-    pub address: String,
-    pub role: String,
-}
-
-
-/// A board store
-pub struct BoardStore {
-    pub pool: Arc<sqlx::Pool<sqlx::Sqlite>>,
-}
-
-impl<'a> BoardStore {
-    pub fn new(pool: Arc<sqlx::Pool<sqlx::Sqlite>>) -> Self {
-        Self { 
-            pool,
-        }
-    }
-
-    /// Adds an item to the store
-    pub async fn add_item(&self, item: NewBoardDb<'a>, session: &SessionData) -> Result<BoardDb, Error> {
-        let connection = self.pool.deref();
-        let mut transaction = connection.begin().await?;
-
-        let result = match sqlx::query_as::<_, BoardDb>(
+        let result = sqlx::query_as::<_, Self::Item>(
             "INSERT INTO board (name, description, icon, is_public) VALUES (?, ?, ?, ?) RETURNING id, name, description, icon, is_public",
         )
-        .bind(item.name)
-        .bind(item.description)
-        .bind(item.icon)
-        .bind(item.is_public)
-        .fetch_one(&mut *transaction)
-        .await {
-            Ok(r) => r,
-            Err(err) => {
-                let _ = transaction.rollback().await;
-                return Err(err);
-            }
-        };
+            .bind(item.name)
+            .bind(item.description)
+            .bind(item.icon)
+            .bind(item.is_public)
+            .fetch_one(&mut **transaction)
+            .await;
 
-        // Save owner access
-        match sqlx::query("INSERT INTO board_access (board_id, address, role) VALUES (?, ?, ?)")
-            .bind(result.id)
-            .bind(&session.address)
-            .bind("owner")
-            .execute(&mut *transaction)
-            .await {
-                Ok(_) => {},
-                Err(err) => {
-                    let _ = transaction.rollback().await;
-                    return Err(err);
-                }
-            };
-
-        match transaction.commit().await {
-            Ok(_) => Ok(result),
-            Err(err) => Err(err),
-        }
+        result
     }
 
-    /// Retrieves all items from the store with access control
-    pub async fn get_items(&self, session: &Option<SessionData>) -> Result<Vec<BoardDb>, Error> {
-        let connection = self.pool.deref();
-        let mut transaction = connection.begin().await?;
+    /// Retrieve boards visible to the optional session.
+    /// When `session` is `None`, only public boards are returned.
+    async fn get_items(&self, lister: &Self::Lister, trx: &mut Trx) -> Result<Vec<Self::Item>, DbErr> {
+        let transaction = trx.get_mut();
 
-        let result = if let Some(session) = session {
-            // Authenticated: public or has access
-            match sqlx::query_as::<_, BoardDb>(
-                "SELECT b.id, b.name, b.description, b.icon, b.is_public
-                 FROM board b
-                 WHERE b.is_public = 1 OR EXISTS (
-                   SELECT 1 FROM board_access ba
-                   WHERE ba.board_id = b.id AND ba.address = ?
-                 )",
-            )
-            .bind(&session.address)
-            .fetch_all(&mut *transaction)
-            .await {
-                Ok(rows) => rows,
-                Err(err) => {
-                    let _ = transaction.rollback().await;
-                    return Err(err);
+        let select = Vec::from([String::from("b.id"), String::from("b.name"), String::from("b.description"), String::from("b.icon"), String::from("b.is_public")]);
+        let from = Vec::from([String::from("board b")]);
+        let mut where_clauses: Vec<String> = Vec::new();
+        let mut paging = Vec::new();
+
+        if let Some(filter) = &lister.filter {
+            if let Some(_access) = &filter.access {
+                where_clauses.push(String::from("(b.is_public = 1 OR EXISTS (SELECT 1 FROM board_access_roles bar WHERE bar.board_id = b.id AND bar.address = ?))"));
+            } else {
+                where_clauses.push(String::from("b.is_public = 1"));
+            }
+
+            if let Some(_search) = &filter.search {
+                where_clauses.push(String::from("(b.name LIKE ? OR b.description LIKE ?)"));
+            }
+
+            if let Some(ids) = &filter.ids {
+                let ids = ids.iter().map(|id| id.to_string()).collect::<Vec<_>>().join(", ");
+                where_clauses.push(format!(" AND b.id IN ({ids})"));
+            }
+        }
+
+        paging.push(format!(" LIMIT {}", lister.pager.limit));
+        if let Some(offset) = lister.pager.offset {
+            paging.push(format!(" OFFSET {}", offset));
+        }
+
+        let mut sql = format!(
+            "SELECT {} FROM {}{}",
+            select.join(", "),
+            from.join(", "),
+            if where_clauses.is_empty() {
+                String::new()
+            } else {
+                format!(" WHERE {}", where_clauses.join(" AND "))
+            }
+        );
+
+        for p in paging {
+            sql.push_str(&p);
+        }
+
+        let q = sqlx::query_as::<_, Self::Item>(&sql);
+
+        let q = match &lister.filter {
+            Some(filter) => {
+                let q = match &filter.access {
+                    Some(access) => q.bind(access),
+                    None => q,
+                };
+
+                match &filter.search {
+                    Some(search) => {
+                        let pattern = format!("%{}%", search);
+                        q.bind(pattern.clone()).bind(pattern)
+                    }
+                    None => q,
                 }
             }
-        } else {
-            // Unauthenticated: only public
-            match sqlx::query_as::<_, BoardDb>(
-                "SELECT id, name, description, icon, is_public FROM board WHERE is_public = 1",
-            )
-            .fetch_all(&mut *transaction)
-            .await {
-                Ok(rows) => rows,
-                Err(err) => {
-                    let _ = transaction.rollback().await;
-                    return Err(err);
-                }
-            }
+            None => q,
         };
 
-        match transaction.commit().await {
-            Ok(_) => Ok(result),
-            Err(err) => Err(err),
-        }
+        let result = q.fetch_all(&mut **transaction).await;
+
+        result
     }
 
-    /// Retrieves a single item by its ID with access control
-    pub async fn get_item(&self, item_id: i32, session: &Option<SessionData>) -> Result<BoardDb, Error> {
-        let connection = self.pool.deref();
-        let mut transaction = connection.begin().await?;
+    /// Retrieve a single board by its ID with access control
+    async fn get_item(&self, item_id: Self::Id, access: Option<&'d str>, trx: &mut Trx) -> Result<Self::Item, DbErr> {
+        let transaction = trx.get_mut();
 
-        let result = if let Some(session) = session {
-            match sqlx::query_as::<_, BoardDb>(
+        let query = if let Some(address) = access {
+            sqlx::query_as::<_, Self::Item>(
                 "SELECT b.id, b.name, b.description, b.icon, b.is_public
                  FROM board b
-                 WHERE b.id = ? AND (b.is_public = 1 OR EXISTS (
-                   SELECT 1 FROM board_access ba
-                   WHERE ba.board_id = b.id AND ba.address = ?
-                 ))",
+                 LEFT JOIN board_access_roles bar ON b.id = bar.board_id
+                 WHERE b.id = ? AND (b.is_public = 1 OR (bar.address = ? AND bar.role IN ('owner', 'manage', 'edit', 'view')))",
             )
             .bind(item_id)
-            .bind(&session.address)
-            .fetch_one(&mut *transaction)
-            .await {
-                Ok(row) => row,
-                Err(err) => {
-                    let _ = transaction.rollback().await;
-                    return Err(err);
-                }
-            }
+            .bind(address)
         } else {
-            match sqlx::query_as::<_, BoardDb>(
+            sqlx::query_as::<_, Self::Item>(
                 "SELECT id, name, description, icon, is_public FROM board WHERE id = ? AND is_public = 1",
             )
             .bind(item_id)
-            .fetch_one(&mut *transaction)
-            .await {
-                Ok(row) => row,
-                Err(err) => {
-                    let _ = transaction.rollback().await;
-                    return Err(err);
-                }
-            }
         };
 
-        match transaction.commit().await {
-            Ok(_) => Ok(result),
-            Err(err) => Err(err),
-        }
+        let result = query.fetch_one(&mut **transaction).await;
+
+        result
     }
 
-    /// Updates an item in the store. Access is validated by the service layer.
-    ///
-    /// Notes:
-    /// - Builds the SQL `SET` clause with `crate::sqlx_build_set!`, adding columns only
-    ///   for fields that are `Some(..)`.
-    /// - Bind values must follow the exact same order as the `SET` fragments above.
-    ///   We bind each provided field in sequence, then bind `id` for the `WHERE`.
-    /// - For `Option<Option<&str>>` fields like `description` and `icon`:
-    ///   - `Some(Some(v))` sets the value to `v`.
-    ///   - `Some(None)` sets the column to `NULL`.
-    ///   - `None` means "do not update this column".
-    /// - If no fields are provided, returns `Error::InvalidArgument`.
-    pub async fn update_item(&self, id: i32, item: PatchBoardDb<'a>) -> Result<BoardDb, Error> {
-        let set = crate::sqlx_build_set!(
-            item.name.is_some() => "name = ?",
-            item.description.is_some() => "description = ?",
-            item.icon.is_some() => "icon = ?",
-            item.is_public.is_some() => "is_public = ?"
-        );
+    /// Updates a board in the store. Access is validated by the service layer.
+    async fn update_item(&self, id: Self::Id, item: &Self::PatchItem, trx: &mut Trx) -> Result<Self::Item, DbErr> {
+        let transaction = trx.get_mut();
 
-        if set.is_empty() {
-            return Err(Error::InvalidArgument(
-                "No fields to update in board item".to_string(),
-            ));
+        let mut query_parts = Vec::new();
+
+        if item.name.is_some() {
+            query_parts.push("name = ?");
         }
-        let query = format!(
+        if item.description.is_some() {
+            query_parts.push("description = ?");
+        }
+        if item.icon.is_some() {
+            query_parts.push("icon = ?");
+        }
+        if item.is_public.is_some() {
+            query_parts.push("is_public = ?");
+        }
+
+        if query_parts.is_empty() {
+            // Nothing to update, fetch the current item
+            return sqlx::query_as::<_, Self::Item>("SELECT id, name, description, icon, is_public FROM board WHERE id = ?")
+                .bind(id)
+                .fetch_one(&mut **transaction)
+                .await;
+        }
+
+        let query_str = format!(
             "UPDATE board SET {} WHERE id = ? RETURNING id, name, description, icon, is_public",
-            set
+            query_parts.join(", ")
         );
 
-        let connection = self.pool.deref();
-        let mut transaction = connection.begin().await?;
+        let mut query = sqlx::query_as::<_, Self::Item>(&query_str);
 
-        let q = sqlx::query_as::<_, BoardDb>(&query);
-        let q = match item.name {
-            Some(name) => q.bind(name),
-            _ => q,
-        };
-        // Bind Option<&str> correctly when provided, including NULL
-        let q = match item.description {
-            Some(desc_opt) => q.bind(desc_opt),
-            None => q,
-        };
-        let q = match item.icon {
-            Some(icon_opt) => q.bind(icon_opt),
-            None => q,
-        };
-        let q = match item.is_public {
-            Some(is_public) => q.bind(is_public),
-            None => q,
-        };
-
-        // Bind id for WHERE
-        let result = match q
-            .bind(&id)
-            .fetch_one(&mut *transaction)
-            .await {
-                Ok(row) => row,
-                Err(err) => {
-                    let _ = transaction.rollback().await;
-                    return Err(err);
-                }
-            };
-
-        match transaction.commit().await {
-            Ok(_) => Ok(result),
-            Err(err) => Err(err),
+        // Bind values in the order they appear in the SET clause
+        if let Some(name) = item.name {
+            query = query.bind(name);
         }
-    }
-
-    /// Deletes an item from the store and related access rows. Access validated by service.
-    pub async fn delete_item(&self, id: i32) -> Result<BoardDb, Error> {
-        let connection = self.pool.deref();
-        let mut transaction = connection.begin().await?;
-
-        let result = match sqlx::query_as::<_, BoardDb>("DELETE FROM board WHERE id = ? RETURNING id, name, description, icon, is_public")
-            .bind(id)
-            .fetch_one(&mut *transaction)
-            .await {
-                Ok(row) => row,
-                Err(err) => {
-                    let _ = transaction.rollback().await;
-                    return Err(err);
-                }
-            };
-
-        // clean up access rows
-        match sqlx::query("DELETE FROM board_access WHERE board_id = ?")
-            .bind(id)
-            .execute(&mut *transaction)
-            .await {
-                Ok(_) => {}
-                Err(err) => {
-                    let _ = transaction.rollback().await;
-                    return Err(err);
-                }
-            };
-
-        match transaction.commit().await {
-            Ok(_) => Ok(result),
-            Err(err) => Err(err),
+        if let Some(description) = item.description {
+            query = query.bind(description);
         }
+        if let Some(icon) = item.icon {
+            query = query.bind(icon);
+        }
+        if let Some(is_public) = item.is_public {
+            query = query.bind(is_public);
+        }
+
+        // Bind the ID for the WHERE clause
+        query = query.bind(id);
+
+        let result = query.fetch_one(&mut **transaction).await;
+
+        result
     }
 
-    /// Fetch roles the given `session` has for a particular board id.
-    pub async fn get_access_roles(&self, id: i32, session: &SessionData) -> Result<Vec<BoardAccessRoleDb>, Error> {
-        let connection = self.pool.deref();
+    /// Delete a board by its ID. Access validation is performed by the service layer.
+    async fn delete_item(&self, id: Self::Id, trx: &mut Trx) -> Result<Self::Item, DbErr> {
+        let transaction = trx.get_mut();
 
-        let access = sqlx::query_as::<_, BoardAccessRoleDb>("SELECT role FROM board_access WHERE board_id = ? AND address = ?")
+        let result = sqlx::query_as::<_, Self::Item>("DELETE FROM board WHERE id = ? RETURNING id, name, description, icon, is_public")
             .bind(id)
-            .bind(&session.address)
-            .fetch_all(connection)
-            .await?;
+            .fetch_one(&mut **transaction)
+            .await;
 
-        Ok(access)
-    }
-
-    /// Grant a role to an address for a specific board.
-    pub async fn add_access_role(&self, item: NewBoardAccessDb<'a>) -> Result<BoardAccessRolesDb, Error> {
-        let connection = self.pool.deref();
-
-        let result = sqlx::query_as::<_, BoardAccessRolesDb>("INSERT INTO board_access (board_id, address, role) VALUES (?, ?, ?) RETURNING board_id, address, role")
-            .bind(item.board_id)
-            .bind(item.address)
-            .bind(item.role)
-            .fetch_one(connection)
-            .await?;
-
-        Ok(result)
-    }
-
-    /// Revoke access for an address and return the removed mapping row.
-    pub async fn revoke_access_role(&self, board_id: i32, address: &str) -> Result<BoardAccessRolesDb, Error> {
-        let connection = self.pool.deref();
-
-        let result = sqlx::query_as::<_, BoardAccessRolesDb>("DELETE FROM board_access WHERE board_id = ? AND address = ? RETURNING board_id, address, role")
-            .bind(board_id)
-            .bind(address)
-            .fetch_one(connection)
-            .await?;
-
-        Ok(result)
-    }
-
-    /// List all access mappings for a board id.
-    pub async fn list_access_roles(&self, board_id: i32) -> Result<Vec<BoardAccessRolesDb>, Error> {
-        let connection = self.pool.deref();
-
-        let rows = sqlx::query_as::<_, BoardAccessRolesDb>(
-            "SELECT board_id, address, role FROM board_access WHERE board_id = ? ORDER BY address"
-        )
-        .bind(board_id)
-        .fetch_all(connection)
-        .await?;
-
-        Ok(rows)
+        result
     }
 }
