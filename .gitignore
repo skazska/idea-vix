@@ -9,3 +9,5 @@ target/
 
 sqlite.db
 sqlite.db*
+
+WARP.md

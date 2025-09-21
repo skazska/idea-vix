@@ -31,7 +31,7 @@
 //! ```
 use std::sync::Arc;
 
-use crate::common::access::{ ItemAccessQueries, ItemRoleDb, SqliteItemAccessQueries, ROLE_OWNER };
+use crate::common::access::{ ItemAccessQueries, ItemRoleDb, SqliteItemAccessQueries, ROLE_OWNER, ROLE_MANAGE, ROLE_EDIT };
 use crate::common::crud::{CrudQueries, CrudService, ListParams, QueryFilter, QueryLister};
 use crate::common::slug::generate_slug;
 use crate::db::TransactionStarter;
@@ -217,7 +217,7 @@ impl CrudService for BoardService {
         let db_item = PatchBoardDb::from(item);
 
         let result = self.transaction_starter.run_in_transaction(async move |trx| {
-            let roles = self.access_store.get_access_roles(id, session, Some(&Vec::from([ROLE_OWNER])), trx).await?;
+            let roles = self.access_store.get_access_roles(id, session, Some(&Vec::from([ROLE_OWNER, ROLE_MANAGE, ROLE_EDIT])), trx).await?;
 
             if roles.len() == 0 {
                 return Err(ModelError::Forbidden("You are not allowed to update this board".to_string()));
@@ -236,7 +236,7 @@ impl CrudService for BoardService {
     /// - Deletes the board (and related access rows in store)
     async fn delete_item(&self, id: Self::Id, session: &Self::SessionData) -> Result<Self::Item, ModelError> {
         let result = self.transaction_starter.run_in_transaction(async move |trx| {
-            let roles = self.access_store.get_access_roles(id, session, Some(&Vec::from([ROLE_OWNER])), trx).await?;
+            let roles = self.access_store.get_access_roles(id, session, Some(&Vec::from([ROLE_OWNER, ROLE_MANAGE])), trx).await?;
 
             if roles.len() == 0 {
                 return Err(ModelError::Forbidden("You are not allowed to delete this board".to_string()));

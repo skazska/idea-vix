@@ -1,4 +1,4 @@
-import { createForm, valiForm } from "@modular-forms/solid";
+import { createForm, getValues, valiForm } from "@modular-forms/solid";
 import { getError, getLabel, getInput, getString, getText, type TFormComponent, getBoolean } from "../../common/form/generators";
 import { NewBoardSchema, type TBoard, type TBoardNew } from "../model";
 import { Footer, Header } from "../../common/form/components";
@@ -6,9 +6,10 @@ import { useBoardsData } from "../providers/items.provider";
 import { action, useAction } from "@solidjs/router";
 import { createSignal } from "solid-js";
 import { ENTITY_NAME } from "../const";
+import { parse } from "valibot";
 
 export const NewBoardForm: TFormComponent<TBoardNew, TBoard> = (props) => {
-    const [_form, { Form, Field }] = createForm<TBoardNew>({
+    const [form, { Form, Field }] = createForm<TBoardNew>({
         validate: valiForm(NewBoardSchema),
         initialValues: props.initialValues
     });
@@ -18,10 +19,13 @@ export const NewBoardForm: TFormComponent<TBoardNew, TBoard> = (props) => {
     const [loading, setLoading] = createSignal(false);
     const [error, setError] = createSignal<string | undefined>(undefined);
 
-    const add = action(async (values: TBoardNew) => {
+    const add = action(async (_values: TBoardNew) => {
         setLoading(true);
         setError(undefined);
         try {
+            const formValues = getValues(form, { shouldDirty: true });
+            const values = parse(NewBoardSchema, formValues);
+
             const item = await actions.create(values);
             props.onDone(item);
             return item;

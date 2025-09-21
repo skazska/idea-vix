@@ -62,7 +62,7 @@ export const getString: TFieldStringEditorGetter = (field, state, props): JSXEle
     return <input {...props} type="text" 
         class="border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" 
         placeholder={field.placeholder}
-        value={state.value}
+        value={state.value || undefined}
     />;
 }
 

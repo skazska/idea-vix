@@ -23,7 +23,7 @@ lazy_static! {
 /// # Examples
 /// 
 /// ```
-/// use crate::common::slug::generate_slug;
+/// use ws::common::slug::generate_slug;
 /// 
 /// assert_eq!(generate_slug(None, "My Awesome Board"), "my-awesome-board");
 /// assert_eq!(generate_slug(Some("Board 123!"), "Board 123!"), "board-123");
@@ -60,7 +60,7 @@ pub fn generate_slug(slug: Option<&str>, name: &str) -> String {
 /// # Examples
 /// 
 /// ```
-/// use crate::common::slug::is_valid_slug;
+/// use ws::common::slug::is_valid_slug;
 /// 
 /// assert!(is_valid_slug("my-board"));
 /// assert!(is_valid_slug("board123"));

@@ -1,4 +1,4 @@
-import { createForm, valiForm } from "@modular-forms/solid";
+import { createForm, getValues, validate, valiForm } from "@modular-forms/solid";
 import { getError, getLabel, getInput, getString, getText, type TFormComponent, getBoolean } from "../../common/form/generators";
 import { NewPackageSchema, type TPackage, type TPackageNew } from "../model";
 import { Footer, Header } from "../../common/form/components";
@@ -6,9 +6,10 @@ import { usePackageData } from "../providers/items";
 import { action, useAction } from "@solidjs/router";
 import { createSignal } from "solid-js";
 import { ENTITY_NAME } from "../const";
+import { parse } from "valibot";
 
 export const NewPackageForm: TFormComponent<TPackageNew, TPackage> = (props) => {
-    const [_form, { Form, Field }] = createForm<TPackageNew>({
+    const [form, { Form, Field }] = createForm<TPackageNew>({
         validate: valiForm(NewPackageSchema),
         initialValues: props.initialValues
     });
@@ -18,10 +19,14 @@ export const NewPackageForm: TFormComponent<TPackageNew, TPackage> = (props) => 
     const [loading, setLoading] = createSignal(false);
     const [error, setError] = createSignal<string | undefined>(undefined);
 
-    const add = action(async (values: TPackageNew) => {
+    const add = action(async (_values: TPackageNew) => {
         setLoading(true);
         setError(undefined);
+    
         try {
+            const formValues = getValues(form, { shouldDirty: true });
+            const values = parse(NewPackageSchema, formValues);
+
             const item = await actions.add(values);
             props.onDone(item);
             return item;

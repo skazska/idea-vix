@@ -136,6 +136,7 @@ pub type PackageLister = ListParams;
 pub struct PackageService {
     transaction_starter: Arc<TransactionStarter>,
     items_store: Arc<PackageStore>,
+    #[allow(dead_code)] // TODO: shapes functionality is work in progress
     shapes_service: Arc<ShapeService>,
     access_store: Arc<SqliteItemAccessQueries>,
 }

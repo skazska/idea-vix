@@ -47,7 +47,7 @@ export default function Packages() {
                     <Show when={formNew()}>
                         <Portal mount={document.querySelector('main')!}>
                             <ModalCentered>
-                                <NewPackageForm onCancel={cancelAdd} onDone={add} />
+                                <NewPackageForm onCancel={cancelAdd} onDone={add} initialValues={{ name: '', slug: undefined }} />
                             </ModalCentered>
                         </Portal>
                     </Show>

@@ -119,6 +119,7 @@ async fn get_shape_by_slug(State(state): State<Arc<RouteState>>, Path(slug): Pat
 /// - Requires authentication
 /// - Validates slug format and uniqueness if provided
 /// - Returns updated shape
+#[allow(dead_code)] // TODO: update functionality is work in progress
 async fn update_shape(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
