@@ -76,7 +76,7 @@ struct RouteState {
 /// - `jwt_service`: JWT service wrapped in `Arc`
 ///
 /// Returns an Axum `Router` ready to be nested under a path like `/api/package`.
-pub async fn get_router<'a>(
+pub fn get_router<'a>(
     transaction_starter: Arc<TransactionStarter>,
     jwt_service: Arc<SessionJWTService>,
 ) -> axum::Router {

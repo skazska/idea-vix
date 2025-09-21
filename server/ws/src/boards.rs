@@ -37,7 +37,7 @@ struct RouteState {
     jwt_service: Arc<SessionJWTService>,
 }
 
-pub async fn get_router<'a>(
+pub fn get_router<'a>(
     transaction_starter: Arc<TransactionStarter>,
     jwt_service: Arc<SessionJWTService>,
 ) -> axum::Router {

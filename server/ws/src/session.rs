@@ -31,7 +31,7 @@ struct RouteState {
 }
 
 /// Get the session router
-pub async fn get_router<'a>(connection: Arc<sqlx::Pool<sqlx::Sqlite>>, jwt_service: Arc<SessionJWTService>) -> axum::Router {
+pub fn get_router<'a>(connection: Arc<sqlx::Pool<sqlx::Sqlite>>, jwt_service: Arc<SessionJWTService>) -> axum::Router {
     let session_store = session_store::SessionStore::new(connection);
     let ext_comm = ext_comm::ExtComm::new();
     let session_service = SessionService::new(session_store, ext_comm, jwt_service.clone());

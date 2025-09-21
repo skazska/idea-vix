@@ -29,11 +29,11 @@ async fn main() {
 
     let jwt_service = Arc::new(session::session_jwt::SessionJWTService::new(jwt_adapter));
 
-    let package_router = package::get_router(connection.get_transaction_starter(), jwt_service.clone()).await;
-    let boards_router = boards::get_router(connection.get_transaction_starter(), jwt_service.clone()).await;
-    let session_router = session::get_router(connection.get(), jwt_service.clone()).await;
+    let package_router = package::get_router(connection.get_transaction_starter(), jwt_service.clone());
+    let boards_router = boards::get_router(connection.get_transaction_starter(), jwt_service.clone());
+    let session_router = session::get_router(connection.get(), jwt_service.clone());
     let workshop_router = workshop::get_router(connection.get_transaction_starter(), jwt_service.clone());
-    
+
     let app = Router::new()
         .route("/", get(root))
         .route("/wait_async", get(wait_async))
