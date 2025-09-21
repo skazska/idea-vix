@@ -1,6 +1,6 @@
 /// Common module for database infrastructure.
 
-use std::{ pin::Pin, sync::Arc, time::SystemTime };
+use std::{ sync::Arc, time::SystemTime };
 
 use crate::error::ModelError;
 
@@ -20,8 +20,8 @@ pub type DbErr = sqlx::Error;
 
 pub trait TrxTrait<T> {
     fn get_mut(&mut self) -> &mut T;
-    async fn commit(self) -> Result<(), DbErr>;
-    async fn rollback(self) -> Result<(), DbErr>;
+    fn commit(self) -> impl Future<Output = Result<(), DbErr>>;
+    fn rollback(self) -> impl Future<Output = Result<(), DbErr>>;
 }
 
 pub struct Trx {

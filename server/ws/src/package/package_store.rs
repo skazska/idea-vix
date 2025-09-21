@@ -363,11 +363,3 @@ impl<'d> CrudQueries<'d> for PackageStore {
     //     Ok(rows)
     // }
 }
-
-/// Database model for a package shape row.
-#[derive(sqlx::FromRow, Debug)]
-pub struct PackageShapeDb {
-    pub id: i32,
-    pub package_id: i32,
-    pub description: Option<String>,
-}

@@ -4,7 +4,6 @@
 //! These elements can be referenced by packages and used in boards.
 
 use std::sync::Arc;
-use std::vec;
 use crate::common::crud::{CrudService, ListParams};
 use crate::common::workshop::shape_service::{NewShapeItem, PatchShapeItem, Shape, ShapeService};
 use crate::common::workshop::shape_store::ShapeStore;
@@ -16,7 +15,7 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
     response::Json,
-    routing::{delete, get, patch, post},
+    routing::{get, post},
     Router,
 };
 use serde::Deserialize;

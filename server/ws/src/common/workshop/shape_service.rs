@@ -8,7 +8,7 @@
 
 use std::sync::Arc;
 use crate::common::crud::{CrudQueries, CrudService, ListParams, QueryFilter, QueryLister};
-use crate::db::{ TransactionStarter, Trx, TrxRun };
+use crate::db::{ TransactionStarter };
 use crate::error::ModelError;
 use crate::session::session_service::SessionData;
 use crate::common::workshop::shape_store::{NewShapeDb, PatchShapeDb, ShapeDb, ShapeStore};
