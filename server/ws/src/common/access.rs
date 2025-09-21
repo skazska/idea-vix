@@ -238,15 +238,15 @@ pub trait ItemAccessQueries<'t> {
     type Id: Clone + Send + Sync; // + Unpin;
 
     /// Fetch all roles of session.address for a specific item  (for access check).
-    async fn get_access_roles(&self, item_id: Self::Id, session: &SessionData, roles: Option<&Vec<&str>>, trx: &mut Trx) -> Result<Vec<RoleOnly>, DbErr>;
+    fn get_access_roles(&self, item_id: Self::Id, session: &SessionData, roles: Option<&Vec<&str>>, trx: &mut Trx) -> impl Future<Output = Result<Vec<RoleOnly>, DbErr>>;
     /// List roles for a specific item.
-    async fn list_access_roles(&self, item_id: Self::Id, trx: &mut Trx) -> Result<Vec<ItemRoleDb>, DbErr>;
+    fn list_access_roles(&self, item_id: Self::Id, trx: &mut Trx) -> impl Future<Output = Result<Vec<ItemRoleDb>, DbErr>>;
     /// Grant address role to a specific item.
-    async fn add_access_role(&self, item_id: Self::Id, role: &ItemRoleDb, trx: &mut Trx) -> Result<ItemRoleDb, DbErr>;
+    fn add_access_role(&self, item_id: Self::Id, role: &ItemRoleDb, trx: &mut Trx) -> impl Future<Output = Result<ItemRoleDb, DbErr>>;
     /// Revoke all roles of address from a specific item.
-    async fn revoke_access_roles(&self, item_id: Self::Id, address: &str, trx: &mut Trx) -> Result<Vec<ItemRoleDb>, DbErr>;
+    fn revoke_access_roles(&self, item_id: Self::Id, address: &str, trx: &mut Trx) -> impl Future<Output = Result<Vec<ItemRoleDb>, DbErr>>;
     /// Revoke a specific role of address from a specific item.
-    async fn revoke_access_role(&self, item_id: Self::Id, role: &ItemRoleDb, trx: &mut Trx) -> Result<ItemRoleDb, DbErr>;
+    fn revoke_access_role(&self, item_id: Self::Id, role: &ItemRoleDb, trx: &mut Trx) -> impl Future<Output = Result<ItemRoleDb, DbErr>>;
 }
 
 trait ItemAccessQueriesMeta {

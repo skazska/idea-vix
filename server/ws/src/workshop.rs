@@ -48,10 +48,10 @@ pub fn get_router(
         .route("/workshop/shapes", post(|state: State<Arc<RouteState>>, token: AuthToken, item: ValidatedJson<NewShapeItem>| async {
             create_shape(token, state, item).await
         }))
-        .route("/workshop/shapes/:id", get(|state: State<Arc<RouteState>>, id: Path<i64>| async {
+        .route("/workshop/shapes/{id}", get(|state: State<Arc<RouteState>>, id: Path<i64>| async {
             get_shape(state, id).await
         }))
-        .route("/workshop/shapes/by-slug/:slug", get(|state: State<Arc<RouteState>>, slug: Path<String>| async {
+        .route("/workshop/shapes/by-slug/{slug}", get(|state: State<Arc<RouteState>>, slug: Path<String>| async {
             get_shape_by_slug(state, slug).await
         }))
         .with_state(state)
