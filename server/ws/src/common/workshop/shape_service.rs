@@ -169,8 +169,8 @@ impl CrudService for ShapeService {
     type Id = i64;
 
     /// Create a new shape for the authenticated user.
-    async fn add_item<'r>(&'r self, item: &'r Self::NewItem, _session: &'r Self::SessionData) -> Result<Self::Item, ModelError> {
-        let db_item = NewShapeDb::from(item);
+    async fn add_item<'r>(&'r self, item: &'r mut Self::NewItem, _session: &'r Self::SessionData) -> Result<Self::Item, ModelError> {
+        let db_item = NewShapeDb::from(&*item);
 
         let result = self.transaction_starter.run_in_transaction(async move |trx| {
             let item = self.items_store.add_item(&db_item, trx).await?;

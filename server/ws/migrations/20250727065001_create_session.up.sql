@@ -9,7 +9,7 @@ CREATE TABLE `session`(
 
 CREATE INDEX `idx_session_address_code` ON `session` (`address`, `code`);
 
-CREATE TABLE `package_access` (
+CREATE TABLE `package_access_roles` (
     package_id INTEGER NOT NULL,
     address VARCHAR(255) NOT NULL,
     role VARCHAR(20) NOT NULL CHECK (role IN ('owner', 'manage', 'view', 'edit')),
@@ -17,7 +17,7 @@ CREATE TABLE `package_access` (
     FOREIGN KEY (package_id) REFERENCES package(id) ON DELETE CASCADE
 );
 
-CREATE TABLE `board_access` (
+CREATE TABLE `board_access_roles` (
     board_id INTEGER NOT NULL,
     address VARCHAR(255) NOT NULL,
     role VARCHAR(20) NOT NULL CHECK (role IN ('owner', 'manage', 'view', 'edit')),

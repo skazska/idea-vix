@@ -108,7 +108,7 @@ impl<'d> CrudQueries<'d> for PackageStore {
 
         if let Some(filter) = &lister.filter {
             if let Some(_access) = &filter.access {
-                where_clauses.push(String::from("(p.is_public = 1 OR EXISTS (SELECT 1 FROM package_access pa WHERE pa.package_id = p.id AND pa.address = ?))"));
+                where_clauses.push(String::from("(p.is_public = 1 OR EXISTS (SELECT 1 FROM package_access_roles pa WHERE pa.package_id = p.id AND pa.address = ?))"));
             } else {
                 where_clauses.push(String::from("p.is_public = 1"));
             }
@@ -212,7 +212,7 @@ impl<'d> CrudQueries<'d> for PackageStore {
         let mut where_clauses: Vec<String> = Vec::new();
 
         if let Some(_access) = access {
-            where_clauses.push(String::from("(p.is_public = 1 OR EXISTS (SELECT 1 FROM package_access pa WHERE pa.package_id = p.id AND pa.address = ?))"));
+            where_clauses.push(String::from("(p.is_public = 1 OR EXISTS (SELECT 1 FROM package_access_roles pa WHERE pa.package_id = p.id AND pa.address = ?))"));
         } else {
             where_clauses.push(String::from("p.is_public = 1"));
         }

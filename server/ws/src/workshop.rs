@@ -93,10 +93,10 @@ async fn list_shapes(State(state): State<Arc<RouteState>>, Query(params): Query<
 async fn create_shape(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
-    ValidatedJson(item): ValidatedJson<NewShapeItem>,
+    ValidatedJson(mut item): ValidatedJson<NewShapeItem>,
 ) -> Result<(StatusCode, Json<Shape>), (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    let shape = state.shape_service.add_item(&item, &session).await.map_err(|e| e.into())?;
+    let shape = state.shape_service.add_item(&mut item, &session).await.map_err(|e| e.into())?;
     Ok((StatusCode::CREATED, Json(shape)))
 }
 
