@@ -33,16 +33,16 @@ use axum::{
 use crate::{
     api::{deserialize::AuthToken, validation::ValidatedJson},
     common::{
-        access::{self, ItemAccess, ItemRole, ItemRoleDto, SqliteItemAccessQueries},
+        access::{self, ItemAccess, ItemAccessGrantDto, ItemRole, SqliteItemAccessQueries},
         crud::CrudService,
         workshop::{
-            shape_service::{ShapeService},
+            shape_service::ShapeService,
             shape_store::ShapeStore,
         }
     },
     db::TransactionStarter,
     package::package_service::{
-        NewPackageAccessItem, NewPackageItem, Package, PatchPackageItem
+        NewPackageItem, Package, PatchPackageItem
     },
     session::session_jwt::SessionJWTService
 };
@@ -182,12 +182,12 @@ async fn update_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteS
 /// Handler: delete a package by id.
 /// - Authenticates via JWT
 /// - Requires `owner` or `manage` role
-/// - Returns `204 No Content` on success
-async fn delete_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>, axum::extract::Path(id): Path<i64>) -> Result<StatusCode, (StatusCode, String)> {
+/// - Returns `200 Ok` and deleted package on success
+async fn delete_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>, axum::extract::Path(id): Path<i64>) -> Result<Json<Package>, (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
     // perform deletion, ignore returned entity for API contract
-    let _ = state.service.delete_item(id, &session).await.map_err(|e| e.into())?;
-    Ok(StatusCode::NO_CONTENT)
+    let result = state.service.delete_item(id, &session).await.map_err(|e| e.into())?;
+    Ok(Json(result))
 }
 
 // #[axum::debug_handler]
@@ -200,10 +200,10 @@ async fn add_access(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
     axum::extract::Path(id): Path<i64>,
-    ValidatedJson(item): ValidatedJson<NewPackageAccessItem>,
+    ValidatedJson(item): ValidatedJson<ItemAccessGrantDto>,
 ) -> Result<Json<ItemRole<i64>>, (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    let role_dto = ItemRoleDto {
+    let role_dto = ItemRole {
         address: item.address,
         role: item.role,
         item_id: id,
@@ -243,10 +243,10 @@ async fn list_access(
 }
 
 // #[axum::debug_handler]
-/// Handler: returns access to board for address
+/// Handler: returns access to package for address
 /// - Authenticates via JWT
 /// - Returns roles of invitations of `address`
-/// - Returns `404` if the board is not accessible or does not exist
+/// - Returns `404` if the package is not accessible or does not exist
 async fn check_access(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
@@ -255,9 +255,8 @@ async fn check_access(
     let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
     let result = match &session {
         Some(s) => {
-            let roles = state.access_service.list_access_roles(id, &s).await.map_err(|e| e.into())?;
-
-            roles.into_iter().map(|r| r.role.into()).collect::<Vec<String>>()
+            let roles = state.access_service.get_my_access_roles(id, &s).await.map_err(|e| e.into())?;
+            roles.into_iter().map(|r| r.into()).collect::<Vec<String>>()
         },
         None => vec![],
     };

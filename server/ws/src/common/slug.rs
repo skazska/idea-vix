@@ -25,13 +25,18 @@ lazy_static! {
 /// ```
 /// use crate::common::slug::generate_slug;
 /// 
-/// assert_eq!(generate_slug("My Awesome Board"), "my-awesome-board");
-/// assert_eq!(generate_slug("Board 123!"), "board-123");
-/// assert_eq!(generate_slug("123 Numbers"), "item-123-numbers");
-/// assert_eq!(generate_slug("  Spaced  Out  "), "spaced-out");
+/// assert_eq!(generate_slug(None, "My Awesome Board"), "my-awesome-board");
+/// assert_eq!(generate_slug(Some("Board 123!"), "Board 123!"), "board-123");
+/// assert_eq!(generate_slug(Some("123 Numbers"), "123 Numbers"), "item-123-numbers");
+/// assert_eq!(generate_slug(Some("  Spaced  Out  "), "  Spaced  Out  "), "spaced-out");
 /// ```
-pub fn generate_slug(name: &str) -> String {
-    let slug = name
+pub fn generate_slug(slug: Option<&str>, name: &str) -> String {
+    let value = match slug {
+        Some(s) => s,
+        None => name,
+    };
+
+    let slug = value
         .to_lowercase()
         .chars()
         .map(|c| if c.is_alphanumeric() { c } else { '-' })
@@ -73,40 +78,40 @@ mod tests {
 
     #[test]
     fn generate_slug_basic() {
-        assert_eq!(generate_slug("My Board"), "my-board");
-        assert_eq!(generate_slug("Simple"), "simple");
+        assert_eq!(generate_slug(None, "My Board"), "my-board");
+        assert_eq!(generate_slug(Some("Simple"), "Simple"), "simple");
     }
 
     #[test]
     fn generate_slug_with_numbers() {
-        assert_eq!(generate_slug("Board 123"), "board-123");
-        assert_eq!(generate_slug("Version 2.0"), "version-2-0");
+        assert_eq!(generate_slug(Some("Board 123"), "Board 123"), "board-123");
+        assert_eq!(generate_slug(None, "Version 2.0"), "version-2-0");
     }
 
     #[test]
     fn generate_slug_starts_with_number() {
-        assert_eq!(generate_slug("123 Board"), "item-123-board");
-        assert_eq!(generate_slug("42 Answer"), "item-42-answer");
+        assert_eq!(generate_slug(Some("123 Board"), "123 Board"), "item-123-board");
+        assert_eq!(generate_slug(Some("42 Answer"), "42 Answer"), "item-42-answer");
     }
 
     #[test]
     fn generate_slug_special_characters() {
-        assert_eq!(generate_slug("My Board!"), "my-board");
-        assert_eq!(generate_slug("Test & Demo"), "test-demo");
-        assert_eq!(generate_slug("A/B Testing"), "a-b-testing");
+        assert_eq!(generate_slug(Some("My Board!"), "My Board!"), "my-board");
+        assert_eq!(generate_slug(None, "Test & Demo"), "test-demo");
+        assert_eq!(generate_slug(None, "A/B Testing"), "a-b-testing");
     }
 
     #[test]
     fn generate_slug_whitespace() {
-        assert_eq!(generate_slug("  Spaced  Out  "), "spaced-out");
-        assert_eq!(generate_slug("\tTab\tSeparated\t"), "tab-separated");
+        assert_eq!(generate_slug(Some("  Spaced  Out  "), "  Spaced  Out  "), "spaced-out");
+        assert_eq!(generate_slug(Some("\tTab\tSeparated\t"), "\tTab\tSeparated\t"), "tab-separated");
     }
 
     #[test]
-    fn generate_slug_empty_or_invalid() {
-        assert_eq!(generate_slug(""), "item-");
-        assert_eq!(generate_slug("!!!"), "item-");
-        assert_eq!(generate_slug("   "), "item-");
+    fn generate_slug_empty_or_invalid() {   
+        assert_eq!(generate_slug(None, ""), "item-");
+        assert_eq!(generate_slug(None, "!!!"), "item-");
+        assert_eq!(generate_slug(None, "   "), "item-");
     }
 
     #[test]

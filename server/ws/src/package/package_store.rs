@@ -124,6 +124,8 @@ impl<'d> CrudQueries<'d> for PackageStore {
                 // where_clause.push_str(&ids.iter().map(|_| "?").collect::<Vec<_>>().join(", "));
                 // where_clause.push_str(")");
             }
+        } else {
+            where_clauses.push(String::from("p.is_public = 1"));
         }
 
         paging.push(format!(" LIMIT {}", lister.pager.limit));

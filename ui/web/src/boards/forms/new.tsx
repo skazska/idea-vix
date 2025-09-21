@@ -38,6 +38,9 @@ export const NewBoardForm: TFormComponent<TBoardNew, TBoard> = (props) => {
         <Field name="name">
             {(field, props) => getInput(getLabel(field), getString(field, field, props), getError(field))}
         </Field>
+        <Field name="slug">
+            {(field, props) => getInput(getLabel(field), getString(field, field, props), getError(field))}
+        </Field>
         <Field name="description" >
             {(field, props) => getInput(getLabel(field), getText(field, field, props), getError(field))}
         </Field>

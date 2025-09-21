@@ -6,6 +6,7 @@ type PackageLocators = {
   modal: Locator;
   form: Locator;
   nameInput: Locator;
+  slugInput: Locator;
   descriptionInput: Locator;
   iconInput: Locator;
   isPublicCheckbox: Locator;
@@ -24,6 +25,7 @@ function getNewPackageLocators(page: Page): PackageLocators {
     modal: page.getByTestId('modal-centered'), // Adjusted to match the modal test ID
     form,
     nameInput: form.locator('input[name="name"]'),
+    slugInput: form.locator('input[name="slug"]'),
     descriptionInput: form.locator('textarea[name="description"]'),
     iconInput: form.locator('input[name="icon"]'),
     isPublicCheckbox: form.locator('input[name="is_public"]'),

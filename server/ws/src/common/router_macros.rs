@@ -37,12 +37,12 @@ macro_rules! resource_routes {
         ::axum::Router::new()
             .route("/", ::axum::routing::get($get_items))
             .route("/", ::axum::routing::post($add_item))
-            .route("/{id}", ::axum::routing::get($get_item))
-            .route("/{id}", ::axum::routing::put($update_item))
-            .route("/{id}", ::axum::routing::delete($delete_item))
             .route("/{id}/access", ::axum::routing::post($add_access))
             .route("/{id}/access", ::axum::routing::get($list_access))
             .route("/{id}/access/{address}", ::axum::routing::delete($revoke_access))
             .route("/{id}/my/access", ::axum::routing::get($check_access))
+            .route("/{id}", ::axum::routing::get($get_item))
+            .route("/{id}", ::axum::routing::put($update_item))
+            .route("/{id}", ::axum::routing::delete($delete_item))
     }};
 }

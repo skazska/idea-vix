@@ -1,28 +1,90 @@
+use assert_struct::assert_struct;
 use axum::http::StatusCode;
 
 mod test_app;
 mod helpers;
 use serde::Deserialize;
 
-#[derive(Deserialize)]
-struct PackageResp { id: i32, name: String }
+#[derive(Deserialize, Debug, PartialEq)]
+struct CommonCrudResp { id: i32, name: String, slug: String, description: Option<String>, icon: Option<String>, is_public: bool }
 
-#[derive(Deserialize)]
-struct AccessMapping { package_id: i32, address: String, role: String }
+#[derive(Deserialize, Debug, PartialEq)]
+struct AccessMapping { item_id: i32, address: String, role: String }
+
 
 #[tokio::test]
 async fn packages_crud_ok() {
     let app = test_app::TestApp::new().await;
 
-    let cookie_hdr = helpers::auth_cookie_for(&app.router, "user@example.com").await;
+    let owner_cookie_hdr = helpers::auth_cookie_for(&app.router, "user@example.com").await;
 
-    // create package (body shape may differ; using minimal fields)
-    let resp = helpers::post_json(&app.router, "/api/package", r#"{"name":"Demo Package","description":"desc"}"#, Some(&cookie_hdr)).await;
+    // create first package (private, icon, no slug)
+    let resp = helpers::post_json(&app.router, "/api/package", r#"{"name":"Demo Package 1","description":"desc", "icon":"📦"}"#, Some(&owner_cookie_hdr)).await;
+    assert_eq!(resp.status(), StatusCode::CREATED, "create first package (private, icon, no slug)");
+    let (_status, created): (StatusCode, CommonCrudResp) = helpers::read_json(resp).await;
+    // assert_eq!(status, StatusCode::CREATED, "create first package (private, icon, no slug)");
+    assert_struct!(created, CommonCrudResp { name: "Demo Package 1", slug: "demo-package-1", description: Some("desc"), icon: Some("📦"), is_public: false, .. });
+    let pkg_1_id = created.id;
+
+    // create second package (public, with slug)
+    let resp = helpers::post_json(&app.router, "/api/package", r#"{"name":"Demo Package 2","description":"desc", "is_public":true, "slug":"d-p-2"}"#, Some(&owner_cookie_hdr)).await;
     assert_eq!(resp.status(), StatusCode::CREATED);
+    let (_status, created): (StatusCode, CommonCrudResp) = helpers::read_json(resp).await;
+    let pkg_2_id = created.id;
 
-    // list packages
+    // owner gets list of all packages
+    let resp = helpers::get(&app.router, "/api/package", Some(&owner_cookie_hdr)).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let (_status, list): (StatusCode, Vec<CommonCrudResp>) = helpers::read_json(resp).await;
+    assert_eq!(list.len(), 2);
+    assert!(list.iter().any(|p| p.id == pkg_1_id));
+    assert!(list.iter().any(|p| p.id == pkg_2_id));
+
+    // unauthenticated gets only public package
     let resp = helpers::get(&app.router, "/api/package", None).await;
     assert_eq!(resp.status(), StatusCode::OK);
+    let (_status, list): (StatusCode, Vec<CommonCrudResp>) = helpers::read_json(resp).await;
+    assert_eq!(list.len(), 1);
+    assert_eq!(list[0].id, pkg_2_id);
+
+    // fail to get first package by id unauthenticated (private)
+    let resp = helpers::get(&app.router, &format!("/api/package/{}", pkg_1_id), None).await;
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+
+    // get second package by id unauthenticated (public)
+    let resp = helpers::get(&app.router, &format!("/api/package/{}", pkg_2_id), None).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let (_status, got): (StatusCode, CommonCrudResp) = helpers::read_json(resp).await;
+    assert_struct!(got, CommonCrudResp { id: pkg_2_id, name: "Demo Package 2", slug: "d-p-2", description: Some("desc"), icon: None, is_public: true });
+    assert_eq!(got.is_public, true);
+
+    // update first package by owner (with making it public)
+    let resp = helpers::put_json(&app.router, &format!("/api/package/{}", pkg_1_id), r#"{"name":"Updated Name","description":"new desc","icon":"📦","is_public":true}"#, Some(&owner_cookie_hdr)).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let (_status, updated): (StatusCode, CommonCrudResp) = helpers::read_json(resp).await;
+    assert_struct!(updated, CommonCrudResp { id: pkg_1_id, name: "Updated Name", slug: "demo-package-1", description: Some("new desc"), icon: Some("📦"), is_public: true });
+
+    // delete second package by owner
+    let resp = helpers::delete(&app.router, &format!("/api/package/{}", pkg_2_id), Some(&owner_cookie_hdr)).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let (_status, deleted): (StatusCode, CommonCrudResp) = helpers::read_json(resp).await;
+    assert_struct!(deleted, CommonCrudResp { id: pkg_2_id, name: "Demo Package 2", slug: "d-p-2", description: Some("desc"), icon: None, is_public: true });
+
+    // get first package by id by owner
+    let resp = helpers::get(&app.router, &format!("/api/package/{}", pkg_1_id), Some(&owner_cookie_hdr)).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let (_status, got): (StatusCode, CommonCrudResp) = helpers::read_json(resp).await;
+    assert_eq!(got.id, pkg_1_id);
+
+    // get second package by id by owner (deleted)
+    let resp = helpers::get(&app.router, &format!("/api/package/{}", pkg_2_id), Some(&owner_cookie_hdr)).await;
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+
+    // unauthenticated gets first package (now public) by id
+    let resp = helpers::get(&app.router, &format!("/api/package/{}", pkg_1_id), None).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let (_status, got): (StatusCode, CommonCrudResp) = helpers::read_json(resp).await;
+    assert_eq!(got.id, pkg_1_id);
 }
 
 #[tokio::test]
@@ -35,7 +97,7 @@ async fn package_access_invite_and_permissions() {
     // Create a private package
     let resp = helpers::post_json(&app.router, "/api/package", r#"{"name":"Secret","description":"hidden","is_public":false}"#, Some(&owner_cookie)).await;
     assert_eq!(resp.status(), StatusCode::CREATED);
-    let (_status, created): (StatusCode, PackageResp) = helpers::read_json(resp).await;
+    let (_status, created): (StatusCode, CommonCrudResp) = helpers::read_json(resp).await;
     let pkg_id = created.id;
 
     // Unauthenticated cannot access
@@ -52,6 +114,9 @@ async fn package_access_invite_and_permissions() {
     // Owner can list access and should see owner + guest mapping
     let resp = helpers::get(&app.router, &format!("/api/package/{}/access", pkg_id), Some(&owner_cookie)).await;
     let (_status, list): (StatusCode, Vec<AccessMapping>) = helpers::read_json(resp).await;
+ 
+    println!("Access list: {:?}", list);
+ 
     assert!(list.iter().any(|m| m.address == "owner@example.com" && m.role == "owner"));
     assert!(list.iter().any(|m| m.address == "guest@example.com" && m.role == "view"));
 

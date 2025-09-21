@@ -94,7 +94,6 @@ impl<'a> From<&'a PatchBoardItem> for PatchBoardDb<'a> {
     fn from(item: &'a PatchBoardItem) -> Self {
         Self {
             name: item.base.name.as_deref(),
-            slug: None, // Slug cannot be changed after creation
             description: item.base.description.as_ref().map(|d| d.as_deref()),
             icon: item.base.icon.as_ref().map(|i| i.as_deref()),
             is_public: item.base.is_public,
@@ -154,11 +153,8 @@ impl CrudService for BoardService {
     /// - Persists a new board via the store
     /// - Grants the caller the `owner` role
     async fn add_item<'r>(&'r self, item: &'r mut Self::NewItem, session: &'r Self::SessionData) -> Result<Self::Item, ModelError> {
-        // generate slug if not provided and set in the item
-        if item.base.slug.is_none() {
-            let slug = generate_slug(&item.base.name);
-            item.base.slug = Some(slug);
-        }
+        let slug = generate_slug(item.base.slug.as_deref(), &item.base.name);
+        item.base.slug = Some(slug);
 
         let db_item = NewBoardDb::from(& *item);
 

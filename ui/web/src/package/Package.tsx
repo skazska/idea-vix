@@ -167,6 +167,18 @@ function PackageContent() {
                                     </div>
                                     
                                     <div class="mb-4">
+                                        <h3 class="text-lg font-semibold mb-2">Slug</h3>
+                                        <input 
+                                            type="text"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
+                                            value={p().slug}
+                                            disabled
+                                            placeholder="Slug cannot be changed after creation"
+                                        />
+                                        <p class="text-xs text-gray-500 mt-1">Slug cannot be changed after creation</p>
+                                    </div>
+                                    
+                                    <div class="mb-4">
                                         <h3 class="text-lg font-semibold mb-2">Icon URL</h3>
                                         <input 
                                             name="icon"
@@ -229,6 +241,11 @@ function PackageContent() {
                                                 </h2>
                                             </div>
                                         </div>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <h3 class="text-lg font-semibold mb-2">Slug</h3>
+                                        <p class="text-gray-700 font-mono text-sm bg-gray-100 px-3 py-2 rounded">{p().slug}</p>
                                     </div>
                                     
                                     <div class="mb-4">

@@ -31,7 +31,7 @@
 //! ```
 use std::sync::Arc;
 
-use crate::common::access::{ ItemAccessQueries, ItemRoleDb, SqliteItemAccessQueries, ROLE_OWNER };
+use crate::common::access::{ ItemAccessQueries, ItemRoleDb, SqliteItemAccessQueries, ROLE_EDIT, ROLE_MANAGE, ROLE_OWNER };
 use crate::common::crud::{CrudQueries, CrudService, ListParams, QueryFilter, QueryLister};
 use crate::common::slug::generate_slug;
 use crate::common::workshop::shape_service::ShapeService;
@@ -41,7 +41,6 @@ use crate::package::package_store::{NewPackageDb, PackageDb, PackageStore, Patch
 use crate::session::session_service::SessionData;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
-pub use crate::common::access::ItemAccessGrantDto as NewPackageAccessItem;
 
 /// Package view
 #[derive(Serialize, Deserialize, Debug)]
@@ -84,9 +83,14 @@ pub struct PatchPackageItem {
 /// applies default for `is_public` when omitted.
 impl<'d> From<&'d NewPackageItem> for NewPackageDb<'d> {
     fn from(item: &'d NewPackageItem) -> Self {
+        let slug= match &item.base.slug {
+            Some(s) => s,
+            None => panic!("Slug must be provided or generated in the service layer"),
+        };
+
         Self {
             name: &item.base.name,
-            slug: "", // Slug will be generated in the service layer
+            slug,
             description: item.base.description.as_deref(),
             icon: item.base.icon.as_deref(),
             is_public: item.base.is_public.unwrap_or(false),
@@ -160,19 +164,10 @@ impl CrudService for PackageService {
     /// - Persists a new package via the store
     /// - Grants the caller the `owner` role
     async fn add_item<'r>(&'r self, item: &'r mut Self::NewItem, session: &'r Self::SessionData) -> Result<Self::Item, ModelError> {
-
-        // Use provided slug or generate from name
-        let slug = item.base.slug.as_ref()
-            .map(|s| s.clone())
-            .unwrap_or_else(|| generate_slug(&item.base.name));
-        
-        let db_item = NewPackageDb {
-            name: &item.base.name,
-            slug: &slug,
-            description: item.base.description.as_deref(),
-            icon: item.base.icon.as_deref(),
-            is_public: item.base.is_public.unwrap_or(false),
-        };
+        let slug = generate_slug(item.base.slug.as_deref(), &item.base.name);
+        item.base.slug = Some(slug);
+               
+        let db_item = NewPackageDb::from(& *item);
 
         let result = self.transaction_starter.run_in_transaction(async move |trx| {
             let item = self.items_store.add_item(&db_item, trx).await?;
@@ -233,7 +228,7 @@ impl CrudService for PackageService {
         let db_item = PatchPackageDb::from(item);
 
         let result = self.transaction_starter.run_in_transaction(async move |trx| {
-            let roles = self.access_store.get_access_roles(id, session, Some(&Vec::from([ROLE_OWNER])), trx).await?;
+            let roles = self.access_store.get_access_roles(id, session, Some(&Vec::from([ROLE_OWNER, ROLE_MANAGE, ROLE_EDIT])), trx).await?;
 
             if roles.len() == 0 {
                 return Err(ModelError::Forbidden("You are not allowed to update this package".to_string()));

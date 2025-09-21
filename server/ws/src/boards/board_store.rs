@@ -57,7 +57,6 @@ pub struct NewBoardDb<'a> {
 #[derive(Debug)]
 pub struct PatchBoardDb<'a> {
     pub name: Option<&'a str>,
-    pub slug: Option<&'a str>,
     pub description: Option<Option<&'a str>>,
     pub icon: Option<Option<&'a str>>,
     pub is_public: Option<bool>,
@@ -114,6 +113,8 @@ impl<'d> CrudQueries<'d> for BoardStore {
                 let ids = ids.iter().map(|id| id.to_string()).collect::<Vec<_>>().join(", ");
                 where_clauses.push(format!(" AND b.id IN ({ids})"));
             }
+        } else {
+            where_clauses.push(String::from("b.is_public = 1"));
         }
 
         paging.push(format!(" LIMIT {}", lister.pager.limit));
@@ -195,9 +196,6 @@ impl<'d> CrudQueries<'d> for BoardStore {
         if item.name.is_some() {
             query_parts.push("name = ?");
         }
-        if item.slug.is_some() {
-            query_parts.push("slug = ?");
-        }
         if item.description.is_some() {
             query_parts.push("description = ?");
         }
@@ -226,9 +224,6 @@ impl<'d> CrudQueries<'d> for BoardStore {
         // Bind values in the order they appear in the SET clause
         if let Some(name) = item.name {
             query = query.bind(name);
-        }
-        if let Some(slug) = item.slug {
-            query = query.bind(slug);
         }
         if let Some(description) = item.description {
             query = query.bind(description);

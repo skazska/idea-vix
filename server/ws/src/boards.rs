@@ -21,7 +21,7 @@ use crate::{
     api::{deserialize::AuthToken, validation::ValidatedJson},
     boards::board_service::{Board, NewBoardAccessItem, NewBoardItem, PatchBoardItem},
     common::{
-        access::{self, ItemAccess, ItemRole, ItemRoleDto, SqliteItemAccessQueries},
+        access::{self, ItemAccess, ItemRole, SqliteItemAccessQueries},
         crud::CrudService,
     },
     db::TransactionStarter,
@@ -137,12 +137,12 @@ async fn update_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteS
 /// Handler: delete a board by id.
 /// - Authenticates via JWT
 /// - Requires `owner` or `manage` role
-/// - Returns `204 No Content` on success
-async fn delete_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>, axum::extract::Path(id): Path<i64>) -> Result<StatusCode, (StatusCode, String)> {
+/// - Returns `200 Ok` and deleted board on success
+async fn delete_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>, axum::extract::Path(id): Path<i64>) -> Result<Json<Board>, (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
     // perform deletion, ignore returned entity for API contract
-    let _ = state.service.delete_item(id, &session).await.map_err(|e| e.into())?;
-    Ok(StatusCode::NO_CONTENT)
+    let result = state.service.delete_item(id, &session).await.map_err(|e| e.into())?;
+    Ok(Json(result))
 }
 
 // #[axum::debug_handler]
@@ -158,7 +158,7 @@ async fn add_access(
     ValidatedJson(item): ValidatedJson<NewBoardAccessItem>,
 ) -> Result<Json<ItemRole<i64>>, (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    let role_dto = ItemRoleDto {
+    let role_dto = ItemRole {
         address: item.address,
         role: item.role,
         item_id: id,
@@ -210,9 +210,8 @@ async fn check_access(
     let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
     let result = match &session {
         Some(s) => {
-            let roles = state.access_service.list_access_roles(id, &s).await.map_err(|e| e.into())?;
-
-            roles.into_iter().map(|r| r.role.into()).collect::<Vec<String>>()
+            let roles = state.access_service.get_my_access_roles(id, &s).await.map_err(|e| e.into())?;
+            roles.into_iter().map(|r| r.into()).collect::<Vec<String>>()
         },
         None => vec![],
     };

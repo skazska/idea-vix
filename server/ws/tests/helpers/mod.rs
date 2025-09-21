@@ -79,7 +79,13 @@ pub fn cookie_from_response(resp: &Response<Body>) -> Option<String> {
 pub async fn read_json<T: DeserializeOwned>(resp: Response<Body>) -> (StatusCode, T) {
     let status = resp.status();
     let bytes = body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
-    let val: T = serde_json::from_slice(&bytes).unwrap();
+    let val: T = match serde_json::from_slice(&bytes) {
+        Ok(v) => v,
+        Err(e) => { 
+            println!("JSON: {}", String::from_utf8_lossy(&bytes));
+            panic!("Failed to parse JSON response: {}", e);
+        },
+    };
     (status, val)
 }
 
