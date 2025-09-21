@@ -19,14 +19,16 @@ use axum::{ extract::{ Path, State }, http::StatusCode, Json };
 
 use crate::{
     api::{deserialize::AuthToken, validation::ValidatedJson},
-    boards::board_service::{Board, NewBoardItem, PatchBoardItem, NewBoardAccessItem, BoardAccessRoles},
-    session::session_jwt::SessionJWTService,
+    boards::board_service::{Board, BoardAccessRoles, NewBoardAccessItem, NewBoardItem, PatchBoardItem},
+    common::{ access },
+    session::session_jwt::SessionJWTService
 };
 
 mod board_store;
 mod board_service;
 
 struct RouteState {
+    access_service: access::CommonItemAccess,
     service: board_service::BoardService,
     jwt_service: Arc<SessionJWTService>,
 }
