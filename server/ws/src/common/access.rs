@@ -41,6 +41,14 @@ impl Into<String> for Role {
     }
 }
 
+/// Generic access grant request DTO (for HTTP requests): address + role (item_id comes from path parameter).
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+pub struct ItemAccessGrantDto {
+    #[validate(length(min = 3, max = 255))]
+    pub address: String,
+    pub role: String,
+}
+
 /// Generic session access role DTO: address + role.
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
 pub struct ItemRoleDto<Id: Clone> {

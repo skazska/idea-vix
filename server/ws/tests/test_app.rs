@@ -26,9 +26,9 @@ impl TestApp {
         let jwt_service = Arc::new(session::session_jwt::SessionJWTService::new(jwt_adapter));
 
         // routers
-        let package_router = ws::package::get_router(pool_arc.clone(), jwt_service.clone()).await;
-        let boards_router = ws::boards::get_router(pool_arc.clone(), jwt_service.clone()).await;
-        let session_router = ws::session::get_router(pool_arc.clone(), jwt_service.clone()).await;
+        let package_router = ws::package::get_router(pool.get_transaction_starter(), jwt_service.clone());
+        let boards_router = ws::boards::get_router(pool.get_transaction_starter(), jwt_service.clone());
+        let session_router = ws::session::get_router(pool.get(), jwt_service.clone());
 
         let router = Router::new()
             .route("/", get(|| async { "ok" }))

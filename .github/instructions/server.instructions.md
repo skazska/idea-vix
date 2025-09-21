@@ -62,20 +62,29 @@ Router → Feature Service → Feature Store → SQLx → SQLite
 
 ## Key Implementation Patterns
 
+### Unified Architecture (Boards & Packages)
+- Both feature modules implement identical patterns for consistency
+- Services implement `CrudService` trait for standard CRUD operations
+- Stores implement `CrudQueries` trait for consistent data access
+- Use `TransactionStarter` pattern for database transaction management
+- Leverage `CommonItemAccess` for unified access control across features
+- All entity IDs use `i64` type for consistency
+
 ### Route Handlers
 - Extract auth via `AuthToken` from cookies
 - Validate requests with `ValidatedJson<T>`
-- Use `State<Arc<RouteState>>` for dependency injection
+- Use `State<Arc<RouteState>>` for dependency injection with shared components
 - Return structured responses via `Json<T>` or status codes
 
 ### Services Layer
-- Implement business logic with async traits
-- Take store dependencies via constructor injection
-- Handle authorization and validation logic
+- Implement business logic with async traits (CrudService)
+- Take dependencies via constructor injection: Arc&lt;TransactionStarter&gt;, Arc&lt;Store&gt;, Arc&lt;CommonItemAccess&gt;
+- Handle authorization using CommonItemAccess for consistent access control
 - Return domain models, not database representations
 
 ### Store Layer
-- Use SQLx for database operations
+- Implement CrudQueries trait for consistent interface
+- Use SQLx with TransactionStarter pattern for database operations
 - Return domain models from queries
 - Handle database-specific error mapping
 - Keep SQL queries focused and readable

@@ -155,7 +155,7 @@ async fn add_access(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
     axum::extract::Path(id): Path<i64>,
-    ValidatedJson(item): ValidatedJson<NewBoardAccessItem<i64>>,
+    ValidatedJson(item): ValidatedJson<NewBoardAccessItem>,
 ) -> Result<Json<ItemRole<i64>>, (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
     let role_dto = ItemRoleDto {

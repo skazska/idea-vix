@@ -39,7 +39,7 @@ use crate::boards::board_store::{BoardDb, BoardStore, NewBoardDb, PatchBoardDb};
 use crate::session::session_service::SessionData;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
-pub use crate::common::access::ItemRoleDto as NewBoardAccessItem;
+pub use crate::common::access::ItemAccessGrantDto as NewBoardAccessItem;
 
 /// API representation of a board.
 ///

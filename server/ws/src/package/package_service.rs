@@ -40,7 +40,7 @@ use crate::package::package_store::{NewPackageDb, PackageDb, PackageStore, Patch
 use crate::session::session_service::SessionData;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
-pub use crate::common::access::ItemRoleDto as NewPackageAccessItem;
+pub use crate::common::access::ItemAccessGrantDto as NewPackageAccessItem;
 
 /// Package view
 #[derive(Serialize, Deserialize, Debug)]

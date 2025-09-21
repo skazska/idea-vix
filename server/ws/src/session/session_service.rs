@@ -29,9 +29,11 @@ pub struct InitSession {
     pub address: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
 pub struct ConfirmSession {
+    #[validate(length(min = 1))]
     pub address: String,
+    #[validate(length(min = 1))]
     pub code: String,
 }
 

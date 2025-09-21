@@ -38,6 +38,8 @@ Crate `server/ws/src/` modules and roles:
 - Services (application): `boards/board_service.rs`, `package/package_service.rs`, `session/session_service.rs`
 - Stores (persistence): `boards/board_store.rs`, `package/package_store.rs`, `session/session_store.rs`
 - Infrastructure: `config.rs`, `db.rs` (pool + time utils), `jwt_adapter.rs`, `session/session_jwt.rs`, `ext_comm{,/email}.rs`
+- Common patterns: `TransactionStarter` for database operations, `CommonItemAccess` for access control
+- Unified traits: `CrudService` and `CrudQueries` implemented by both boards and packages
 - API helpers: `api/{validation,results,deserialize}.rs`
 - Error type: `error.rs`
 
@@ -70,22 +72,28 @@ Testing (high-level): Playwright E2E tests run critical UI flows against a runni
 
 1. Browser calls API with optional Authorization cookie (Bearer JWT)
 2. Router extracts token via `AuthToken` and validates request body via `ValidatedJson<T>`
-3. Router delegates to Service
-4. Service applies rules and maps DTO <-> DB models
-5. Store performs SQLx operations against SQLite
-6. Response is mapped to API DTO and returned
+3. Router delegates to Service via dependency injection (Arc&lt;T&gt;)
+4. Service applies rules using TransactionStarter pattern for database operations
+5. Service leverages CommonItemAccess for access control validation
+6. Store (implementing CrudQueries trait) performs SQLx operations against SQLite
+7. Response is mapped to API DTO and returned
 
 ## 6) Domain features
 
 Boards
 
-- Entity: id, name, description?, icon?, is_public
-- Visibility: public; private requires valid session to access
+- Entity: id (i64), name, description?, icon?, is_public
+- Visibility: public; private requires valid session and access control via CommonItemAccess
+- Architecture: Implements CrudService and CrudQueries traits with TransactionStarter pattern
 - DTOs: `Board`, `NewBoardItem`, `PatchBoardItem` (partial with explicit null handling)
 
 Packages
 
-- Similar CRUD to Boards; feature module mirrors structure
+- Entity: id (i64), name, description?, icon?, is_public  
+- Visibility: public; private requires valid session and access control via CommonItemAccess
+- Architecture: Implements CrudService and CrudQueries traits with TransactionStarter pattern
+- DTOs: `Package`, `NewPackageItem`, `PatchPackageItem` (partial with explicit null handling)
+- Note: Boards feature module now mirrors this structure exactly
 
 Sessions/Auth (passwordless)
 
