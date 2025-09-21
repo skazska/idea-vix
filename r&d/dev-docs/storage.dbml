@@ -37,6 +37,7 @@ table rule {
 table package {
     id integer [not null, pk, increment] 
     name VARCHAR(100) [not null]
+    slug VARCHAR(100) [not null, unique, note: 'URL-friendly identifier, auto-generated from name if not provided']
     description VARCHAR(500)
     icon VARCHAR(255)
     is_public boolean [not null, default: false]
@@ -87,6 +88,7 @@ table package_rule {
 table board {
     id integer [not null, pk, increment]
     name VARCHAR(100) [not null]
+    slug VARCHAR(100) [not null, unique, note: 'URL-friendly identifier, auto-generated from name if not provided']
     description VARCHAR(500) 
     icon VARCHAR(255)
     is_public boolean [not null, default: false]

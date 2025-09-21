@@ -754,6 +754,7 @@ components:
       required:
         - id
         - name
+        - slug
         - is_public
       properties:
         id:
@@ -765,6 +766,11 @@ components:
           type: string
           description: Name of the board
           example: "Project Ideas"
+        slug:
+          type: string
+          description: URL-friendly identifier for the board (auto-generated from name if not provided)
+          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+          example: "project-ideas"
         description:
           type: string
           description: Optional description of the board
@@ -788,6 +794,11 @@ components:
           minLength: 3
           maxLength: 100
           example: "Project Ideas"
+        slug:
+          type: string
+          description: Optional URL-friendly identifier for the board (auto-generated from name if not provided)
+          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+          example: "project-ideas"
         description:
           type: string
           maxLength: 500
@@ -834,6 +845,7 @@ components:
       required:
         - id
         - name
+        - slug
         - is_public
       properties:
         id:
@@ -846,6 +858,11 @@ components:
           description: Name of the package
           minLength: 1
           example: "React Components"
+        slug:
+          type: string
+          description: URL-friendly identifier for the package (auto-generated from name if not provided)
+          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+          example: "react-components"
         description:
           type: string
           description: Optional description of the package
@@ -869,6 +886,11 @@ components:
           minLength: 3
           maxLength: 100
           example: "React Components"
+        slug:
+          type: string
+          description: Optional URL-friendly identifier for the package (auto-generated from name if not provided)
+          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+          example: "react-components"
         description:
           type: string
           maxLength: 500
