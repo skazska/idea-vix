@@ -46,7 +46,7 @@ pub struct BoardDb {
 #[derive(Debug)]
 pub struct NewBoardDb<'a> {
     pub name: &'a str,
-    pub slug: &'a str,
+    pub slug: String,
     pub description: Option<&'a str>,
     pub icon: Option<&'a str>,
     pub is_public: bool,
@@ -78,7 +78,7 @@ impl<'d> CrudQueries<'d> for BoardStore {
             "INSERT INTO board (name, slug, description, icon, is_public) VALUES (?, ?, ?, ?, ?) RETURNING id, name, slug, description, icon, is_public",
         )
             .bind(item.name)
-            .bind(item.slug)
+            .bind(item.slug.as_str())
             .bind(item.description)
             .bind(item.icon)
             .bind(item.is_public)

@@ -73,10 +73,7 @@ pub struct PatchBoardItem {
 /// implements direct conversion from NewBoardItem to NewBoardDb
 impl<'a> From<&'a NewBoardItem> for NewBoardDb<'a> {
     fn from(item: &'a NewBoardItem) -> Self {
-        let slug= match &item.base.slug {
-            Some(s) => s,
-            None => panic!("Slug must be provided or generated in the service layer"),
-        };
+        let slug = generate_slug(item.base.slug.as_deref(), &item.base.name);
 
         Self {
             name: &item.base.name,
@@ -153,9 +150,6 @@ impl CrudService for BoardService {
     /// - Persists a new board via the store
     /// - Grants the caller the `owner` role
     async fn add_item<'r>(&'r self, item: &'r mut Self::NewItem, session: &'r Self::SessionData) -> Result<Self::Item, ModelError> {
-        let slug = generate_slug(item.base.slug.as_deref(), &item.base.name);
-        item.base.slug = Some(slug);
-
         let db_item = NewBoardDb::from(& *item);
 
         let result = self.transaction_starter.run_in_transaction(async move |trx| {
@@ -248,5 +242,113 @@ impl CrudService for BoardService {
         }).await?;
 
         Ok(Self::Item::from(result))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use validator::Validate;
+
+    #[test]
+    fn test_create_dto_to_db_conversion_positives() {
+        let dtos = vec![
+            NewBoardItem { base: crate::common::item_fields::NewItemFields { name: "Test Board".into(), slug: None, description: Some("A test board".into()), icon: Some("🧩".into()), is_public: Some(true) } },
+            NewBoardItem { base: crate::common::item_fields::NewItemFields { name: "Another Board".into(), slug: Some("custom-slug".into()), description: None, icon: None, is_public: None } },
+        ];
+
+        let expectations = vec![
+            ("Test Board", "test-board", Some("A test board"), Some("🧩"), true),
+            ("Another Board", "custom-slug", None, None, false),
+        ];
+
+        for (dto, expected) in dtos.iter().zip(expectations.iter()) {
+            assert!(dto.validate().is_ok(), "DTO should be valid: {:?}", dto);
+            let db_item = NewBoardDb::from(dto);
+            assert_eq!(db_item.name, expected.0);
+            assert_eq!(db_item.slug, expected.1);
+            assert_eq!(db_item.description, expected.2);
+            assert_eq!(db_item.icon, expected.3);
+            assert_eq!(db_item.is_public, expected.4);
+        }
+    }
+
+    #[test]
+    fn test_create_dto_validation() {
+        let invalid_dtos = vec![
+            NewBoardItem { base: crate::common::item_fields::NewItemFields { name: "".into(), slug: None, description: None, icon: None, is_public: None } },
+            NewBoardItem { base: crate::common::item_fields::NewItemFields { name: "A".repeat(101), slug: None, description: None, icon: None, is_public: None } },
+            NewBoardItem { base: crate::common::item_fields::NewItemFields { name: "Valid Name".into(), slug: Some("Invalid Slug!".into()), description: None, icon: None, is_public: None } },
+        ];
+
+        let expected_errors = vec![
+            "name: Validation error: length",
+            "name: Validation error: length",
+            "slug: Validation error: slug_format",
+        ];
+
+        for (dto, expected_error) in invalid_dtos.iter().zip(expected_errors.iter()) {
+            let validation = dto.validate();
+            assert!(validation.is_err(), "DTO should be invalid: {:?}", dto);
+            assert!(validation.err().unwrap().to_string().contains(expected_error));
+        }
+    }
+
+    #[test]
+    fn test_patch_dto_to_db_conversion_positives() {
+        let dtos = vec![
+            PatchBoardItem { base: crate::common::item_fields::PatchItemFields { name: Some("Updated Name".into()), description: Some(Some("Updated description".into())), icon: Some(Some("🧩".into())), is_public: Some(true) } },
+            PatchBoardItem { base: crate::common::item_fields::PatchItemFields { name: None, description: Some(None), icon: Some(None), is_public: None } },
+        ];
+
+        let expected_dbs = vec![
+            PatchBoardDb { name: Some("Updated Name"), description: Some(Some("Updated description")), icon: Some(Some("🧩")), is_public: Some(true) },
+            PatchBoardDb { name: None, description: Some(None), icon: Some(None), is_public: None },
+        ];
+
+        for (dto, expected) in dtos.iter().zip(expected_dbs.iter()) {
+            assert!(dto.validate().is_ok(), "DTO should be valid: {:?}", dto);
+            let db_item = PatchBoardDb::from(dto);
+            assert_eq!(db_item.name, expected.name);
+            assert_eq!(db_item.description, expected.description);
+            assert_eq!(db_item.icon, expected.icon);
+            assert_eq!(db_item.is_public, expected.is_public);
+        }
+    }
+
+    #[test]
+    fn test_patch_dto_validation() {
+        let invalid_dtos = vec![
+            PatchBoardItem { base: crate::common::item_fields::PatchItemFields { name: Some("".into()), description: None, icon: None, is_public: None } },
+            PatchBoardItem { base: crate::common::item_fields::PatchItemFields { name: Some("A".repeat(101)), description: None, icon: None, is_public: None } },
+        ];
+
+        for dto in invalid_dtos.iter() {
+            let validation = dto.validate();
+            assert!(validation.is_err(), "DTO should be invalid: {:?}", dto);
+        }
+    }
+
+    #[test]
+    fn test_board_db_to_api_conversion() {
+        let db_items = vec![
+            BoardDb { id: 1, name: "Test Board".into(), slug: "test-board".into(), description: Some("A test board".into()), icon: Some("🧩".into()), is_public: true },
+            BoardDb { id: 2, name: "Another Board".into(), slug: "another-board".into(), description: None, icon: None, is_public: false },
+        ];
+
+        let expected = vec![
+            Board { id: 1, name: "Test Board".into(), slug: "test-board".into(), description: Some("A test board".into()), icon: Some("🧩".into()), is_public: true },
+            Board { id: 2, name: "Another Board".into(), slug: "another-board".into(), description: None, icon: None, is_public: false },
+        ];
+
+        for (db, exp) in db_items.into_iter().zip(expected.into_iter()) {
+            let api_item = Board::from(db);
+            assert_eq!(api_item.id, exp.id);
+            assert_eq!(api_item.name, exp.name);
+            assert_eq!(api_item.slug, exp.slug);
+            assert_eq!(api_item.description, exp.description);
+            assert_eq!(api_item.icon, exp.icon);
+            assert_eq!(api_item.is_public, exp.is_public);
+        }
     }
 }
