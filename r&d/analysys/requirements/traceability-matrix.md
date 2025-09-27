@@ -25,7 +25,7 @@ Legend:
     <tr>
       <td rowspan="2">Boards · <a href="../stories/core.md#view-boards">View boards</a></td>
       <td rowspan="2">List boards, respect public/private visibility, invited users can view private boards</td>
-        <td>B: <code>boards_smoke.rs::boards_crud_ok</code></td>
+    <td>B: <code>boards_smoke.rs::boards_crud_ok</code><br/>B: <code>boards_regression.rs::board_create_requires_authentication</code><br/>B: <code>boards_regression.rs::board_create_rejects_short_name</code><br/>B: <code>boards_regression.rs::board_slug_conflict_returns_conflict</code></td>
       <td rowspan="2">No UI coverage for unauthenticated viewer vs. invited guest flows</td>
       <td rowspan="2">[v]</td>
     </tr>
@@ -35,7 +35,7 @@ Legend:
     <tr>
       <td rowspan="2">Boards · <a href="../stories/core.md#create-board">Create board</a></td>
       <td rowspan="2">Authenticated user can submit form with name/description/icon and see new board</td>
-        <td>B: <code>boards_smoke.rs::boards_crud_ok</code></td>
+    <td>B: <code>boards_smoke.rs::boards_crud_ok</code><br/>B: <code>boards_regression.rs::board_update_requires_elevated_role</code><br/>B: <code>boards_regression.rs::board_delete_allows_manage_role</code></td>
       <td rowspan="2">Negative cases (validation errors) untested</td>
       <td rowspan="2">[v]</td>
     </tr>
@@ -50,7 +50,7 @@ Legend:
       <td rowspan="3">[v]</td>
     </tr>
     <tr>
-  <td>B: <code>boards_smoke.rs::board_access_invite_and_permissions</code></td>
+  <td>B: <code>boards_smoke.rs::board_access_invite_and_permissions</code><br/>B: <code>boards_regression.rs::duplicate_board_access_invite_is_conflict</code></td>
     </tr>
     <tr>
       <td>F: <code>boards_flow.spec.ts</code> — update scenarios</td>
@@ -74,7 +74,7 @@ Legend:
     <tr>
       <td rowspan="3">Packages · <a href="../stories/core.md#view-packages">View packages</a></td>
       <td rowspan="3">List packages with visibility rules; invited users access private packages</td>
-        <td>B: <code>packages_smoke.rs::packages_crud_ok</code></td>
+    <td>B: <code>packages_smoke.rs::packages_crud_ok</code><br/>B: <code>packages_regression.rs::package_slug_conflict_returns_conflict</code><br/>B: <code>packages_regression.rs::private_package_hidden_from_unauthenticated_list</code></td>
       <td rowspan="3">Frontend lacks invited-user visibility checks; story marked `[~]` pending versioning rules</td>
       <td rowspan="3">[~]</td>
     </tr>
@@ -87,7 +87,7 @@ Legend:
     <tr>
       <td rowspan="2">Packages · <a href="../stories/core.md#create-package">Create package</a></td>
       <td rowspan="2">Authenticated user creates package with metadata and optional slug, sees it in list</td>
-        <td>B: <code>packages_smoke.rs::packages_crud_ok</code></td>
+    <td>B: <code>packages_smoke.rs::packages_crud_ok</code><br/>B: <code>packages_regression.rs::package_update_forbidden_for_view_role</code><br/>B: <code>packages_regression.rs::package_delete_requires_owner_role</code><br/>B: <code>packages_regression.rs::package_update_clears_optional_fields</code></td>
       <td rowspan="2">No coverage for slug conflicts or validation failures</td>
       <td rowspan="2">[v]</td>
     </tr>

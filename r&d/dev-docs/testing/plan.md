@@ -25,6 +25,8 @@ Implementation roadmap:
 ## Scope
 
 - Integration tests (backend, Rust): Axum routers + SQLx + SQLite + JWT flow.
+  - Smoke coverage lives in `sessions_smoke.rs`, `boards_smoke.rs`, `packages_smoke.rs`.
+  - Regression coverage adds `boards_regression.rs`, `packages_regression.rs` for validation, access control, and visibility edge cases.
 - E2E tests (frontend, Playwright): UI flows for auth and boards/packages CRUD.
 - Out of scope (initially): performance, load, fuzz, security scans.
 

@@ -12,7 +12,7 @@ Purpose: Summarize test layers and provide step-by-step instructions to run them
 | Tier | Purpose | Backend scope | Frontend scope | Typical triggers |
 | --- | --- | --- | --- | --- |
 | **Smoke** | Fast confidence check for auth and CRUD lifecycles | `sessions_smoke.rs::sessions_flow_ok`, `boards_smoke.rs::boards_crud_ok`, `packages_smoke.rs::packages_crud_ok` | `auth_flow.spec.ts` | Pre-commit hooks, PR fast feedback |
-| **Regression** | Full coverage of role/access and destructive paths | Entire `tests/` suite | All Playwright specs (`auth`, `boards`, `packages`, `board_access`, `package_access`) | Nightly CI, pre-release gates |
+| **Regression** | Full coverage of role/access and destructive paths | Smoke suite + `boards_regression.rs`, `packages_regression.rs`, `home_int.rs` | All Playwright specs (`auth`, `boards`, `packages`, `board_access`, `package_access`) | Nightly CI, pre-release gates |
 
 ### Smoke tier (≈ 3–4 minutes)
 
@@ -57,7 +57,8 @@ Location:
 
 - `server/ws/tests/`
   - `test_app.rs` (harness)
-  - `sessions_smoke.rs`, `boards_smoke.rs`, `packages_smoke.rs`
+  - Smoke: `sessions_smoke.rs`, `boards_smoke.rs`, `packages_smoke.rs`
+  - Regression: `boards_regression.rs`, `packages_regression.rs`, `home_int.rs`
 
 How it works:
 
@@ -98,6 +99,7 @@ Run lib unit tests: `bash cargo test --lib`
 Run bin unit tests: `bash cargo test --bin ws`
 Run a single integration test: `bash cargo test --test sessions_smoke`
 Run all integration tests: `bash cargo test --tests`
+Run regression-only suite: `bash cargo test --test boards_regression -- --nocapture` + `bash cargo test --test packages_regression -- --nocapture`
 Run tests filtered by name: `bash cargo test <test_name>`
 
 ## Frontend E2E Tests (Playwright)
