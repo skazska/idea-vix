@@ -1,4 +1,4 @@
-import { createForm, getValues, validate, valiForm } from "@modular-forms/solid";
+import { createForm, getValues, valiForm } from "@modular-forms/solid";
 import { getError, getLabel, getInput, getString, getText, type TFormComponent, getBoolean } from "../../common/form/generators";
 import { NewPackageSchema, type TPackage, type TPackageNew } from "../model";
 import { Footer, Header } from "../../common/form/components";

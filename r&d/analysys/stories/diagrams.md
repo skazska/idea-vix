@@ -75,3 +75,5 @@ Provides Shapes and Links accessible in board.
 
 Who:
 
+ - board owner []
+ - user invited to board with "draw" permission []

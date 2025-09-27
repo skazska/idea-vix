@@ -36,6 +36,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Board'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalServerError'
     post:
@@ -62,8 +64,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '422':
-          $ref: '#/components/responses/UnprocessableEntity'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalServerError'
   /api/board/{id}:
@@ -136,8 +138,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/UnprocessableEntity'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalServerError'
     delete:
@@ -157,14 +159,20 @@ paths:
             format: int64
             example: 1
       responses:
-        '204':
-          description: Board deleted
+        '200':
+          description: Deleted board
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Board'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalServerError'
   /api/board/{id}/access:
@@ -204,6 +212,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalServerError'
     get:
@@ -262,11 +272,13 @@ paths:
             type: string
       responses:
         '200':
-          description: Revoked mapping
+          description: Remaining access mappings after revoke
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BoardAccessMapping'
+                type: array
+                items:
+                  $ref: '#/components/schemas/BoardAccessMapping'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -297,15 +309,9 @@ paths:
           content:
             application/json:
               schema:
-               type: array
-               items:
-                 type: string
+                $ref: '#/components/schemas/AccessRoleList'
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
 
@@ -330,6 +336,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Package'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalServerError'
     post:
@@ -356,8 +364,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '422':
-          $ref: '#/components/responses/UnprocessableEntity'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalServerError'
   /api/package/{id}:
@@ -430,8 +438,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/UnprocessableEntity'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalServerError'
     delete:
@@ -451,8 +459,12 @@ paths:
             format: int64
             example: 1
       responses:
-        '204':
-          description: Package deleted
+        '200':
+          description: Deleted package
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Package'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -556,11 +568,13 @@ paths:
             type: string
       responses:
         '200':
-          description: Revoked mapping
+          description: Remaining access mappings after revoke
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PackageAccessMapping'
+                type: array
+                items:
+                  $ref: '#/components/schemas/PackageAccessMapping'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -591,15 +605,9 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: string
+                $ref: '#/components/schemas/AccessRoleList'
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
   /api/session/signin:
@@ -715,39 +723,45 @@ components:
     BadRequest:
       description: Bad request - invalid input data
       content:
-        application/json:
+        text/plain:
           schema:
-            $ref: '#/components/schemas/Error'
+            type: string
     Unauthorized:
       description: Unauthorized - authentication required or invalid/expired JWT token
       content:
-        application/json:
+        text/plain:
           schema:
-            $ref: '#/components/schemas/Error'
+            type: string
     Forbidden:
       description: Forbidden - insufficient permissions (owner or manage role required)
       content:
-        application/json:
+        text/plain:
           schema:
-            $ref: '#/components/schemas/Error'
+            type: string
     NotFound:
       description: Resource not found
       content:
-        application/json:
+        text/plain:
           schema:
-            $ref: '#/components/schemas/Error'
+            type: string
     UnprocessableEntity:
       description: Unprocessable entity - validation failed
       content:
-        application/json:
+        text/plain:
           schema:
-            $ref: '#/components/schemas/Error'
+            type: string
     InternalServerError:
       description: Internal server error
       content:
-        application/json:
+        text/plain:
           schema:
-            $ref: '#/components/schemas/Error'
+            type: string
+    Conflict:
+      description: Conflict - typically slug uniqueness violation
+      content:
+        text/plain:
+          schema:
+            type: string
   schemas:
     Board:
       type: object
@@ -765,19 +779,27 @@ components:
         name:
           type: string
           description: Name of the board
+          minLength: 3
+          maxLength: 100
           example: "Project Ideas"
         slug:
           type: string
-          description: URL-friendly identifier for the board (auto-generated from name if not provided)
-          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+          description: URL-friendly identifier for the board (auto-generated from name if not provided); referenced by diagram linking flows (see `r&d/analysys/stories/diagrams.md#drawing`)
+          pattern: '^[a-z][a-z0-9-]*[a-z0-9]$|^[a-z]$'
           example: "project-ideas"
         description:
-          type: string
+          type:
+            - string
+            - 'null'
           description: Optional description of the board
+          maxLength: 500
           example: "A board for collecting project ideas"
         icon:
-          type: string
+          type:
+            - string
+            - 'null'
           description: Optional icon identifier for the board
+          maxLength: 255
           example: "lightbulb"
         is_public:
           type: boolean
@@ -796,16 +818,22 @@ components:
           example: "Project Ideas"
         slug:
           type: string
-          description: Optional URL-friendly identifier for the board (auto-generated from name if not provided)
-          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+          description: Optional URL-friendly identifier for the board (auto-generated from name if not provided); referenced by diagram linking flows (see `r&d/analysys/stories/diagrams.md#drawing`)
+          pattern: '^[a-z][a-z0-9-]*[a-z0-9]$|^[a-z]$'
+          minLength: 3
+          maxLength: 100
           example: "project-ideas"
         description:
-          type: string
+          type:
+            - string
+            - 'null'
           maxLength: 500
           description: Optional description of the board
           example: "A board for collecting project ideas"
         icon:
-          type: string
+          type:
+            - string
+            - 'null'
           maxLength: 255
           description: Optional icon identifier for the board
           example: "lightbulb"
@@ -827,14 +855,14 @@ components:
             - type: string
               maxLength: 500
             - type: 'null'
-          description: Optional description of the board
+          description: Optional description of the board; send null to clear the saved description
           example: "Updated board description"
         icon:
           oneOf:
             - type: string
               maxLength: 255
             - type: 'null'
-          description: Optional icon identifier for the board
+          description: Optional icon identifier for the board; send null to clear the saved icon
           example: "lightbulb-outline"
         is_public:
           type: boolean
@@ -856,20 +884,27 @@ components:
         name:
           type: string
           description: Name of the package
-          minLength: 1
+          minLength: 3
+          maxLength: 100
           example: "React Components"
         slug:
           type: string
-          description: URL-friendly identifier for the package (auto-generated from name if not provided)
-          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+          description: URL-friendly identifier for the package (auto-generated from name if not provided); referenced by diagram linking flows (see `r&d/analysys/stories/diagrams.md#drawing`)
+          pattern: '^[a-z][a-z0-9-]*[a-z0-9]$|^[a-z]$'
           example: "react-components"
         description:
-          type: string
+          type:
+            - string
+            - 'null'
           description: Optional description of the package
+          maxLength: 500
           example: "A collection of reusable React components"
         icon:
-          type: string
+          type:
+            - string
+            - 'null'
           description: Optional icon identifier for the package
+          maxLength: 255
           example: "package"
         is_public:
           type: boolean
@@ -888,16 +923,22 @@ components:
           example: "React Components"
         slug:
           type: string
-          description: Optional URL-friendly identifier for the package (auto-generated from name if not provided)
-          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+          description: Optional URL-friendly identifier for the package (auto-generated from name if not provided); referenced by diagram linking flows (see `r&d/analysys/stories/diagrams.md#drawing`)
+          pattern: '^[a-z][a-z0-9-]*[a-z0-9]$|^[a-z]$'
+          minLength: 3
+          maxLength: 100
           example: "react-components"
         description:
-          type: string
+          type:
+            - string
+            - 'null'
           maxLength: 500
           description: Optional description of the package
           example: "A collection of reusable React components"
         icon:
-          type: string
+          type:
+            - string
+            - 'null'
           maxLength: 255
           description: Optional icon identifier for the package
           example: "package"
@@ -919,14 +960,14 @@ components:
             - type: string
               maxLength: 500
             - type: 'null'
-          description: Optional description of the package
+          description: Optional description of the package; send null to clear the saved description
           example: "An updated collection of reusable React components"
         icon:
           oneOf:
             - type: string
               maxLength: 255
             - type: 'null'
-          description: Optional icon identifier for the package
+          description: Optional icon identifier for the package; send null to clear the saved icon
           example: "package-updated"
         is_public:
           type: boolean
@@ -1026,20 +1067,18 @@ components:
           maxLength: 255
           example: user@example.com
         role:
-          type: string
-          description: Role to grant (view, edit, manage)
-          enum: [view, edit, manage]
-          example: view
+          $ref: '#/components/schemas/AccessRoleGrant'
 
     PackageAccessMapping:
       type: object
       required:
-        - package_id
+        - item_id
         - address
         - role
       properties:
-        package_id:
+        item_id:
           type: integer
+          format: int64
           description: Package id
           example: 1
         address:
@@ -1047,10 +1086,7 @@ components:
           description: Address with access
           example: user@example.com
         role:
-          type: string
-          description: Granted role
-          enum: [view, edit, manage, owner]
-          example: view
+          $ref: '#/components/schemas/AccessRole'
 
     BoardAccessGrant:
       type: object
@@ -1065,20 +1101,18 @@ components:
           maxLength: 255
           example: user@example.com
         role:
-          type: string
-          description: Role to grant (view, edit, manage)
-          enum: [view, edit, manage]
-          example: view
+          $ref: '#/components/schemas/AccessRoleGrant'
 
     BoardAccessMapping:
       type: object
       required:
-        - board_id
+        - item_id
         - address
         - role
       properties:
-        board_id:
+        item_id:
           type: integer
+          format: int64
           description: Board id
           example: 1
         address:
@@ -1086,8 +1120,30 @@ components:
           description: Address with access
           example: user@example.com
         role:
-          type: string
-          description: Granted role
-          enum: [view, edit, manage, owner]
-          example: view
+          $ref: '#/components/schemas/AccessRole'
+
+    AccessRole:
+      type: string
+      description: Role assigned to an address for an item
+      enum:
+        - owner
+        - manage
+        - edit
+        - view
+      example: view
+
+    AccessRoleGrant:
+      type: string
+      description: Roles that item owners are allowed to grant
+      enum:
+        - manage
+        - edit
+        - view
+      example: view
+
+    AccessRoleList:
+      type: array
+      description: Roles granted to the caller for a specific item
+      items:
+        $ref: '#/components/schemas/AccessRole'
 
