@@ -7,6 +7,35 @@ Purpose: Summarize test layers and provide step-by-step instructions to run them
 - Backend integration tests (Rust): Axum Router + Services + Stores + SQLx + SQLite + JWT flow
 - Frontend end-to-end (E2E) tests (Playwright): critical UI flows against a running backend
 
+## Test tiers
+
+| Tier | Purpose | Backend scope | Frontend scope | Typical triggers |
+| --- | --- | --- | --- | --- |
+| **Smoke** | Fast confidence check for auth and CRUD lifecycles | `sessions_smoke.rs::sessions_flow_ok`, `boards_smoke.rs::boards_crud_ok`, `packages_smoke.rs::packages_crud_ok` | `auth_flow.spec.ts` | Pre-commit hooks, PR fast feedback |
+| **Regression** | Full coverage of role/access and destructive paths | Entire `tests/` suite | All Playwright specs (`auth`, `boards`, `packages`, `board_access`, `package_access`) | Nightly CI, pre-release gates |
+
+### Smoke tier (≈ 3–4 minutes)
+
+- Runs in-memory SQLite databases and one happy-path Playwright journey.
+- Use when iterating locally or before pushing changes.
+- Commands:
+  - Backend: `cargo test --test sessions_smoke sessions_flow_ok -- --nocapture`, `cargo test --test boards_smoke boards_crud_ok`, `cargo test --test packages_smoke packages_crud_ok`
+  - Frontend: `npm run test:e2e -- --grep "@smoke"` *(requires tagging, see Notes)*
+
+### Regression tier (≈ 12–15 minutes)
+
+- Exercises all integration specs, including access-role permutations and destructive flows.
+- Runs the full Playwright matrix while backend and UI servers are up.
+- Commands:
+  - Backend: `cargo test --tests`
+  - Frontend: `npm run test:e2e`
+
+Notes:
+
+- Tag Playwright tests with `@smoke` annotations (`test('@smoke ...')`) to make the smoke command effective.
+- Extend the smoke tier with negative-path tests once unit coverage is added for validation utilities.
+- Backend smoke commands can be grouped once we add a `cargo test --test smoke` harness (see Testing Plan for follow-up).
+
 ## Prerequisites
 
 - Rust toolchain (cargo)
@@ -28,7 +57,7 @@ Location:
 
 - `server/ws/tests/`
   - `test_app.rs` (harness)
-  - `sessions_int.rs`, `boards_int.rs`, `packages_int.rs`
+  - `sessions_smoke.rs`, `boards_smoke.rs`, `packages_smoke.rs`
 
 How it works:
 
@@ -67,7 +96,7 @@ cargo test
 Compile tests without running: `bash cargo test --no-run`
 Run lib unit tests: `bash cargo test --lib`
 Run bin unit tests: `bash cargo test --bin ws`
-Run a single integration test: `bash cargo test --test sessions_int`
+Run a single integration test: `bash cargo test --test sessions_smoke`
 Run all integration tests: `bash cargo test --tests`
 Run tests filtered by name: `bash cargo test <test_name>`
 

@@ -8,6 +8,20 @@ Purpose: Define a practical approach to integration and end-to-end (E2E) testing
 - Verify critical user flows in the UI against a running backend.
 - Keep tests deterministic, isolated, and fast to run locally and in CI.
 
+## Tiered execution strategy
+
+To keep feedback loops short while still guarding against regressions, the suite is split into two execution tiers:
+
+- **Smoke (Tier 1)** — Happy-path coverage for session auth plus board/package CRUD on backend and UI. Runs in under five minutes and is appropriate for every commit or pre-PR hook. Failing smoke indicates the build is unsafe to merge.
+- **Regression (Tier 2)** — Full matrix spanning role/permission permutations, destructive flows, and invite lifecycle. Runs the entire backend `tests/` tree and all Playwright specs. Schedule nightly in CI and before tagged releases.
+
+Implementation roadmap:
+
+1. Tag Playwright smoke scenarios with `@smoke` and extend `npm run test:e2e` with a `test:e2e:smoke` script.
+2. Introduce a Rust test runner wrapper (e.g., `cargo test --test smoke_suite`) that re-exports the three smoke integration tests (`sessions_smoke`, `boards_smoke`, `packages_smoke`) for a single command.
+3. Update CI to execute smoke on every PR and regression on a nightly cron and release branches.
+4. Track coverage drift in `traceability-matrix.md`; if a gap is smoke-critical, promote its test into Tier 1.
+
 ## Scope
 
 - Integration tests (backend, Rust): Axum routers + SQLx + SQLite + JWT flow.
@@ -161,7 +175,7 @@ Recommendation: start with in-process for CRUD coverage; add 1–2 spawned tests
 
 - Backend integration tests: `server/ws/tests/`
   - `test_app.rs` (helpers)
-  - `sessions_int.rs`, `boards_int.rs`, `packages_int.rs`
+  - `sessions_smoke.rs`, `boards_smoke.rs`, `packages_smoke.rs`
 - Frontend E2E: `ui/web/tests-e2e/`
   - `auth_flow.spec.ts`, `boards_crud.spec.ts`, `packages_crud.spec.ts`
   - `playwright.config.ts`
