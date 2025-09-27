@@ -77,3 +77,8 @@ Who:
 
  - board owner []
  - user invited to board with "draw" permission []
+
+How:
+
+slug - semantic id for shape/link/rule/layout  including in conjunction with package slug or board slug
+
