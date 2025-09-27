@@ -83,10 +83,7 @@ pub struct PatchPackageItem {
 /// applies default for `is_public` when omitted.
 impl<'d> From<&'d NewPackageItem> for NewPackageDb<'d> {
     fn from(item: &'d NewPackageItem) -> Self {
-        let slug= match &item.base.slug {
-            Some(s) => s,
-            None => panic!("Slug must be provided or generated in the service layer"),
-        };
+        let slug=generate_slug(item.base.slug.as_deref(), &item.base.name);
 
         Self {
             name: &item.base.name,
@@ -165,8 +162,8 @@ impl CrudService for PackageService {
     /// - Persists a new package via the store
     /// - Grants the caller the `owner` role
     async fn add_item<'r>(&'r self, item: &'r mut Self::NewItem, session: &'r Self::SessionData) -> Result<Self::Item, ModelError> {
-        let slug = generate_slug(item.base.slug.as_deref(), &item.base.name);
-        item.base.slug = Some(slug);
+        // let slug = generate_slug(item.base.slug.as_deref(), &item.base.name);
+        // item.base.slug = Some(slug);
                
         let db_item = NewPackageDb::from(& *item);
 
@@ -274,3 +271,125 @@ impl CrudService for PackageService {
     // }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_create_dto_to_db_conversion_positives() {
+        let create_dtos = vec![
+            NewPackageItem { base: crate::common::item_fields::NewItemFields { name: "Test Package".into(), slug: None, description: Some("A test package".into()), icon: Some("📦".into()), is_public: Some(true) } },
+            NewPackageItem { base: crate::common::item_fields::NewItemFields { name: "Another Package".into(), slug: Some("custom-slug".into()), description: None, icon: None, is_public: None } },
+        ];
+
+        let expected_dbs = vec![
+            NewPackageDb { name: "Test Package", slug: "test-package".into(), description: Some("A test package".into()), icon: Some("📦".into()), is_public: true },
+            NewPackageDb { name: "Another Package", slug: "custom-slug".into(), description: None, icon: None, is_public: false },
+        ];
+
+        for (i, dto) in create_dtos.iter().enumerate() {
+            assert!(dto.validate().is_ok(), "DTO should be valid: {:?}", dto);
+            let db_item = NewPackageDb::from(dto);
+            let expected = expected_dbs.get(i).unwrap();
+            assert_eq!(db_item.name, expected.name);
+            assert_eq!(db_item.slug, expected.slug);
+            assert_eq!(db_item.description, expected.description);
+            assert_eq!(db_item.icon, expected.icon);
+            assert_eq!(db_item.is_public, expected.is_public);
+
+        }
+    }
+
+    #[test]
+    fn test_create_dto_validation() {
+        let invalid_dtos = vec![
+            NewPackageItem { base: crate::common::item_fields::NewItemFields { name: "".into(), slug: None, description: None, icon: None, is_public: None } },
+            NewPackageItem { base: crate::common::item_fields::NewItemFields { name: "A".repeat(101), slug: None, description: None, icon: None, is_public: None } },
+            NewPackageItem { base: crate::common::item_fields::NewItemFields { name: "Valid Name".into(), slug: Some("Invalid Slug!".into()), description: None, icon: None, is_public: None } },
+        ];
+
+        let expected_errors = vec![
+            "name: Validation error: length",
+            "name: Validation error: length",
+            "slug: Validation error: slug_format",
+        ];
+
+        for (i, dto) in invalid_dtos.iter().enumerate() {
+            let expected_error = expected_errors.get(i).unwrap();
+            let validation = dto.validate();
+            assert!(validation.is_err(), "DTO should be invalid: {:?}", dto);
+
+            // println!("{}", validation.err().unwrap().to_string());
+            // println!("{}", expected_error);
+
+            assert_eq!(validation.err().unwrap().to_string().contains(expected_error), true, "Error message should contain expected text");
+        }
+    }
+
+    #[test]
+    fn test_patch_dto_to_db_conversion_positives() {
+        let patch_dtos = vec![
+            PatchPackageItem { base: crate::common::item_fields::PatchItemFields { name: Some("Updated Name".into()), description: Some(Some("Updated description".into())), icon: Some(Some("📦".into())), is_public: Some(true) } },
+            PatchPackageItem { base: crate::common::item_fields::PatchItemFields { name: None, description: Some(None), icon: Some(None), is_public: None } },
+
+        ];
+        let expected_dbs = vec![
+            PatchPackageDb { name: Some("Updated Name".into()), description: Some(Some("Updated description".into())), icon: Some(Some("📦".into())), is_public: Some(true) },
+            PatchPackageDb { name: None, description: Some(None), icon: Some(None), is_public: None },
+        ];
+        for (i, dto) in patch_dtos.iter().enumerate() {
+            assert!(dto.validate().is_ok(), "DTO should be valid: {:?}", dto);
+            let db_item = PatchPackageDb::from(dto);
+            let expected = expected_dbs.get(i).unwrap();
+            assert_eq!(db_item.name, expected.name);
+            assert_eq!(db_item.description, expected.description);
+            assert_eq!(db_item.icon, expected.icon);
+            assert_eq!(db_item.is_public, expected.is_public);
+        }
+    }
+
+    #[test]
+    fn test_patch_dto_validation() {
+        let invalid_dtos = vec![
+            PatchPackageItem { base: crate::common::item_fields::PatchItemFields { name: Some("".into()), description: None, icon: None, is_public: None } },
+            PatchPackageItem { base: crate::common::item_fields::PatchItemFields { name: Some("A".repeat(101)), description: None, icon: None, is_public: None } },
+            // PatchPackageItem { base: crate::common::item_fields::PatchItemFields { name: None, description: None, icon: None, is_public: None } },
+        ];  
+        let expected_errors = vec![
+            "name: Validation error: length",
+            "name: Validation error: length",
+            // "base: Validation error: at least one field must be provided",
+        ];
+
+        for (i, dto) in invalid_dtos.iter().enumerate() {
+            let expected_error = expected_errors.get(i).unwrap();
+            let validation = dto.validate();
+            assert!(validation.is_err(), "DTO should be invalid: {:?}", dto);
+            assert_eq!(validation.err().unwrap().to_string().contains(expected_error), true, "Error message should contain expected text");
+        }
+    }
+
+    #[test]
+    fn test_package_db_to_api_conversion() {
+        let db_items = vec![
+            PackageDb { id: 1, name: "Test Package".into(), slug: "test-package".into(), description: Some("A test package".into()), icon: Some("📦".into()), is_public: true },
+            PackageDb { id: 2, name: "Another Package".into(), slug: "another-package".into(), description: None, icon: None, is_public: false },
+        ];
+
+        let expected_api = vec![
+            Package { id: 1, name: "Test Package".into(), slug: "test-package".into(), description: Some("A test package".into()), icon: Some("📦".into()), is_public: true },
+            Package { id: 2, name: "Another Package".into(), slug: "another-package".into(), description: None, icon: None, is_public: false },
+        ];
+
+        for (i, db_item) in db_items.into_iter().enumerate() {
+            let api_item = Package::from(db_item);
+            let expected = expected_api.get(i).unwrap();
+            assert_eq!(api_item.id, expected.id);
+            assert_eq!(api_item.name, expected.name);
+            assert_eq!(api_item.slug, expected.slug);
+            assert_eq!(api_item.description, expected.description);
+            assert_eq!(api_item.icon, expected.icon);
+            assert_eq!(api_item.is_public, expected.is_public);
+        }
+    }
+}

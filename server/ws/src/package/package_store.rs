@@ -50,7 +50,7 @@ pub struct PackageDb {
 #[derive(Debug)]
 pub struct NewPackageDb<'d> {
     pub name: &'d str,
-    pub slug: &'d str,
+    pub slug: String,
     pub description: Option<&'d str>,
     pub icon: Option<&'d str>,
     pub is_public: bool,
@@ -86,7 +86,7 @@ impl<'d> CrudQueries<'d> for PackageStore {
             "INSERT INTO package (name, slug, description, icon, is_public) VALUES (?, ?, ?, ?, ?) RETURNING id, name, slug, description, icon, is_public",
         )
             .bind(item.name)
-            .bind(item.slug)
+            .bind(&item.slug)
             .bind(item.description)
             .bind(item.icon)
             .bind(item.is_public)
