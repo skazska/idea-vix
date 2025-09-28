@@ -62,8 +62,11 @@ Legend:
     <tr>
       <td rowspan="3">Boards · <a href="../stories/core.md#change-board-properties">Change board properties</a></td>
       <td>Owner/manage roles can update board fields and visibility.</td>
-      <td>B: <code>boards_smoke.rs::boards_crud_ok</code></td>
-      <td rowspan="3">No automated check for edit-role vs. manage-role differences or null field clearing via UI</td>
+      <td>
+        B: <code>boards_smoke.rs::boards_crud_ok</code><br/>
+        F: <code>boards_flow.spec.ts</code> — update private↔public
+      </td>
+      <td rowspan="3">UI covers owner updates but still lacks role-specific edit vs. manage assertions and null-field clearing scenarios.</td>
       <td rowspan="3">[v]</td>
     </tr>
     <tr>
@@ -235,7 +238,7 @@ Legend:
         B: <code>packages_smoke.rs::packages_crud_ok</code><br/>
         F: <code>package_flow.spec.ts</code> — update private/public
       </td>
-      <td rowspan="4">UI lacks explicit test for manage-role editing; null-field clearing not exercised</td>
+  <td rowspan="4">UI lacks explicit test for manage-role editing; null-field clearing not exercised, and manage-role deletion remains unsupported.</td>
       <td rowspan="4">[v]</td>
     </tr>
     <tr>
@@ -244,7 +247,7 @@ Legend:
     </tr>
     <tr>
       <td>Owner/manage roles can delete packages when required.</td>
-      <td>B: <code>packages_regression.rs::package_delete_requires_owner_role</code></td>
+      <td>B: <code>packages_regression.rs::package_delete_requires_owner_role</code> (manager deletion currently forbidden)</td>
     </tr>
     <tr>
       <td>Optional fields can be cleared via update payloads.</td>
@@ -313,13 +316,19 @@ Legend:
     <tr>
       <td rowspan="3">Packages · <a href="../stories/core.md#delete-package">Delete package</a></td>
       <td>Package owner can initiate deletion from the package view.</td>
-      <td>—</td>
-      <td rowspan="3">Need backend delete endpoint regression and confirmation flow coverage.</td>
+      <td>
+        B: <code>packages_smoke.rs::packages_crud_ok</code><br/>
+        F: <code>package_flow.spec.ts</code> — delete private/public
+      </td>
+      <td rowspan="3">Backend and UI cover owner-driven deletion; still missing regression for preserving board imports after package removal.</td>
       <td rowspan="3">[]</td>
     </tr>
     <tr>
       <td>Successful deletion returns the removed package payload and it disappears from subsequent lists.</td>
-      <td>—</td>
+      <td>
+        B: <code>packages_smoke.rs::packages_crud_ok</code><br/>
+        F: <code>package_flow.spec.ts</code> — delete private/public
+      </td>
     </tr>
     <tr>
       <td>Deleting a package does not remove its usage or imported items from boards.</td>
@@ -369,11 +378,11 @@ Legend:
   </thead>
   <tbody>
     <tr>
-      <td rowspan="4">Access · <a href="../stories/core.md#invite-user-to-board-or-package">Invite user to board</a></td>
+      <td rowspan="5">Access · <a href="../stories/core.md#invite-user-to-board-or-package">Invite user to board</a></td>
       <td>Owner can list current board invitations.</td>
       <td>B: <code>boards_smoke.rs::board_access_invite_and_permissions</code></td>
-      <td rowspan="4">UI test grants “edit” only; no automated regression for conflict/duplicate handling</td>
-      <td rowspan="4">[v]</td>
+  <td rowspan="5">UI test grants edit role only without validating permission effects; duplicate invite conflicts are enforced in backend tests but still lack UI coverage.</td>
+      <td rowspan="5">[v]</td>
     </tr>
     <tr>
       <td>Owner can grant roles to invitees.</td>
@@ -384,10 +393,7 @@ Legend:
     </tr>
     <tr>
       <td>Invited guests gain permissions that match the granted role.</td>
-      <td>
-        B: <code>boards_smoke.rs::board_access_invite_and_permissions</code><br/>
-        F: <code>board_access_flow.spec.ts</code>
-      </td>
+      <td>B: <code>boards_smoke.rs::board_access_invite_and_permissions</code></td>
     </tr>
     <tr>
       <td>Owner can revoke an existing invitation.</td>
@@ -397,10 +403,14 @@ Legend:
       </td>
     </tr>
     <tr>
+      <td>Duplicate invitations return an HTTP <code>409</code> conflict.</td>
+      <td>B: <code>boards_regression.rs::duplicate_board_access_invite_is_conflict</code></td>
+    </tr>
+    <tr>
       <td rowspan="4">Access · <a href="../stories/core.md#invite-user-to-board-or-package">Invite user to package</a></td>
       <td>Owner can list current package invitations.</td>
       <td>B: <code>packages_smoke.rs::package_access_invite_and_permissions</code></td>
-      <td rowspan="4">No automated coverage for conflict errors or downgrade flows</td>
+      <td rowspan="4">UI flow grants and revokes manage role but does not exercise permission effects; no automated coverage for conflict or downgrade flows.</td>
       <td rowspan="4">[v]</td>
     </tr>
     <tr>
@@ -412,10 +422,7 @@ Legend:
     </tr>
     <tr>
       <td>Invited users receive permissions matching the granted role.</td>
-      <td>
-        B: <code>packages_smoke.rs::package_access_invite_and_permissions</code><br/>
-        F: <code>package_access_flow.spec.ts</code>
-      </td>
+      <td>B: <code>packages_smoke.rs::package_access_invite_and_permissions</code></td>
     </tr>
     <tr>
       <td>Owner can revoke an invitation to the package.</td>
@@ -497,6 +504,6 @@ Legend:
 
 ## Summary
 
-- Board and package tables now include the workshop management stories from `core.md`, keeping CRUD criteria alongside existing board/package flows while noting missing automation.
-- Workshop section is limited to the global catalog operations defined in `descisions/workshop.md`, highlighting that list/view/edit capabilities remain unimplemented.
-- Board draw mode, package attachments, delete flows, publishing lifecycle, and global workshop features still lack automated coverage, whereas session authentication continues to be covered only for the happy path.
+- Coverage mapping now mirrors the current backend and Playwright suites—board updates, package deletions, and duplicate invite conflicts point to the exact tests exercising them.
+- Board and package tables continue to house the workshop management stories from `core.md` with gaps called out where no automation exists yet.
+- Workshop section stays focused on the global catalog operations from `descisions/workshop.md`; draw mode, package attachments, publishing lifecycle, and workshop CRUD still await automated coverage.
