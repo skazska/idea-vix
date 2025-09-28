@@ -123,6 +123,55 @@ Legend:
       <td>Detaching the final package updates the board workshop view without orphan references.</td>
       <td>—</td>
     </tr>
+    <tr>
+      <td rowspan="4">Boards · <a href="../stories/core.md#manage-node-shapes-links-rules-and-layout">Manage node shapes/links</a></td>
+      <td>Board workshop lists shapes, links, rules, and layouts with unique slugs.</td>
+      <td>—</td>
+      <td rowspan="4">Feature remains `[ ]`; requires end-to-end workshop CRUD coverage plus backend contract tests before GA.</td>
+      <td rowspan="4">[]</td>
+    </tr>
+    <tr>
+      <td>Allowed roles can create, update, and delete each blueprint while preserving slug uniqueness.</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>Blueprint definitions capture geometry, labels, sockets, and rules per <a href="../descisions/workshop.md">workshop decisions</a>.</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>Layout changes propagate to draw mode without breaking existing nodes or links.</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td rowspan="3">Boards · <a href="../stories/core.md#import-items-from-package">Import items from package</a></td>
+      <td>Manage role can browse package workshop items and mark them for import.</td>
+      <td>—</td>
+      <td rowspan="3">Need backend copy semantics tests for slug composition and UI regression for import list refresh.</td>
+      <td rowspan="3">[]</td>
+    </tr>
+    <tr>
+      <td>Imported items inherit the package slug without colliding with existing board items.</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>Imported blueprints become available in board draw mode immediately.</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td rowspan="3">Boards · <a href="../stories/core.md#unimport-items-from-package">Unimport items from package</a></td>
+      <td>Manage role can unmark imported items from the board workshop list.</td>
+      <td>—</td>
+      <td rowspan="3">Add regression asserting dependency checks and verifying draw mode palette updates.</td>
+      <td rowspan="3">[]</td>
+    </tr>
+    <tr>
+      <td>System prevents unimporting items that are currently used on a board layout.</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>Unimported items disappear from draw mode while preserved ones keep functioning.</td>
+      <td>—</td>
+    </tr>
   </tbody>
 </table>
 
@@ -200,6 +249,66 @@ Legend:
     <tr>
       <td>Optional fields can be cleared via update payloads.</td>
       <td>B: <code>packages_regression.rs::package_update_clears_optional_fields</code></td>
+    </tr>
+    <tr>
+      <td rowspan="3">Packages · <a href="../stories/core.md#add-items-to-package">Add items to workshop</a></td>
+      <td>Owner/manage roles can add shape, link, rule, and layout blueprints.</td>
+      <td>—</td>
+      <td rowspan="3">Implementation in progress `[~]`; add backend validation suites and UI form regression.</td>
+      <td rowspan="3">[~]</td>
+    </tr>
+    <tr>
+      <td>Blueprints validate required geometry, sockets, and styling per <a href="../descisions/workshop.md">workshop spec</a>.</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>Slug uniqueness is enforced within the package; duplicates yield validation errors.</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td rowspan="3">Packages · <a href="../stories/core.md#view-item-1">View item</a></td>
+      <td>Any viewer with package access can open a workshop item detail view.</td>
+      <td>—</td>
+      <td rowspan="3">No automated coverage; future tests should snapshot API payloads and UI render fidelity.</td>
+      <td rowspan="3">[]</td>
+    </tr>
+    <tr>
+      <td>Detail view renders blueprint metadata exactly as stored.</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>Versionless packages hide unpublished items from non-owners.</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td rowspan="3">Packages · <a href="../stories/core.md#edit-1">Edit item</a></td>
+      <td>Owner/manage roles can modify blueprint metadata while keeping slug immutable.</td>
+      <td>—</td>
+      <td rowspan="3">Need backend mutation tests for partial updates and UI form validation scenarios.</td>
+      <td rowspan="3">[]</td>
+    </tr>
+    <tr>
+      <td>Changes do not propagate to dependent boards.</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>Invalid edits (e.g., removing required sockets) return validation errors.</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td rowspan="3">Packages · <a href="../stories/core.md#remove-item-from-package">Remove item from package</a></td>
+      <td>Owner/manage roles can remove workshop items from a package.</td>
+      <td>—</td>
+      <td rowspan="3">Pending delete endpoint; add tests covering dependency checks and UI confirmations.</td>
+      <td rowspan="3">[]</td>
+    </tr>
+    <tr>
+      <td>Removal is not blocked when items are imported by boards.</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>Successful removal updates package listings and future import availability.</td>
+      <td>—</td>
     </tr>
     <tr>
       <td rowspan="3">Packages · <a href="../stories/core.md#delete-package">Delete package</a></td>
@@ -367,112 +476,18 @@ Legend:
   </thead>
   <tbody>
     <tr>
-      <td rowspan="4">Workshop · <a href="../stories/core.md#manage-node-shapes-links-rules-and-layout">Manage node shapes/links</a></td>
-      <td>Board workshop lists shapes, links, rules, and layouts with unique slugs.</td>
+      <td rowspan="3">Workshop · <a href="../descisions/workshop.md#global-workshop">Global workshop catalog</a></td>
+      <td>List/search surfaces workshop items across boards and packages with package/board slug composition.</td>
       <td>—</td>
-      <td rowspan="4">Feature remains `[ ]`; requires end-to-end workshop CRUD coverage plus backend contract tests before GA.</td>
-      <td rowspan="4">[]</td>
-    </tr>
-    <tr>
-      <td>Allowed roles can create, update, and delete each blueprint while preserving slug uniqueness.</td>
-      <td>—</td>
-    </tr>
-    <tr>
-      <td>Blueprint definitions capture geometry, labels, sockets, and rules per <a href="../descisions/workshop.md">workshop decisions</a>.</td>
-      <td>—</td>
-    </tr>
-    <tr>
-      <td>Layout changes propagate to draw mode without breaking existing nodes or links.</td>
-      <td>—</td>
-    </tr>
-    <tr>
-      <td rowspan="3">Boards · <a href="../stories/core.md#import-items-from-package">Import items from package</a></td>
-      <td>Manage role can browse package workshop items and mark them for import.</td>
-      <td>—</td>
-      <td rowspan="3">Need backend copy semantics tests for slug composition and UI regression for import list refresh.</td>
+      <td rowspan="3">Global catalog not yet implemented; requires shared service with role-aware filtering and UI explorer.</td>
       <td rowspan="3">[]</td>
     </tr>
     <tr>
-      <td>Imported items inherit the package slug without colliding with existing board items.</td>
+      <td>Viewing an item returns the same blueprint metadata as scoped workshops, including geometry and sockets.</td>
       <td>—</td>
     </tr>
     <tr>
-      <td>Imported blueprints become available in board draw mode immediately.</td>
-      <td>—</td>
-    </tr>
-    <tr>
-      <td rowspan="3">Boards · <a href="../stories/core.md#unimport-items-from-package">Unimport items from package</a></td>
-      <td>Manage role can unmark imported items from the board workshop list.</td>
-      <td>—</td>
-      <td rowspan="3">Add regression asserting dependency checks and verifying draw mode palette updates.</td>
-      <td rowspan="3">[]</td>
-    </tr>
-    <tr>
-      <td>System prevents unimporting items that are currently used on a board layout.</td>
-      <td>—</td>
-    </tr>
-    <tr>
-      <td>Unimported items disappear from draw mode while preserved ones keep functioning.</td>
-      <td>—</td>
-    </tr>
-    <tr>
-      <td rowspan="3">Packages · <a href="../stories/core.md#add-items-to-package">Add items to workshop</a></td>
-      <td>Owner/manage roles can add shape, link, rule, and layout blueprints.</td>
-      <td>—</td>
-      <td rowspan="3">Implementation in progress `[~]`; add backend validation suites and UI form regression.</td>
-      <td rowspan="3">[~]</td>
-    </tr>
-    <tr>
-      <td>Blueprints validate required geometry, sockets, and styling per <a href="../descisions/workshop.md">workshop spec</a>.</td>
-      <td>—</td>
-    </tr>
-    <tr>
-      <td>Slug uniqueness is enforced within the package; duplicates yield validation errors.</td>
-      <td>—</td>
-    </tr>
-    <tr>
-      <td rowspan="3">Packages · <a href="../stories/core.md#view-item-1">View item</a></td>
-      <td>Any viewer with package access can open a workshop item detail view.</td>
-      <td>—</td>
-      <td rowspan="3">No automated coverage; future tests should snapshot API payloads and UI render fidelity.</td>
-      <td rowspan="3">[]</td>
-    </tr>
-    <tr>
-      <td>Detail view renders blueprint metadata exactly as stored.</td>
-      <td>—</td>
-    </tr>
-    <tr>
-      <td>Versionless packages hide unpublished items from non-owners.</td>
-      <td>—</td>
-    </tr>
-    <tr>
-      <td rowspan="3">Packages · <a href="../stories/core.md#edit-1">Edit item</a></td>
-      <td>Owner/manage roles can modify blueprint metadata while keeping slug immutable.</td>
-      <td>—</td>
-      <td rowspan="3">Need backend mutation tests for partial updates and UI form validation scenarios.</td>
-      <td rowspan="3">[]</td>
-    </tr>
-    <tr>
-      <td>Changes propagate to dependent boards on next import without overwriting local overrides.</td>
-      <td>—</td>
-    </tr>
-    <tr>
-      <td>Invalid edits (e.g., removing required sockets) return validation errors.</td>
-      <td>—</td>
-    </tr>
-    <tr>
-      <td rowspan="3">Packages · <a href="../stories/core.md#remove-item-from-package">Remove item from package</a></td>
-      <td>Owner/manage roles can remove workshop items from a package.</td>
-      <td>—</td>
-      <td rowspan="3">Pending delete endpoint; add tests covering dependency checks and UI confirmations.</td>
-      <td rowspan="3">[]</td>
-    </tr>
-    <tr>
-      <td>Removal is blocked when items are imported by boards to prevent breaking diagrams.</td>
-      <td>—</td>
-    </tr>
-    <tr>
-      <td>Successful removal updates package listings and future import availability.</td>
+      <td>Editing from the global view preserves owning workshop references while applying metadata updates.</td>
       <td>—</td>
     </tr>
   </tbody>
@@ -482,6 +497,6 @@ Legend:
 
 ## Summary
 
-- CRUD and access-management stories now map to explicit backend and frontend checks, making coverage gaps (validation negatives, invited-user UI flows) easier to spot at a glance.
-- Board draw mode, package attachments, delete flows, and publishing lifecycles have explicit acceptance criteria with clear automation gaps for upcoming work.
-- Session authentication is covered for the happy path across backend and UI, but failure-mode tests are still outstanding.
+- Board and package tables now include the workshop management stories from `core.md`, keeping CRUD criteria alongside existing board/package flows while noting missing automation.
+- Workshop section is limited to the global catalog operations defined in `descisions/workshop.md`, highlighting that list/view/edit capabilities remain unimplemented.
+- Board draw mode, package attachments, delete flows, publishing lifecycle, and global workshop features still lack automated coverage, whereas session authentication continues to be covered only for the happy path.
