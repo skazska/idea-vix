@@ -60,18 +60,28 @@ Legend:
       <td>B: <code>boards_regression.rs::board_slug_conflict_returns_conflict</code></td>
     </tr>
     <tr>
-      <td rowspan="3">Boards · <a href="../stories/core.md#change-board-properties">Change board properties</a></td>
+      <td rowspan="2">Boards · <a href="../stories/core.md#change-board-properties">Change board properties</a></td>
       <td>Owner/manage roles can update board fields and visibility.</td>
       <td>
         B: <code>boards_smoke.rs::boards_crud_ok</code><br/>
         F: <code>boards_flow.spec.ts</code> — update private↔public
       </td>
-      <td rowspan="3">UI covers owner updates but still lacks role-specific edit vs. manage assertions and null-field clearing scenarios.</td>
-      <td rowspan="3">[v]</td>
+      <td rowspan="2">UI covers owner updates but still lacks role-specific edit vs. manage assertions and null-field clearing scenarios.</td>
+      <td rowspan="2">[v]</td>
     </tr>
     <tr>
       <td>Edit-role users are blocked from updates that require manage permissions.</td>
       <td>B: <code>boards_regression.rs::board_update_requires_elevated_role</code></td>
+    </tr>
+    <tr>
+      <td rowspan="2">Boards · <a href="../stories/core.md#delete-board">Delete board</a></td>
+      <td>Board owner can initiate deletion from the board view.</td>
+      <td>
+        B: <code>boards_smoke.rs::boards_crud_ok</code><br/>
+        F: <code>boards_flow.spec.ts</code> — delete private/public
+      </td>
+      <td rowspan="2">Backend allows manage-role deletion, but story specifies owner-only. Need to align implementation with requirements.</td>
+      <td rowspan="2">[]</td>
     </tr>
     <tr>
       <td>Manage-role users can delete boards when required.</td>
@@ -232,22 +242,18 @@ Legend:
   <td>B: <code>packages_smoke.rs::package_access_invite_and_permissions</code></td>
     </tr>
     <tr>
-      <td rowspan="4">Packages · <a href="../stories/core.md#change-package-properties">Change package properties</a></td>
+      <td rowspan="3">Packages · <a href="../stories/core.md#change-package-properties">Change package properties</a></td>
       <td>Owner/manage roles can update package fields and visibility.</td>
       <td>
         B: <code>packages_smoke.rs::packages_crud_ok</code><br/>
         F: <code>package_flow.spec.ts</code> — update private/public
       </td>
-  <td rowspan="4">UI lacks explicit test for manage-role editing; null-field clearing not exercised, and manage-role deletion remains unsupported.</td>
-      <td rowspan="4">[v]</td>
+  <td rowspan="3">UI lacks explicit test for manage-role editing; null-field clearing not exercised.</td>
+      <td rowspan="3">[v]</td>
     </tr>
     <tr>
       <td>View-role users are blocked from performing updates.</td>
       <td>B: <code>packages_regression.rs::package_update_forbidden_for_view_role</code></td>
-    </tr>
-    <tr>
-      <td>Owner/manage roles can delete packages when required.</td>
-      <td>B: <code>packages_regression.rs::package_delete_requires_owner_role</code> (manager deletion currently forbidden)</td>
     </tr>
     <tr>
       <td>Optional fields can be cleared via update payloads.</td>
@@ -314,14 +320,18 @@ Legend:
       <td>—</td>
     </tr>
     <tr>
-      <td rowspan="3">Packages · <a href="../stories/core.md#delete-package">Delete package</a></td>
+      <td rowspan="4">Packages · <a href="../stories/core.md#delete-package">Delete package</a></td>
       <td>Package owner can initiate deletion from the package view.</td>
       <td>
         B: <code>packages_smoke.rs::packages_crud_ok</code><br/>
         F: <code>package_flow.spec.ts</code> — delete private/public
       </td>
-      <td rowspan="3">Backend and UI cover owner-driven deletion; still missing regression for preserving board imports after package removal.</td>
-      <td rowspan="3">[]</td>
+      <td rowspan="4">Backend and UI cover owner-driven deletion; still missing regression for preserving board imports after package removal.</td>
+      <td rowspan="4">[]</td>
+    </tr>
+    <tr>
+      <td>Only package owner can delete packages (non-owner roles are forbidden).</td>
+      <td>B: <code>packages_regression.rs::package_delete_requires_owner_role</code></td>
     </tr>
     <tr>
       <td>Successful deletion returns the removed package payload and it disappears from subsequent lists.</td>
