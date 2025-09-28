@@ -34,7 +34,6 @@ use std::sync::Arc;
 use crate::common::access::{ ItemAccessQueries, ItemRoleDb, SqliteItemAccessQueries, ROLE_EDIT, ROLE_MANAGE, ROLE_OWNER };
 use crate::common::crud::{CrudQueries, CrudService, ListParams, QueryFilter, QueryLister};
 use crate::common::slug::generate_slug;
-use crate::common::workshop::shape_service::ShapeService;
 use crate::db::TransactionStarter;
 use crate::error::ModelError;
 use crate::package::package_store::{NewPackageDb, PackageDb, PackageStore, PatchPackageDb};
@@ -134,17 +133,15 @@ pub struct PackageService {
     transaction_starter: Arc<TransactionStarter>,
     items_store: Arc<PackageStore>,
     #[allow(dead_code)] // TODO: shapes functionality is work in progress
-    shapes_service: Arc<ShapeService>,
     access_store: Arc<SqliteItemAccessQueries>,
 }
 
 impl PackageService {
     /// Create a new service with the provided store.
-    pub fn new(transaction_starter: Arc<TransactionStarter>, items_store: Arc<PackageStore>, shapes_service: Arc<ShapeService>, access_store: Arc<SqliteItemAccessQueries>) -> Self {
+    pub fn new(transaction_starter: Arc<TransactionStarter>, items_store: Arc<PackageStore>, access_store: Arc<SqliteItemAccessQueries>) -> Self {
         Self {
             transaction_starter,
             items_store,
-            shapes_service,
             access_store,
         }
     }

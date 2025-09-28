@@ -4,4 +4,4 @@
 //! packaged and reused across different diagrams and boards.
 
 pub mod shape_store;
-pub mod shape_service;
+pub mod common_shape_service;

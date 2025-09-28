@@ -36,7 +36,7 @@ use crate::{
         access::{self, ItemAccess, ItemAccessGrantDto, ItemRole, SqliteItemAccessQueries},
         crud::CrudService,
         workshop::{
-            shape_service::ShapeService,
+            common_shape_service::LinkedShapeService,
             shape_store::ShapeStore,
         }
     },
@@ -89,8 +89,8 @@ pub fn get_router<'a>(
     let access_service = access::CommonItemAccess::new(transaction_starter.clone(), access_store.clone());
 
     let items_store = Arc::new(package_store::PackageStore::new());
-    let shape_service = Arc::new(ShapeService::new(transaction_starter.clone(), shape_store));
-    let package_service = package_service::PackageService::new(transaction_starter, items_store, shape_service, access_store);
+    let shape_service = Arc::new(LinkedShapeService::new(transaction_starter.clone(), shape_store));
+    let package_service = package_service::PackageService::new(transaction_starter, items_store, access_store);
 
     let state= Arc::new(RouteState {
         access_service,
