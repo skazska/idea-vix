@@ -125,13 +125,13 @@ async fn board_update_requires_elevated_role() {
 }
 
 #[tokio::test]
-async fn board_delete_allows_manage_role() {
+async fn board_delete_requires_owner_role() {
     let app = test_app::TestApp::new().await;
     let owner_cookie = helpers::auth_cookie_for(&app.router, "owner@example.com").await;
 
     let create_payload = json!({
-        "name": "Managed Board",
-        "description": "to be deleted",
+        "name": "Owner Only Board",
+        "description": "to be deleted by owner only",
         "is_public": false
     });
     let resp = helpers::post_json(&app.router, "/api/board", &create_payload.to_string(), Some(&owner_cookie)).await;
@@ -145,8 +145,13 @@ async fn board_delete_allows_manage_role() {
     let resp = helpers::post_json(&app.router, &format!("/api/board/{}/access", created.id), &grant_payload.to_string(), Some(&owner_cookie)).await;
     assert_eq!(resp.status(), StatusCode::OK);
 
+    // Verify manage-role user cannot delete
     let manager_cookie = helpers::auth_cookie_for(&app.router, "manager@example.com").await;
     let resp = helpers::delete(&app.router, &format!("/api/board/{}", created.id), Some(&manager_cookie)).await;
+    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+
+    // Verify owner can delete
+    let resp = helpers::delete(&app.router, &format!("/api/board/{}", created.id), Some(&owner_cookie)).await;
     assert_eq!(resp.status(), StatusCode::OK);
 
     let resp = helpers::get(&app.router, &format!("/api/board/{}", created.id), Some(&owner_cookie)).await;

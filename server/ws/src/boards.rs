@@ -6,7 +6,7 @@
 //! - Create a board (authenticated)
 //! - Read a specific board (public or permitted)
 //! - Update a board (owner or manage)
-//! - Delete a board (owner or manage)
+//! - Delete a board (owner only)
 //! - Manage access to a board (owner): grant/revoke/list
 //!
 //! Prerequisites:

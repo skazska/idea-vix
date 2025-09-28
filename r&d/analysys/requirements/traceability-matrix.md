@@ -80,12 +80,12 @@ Legend:
         B: <code>boards_smoke.rs::boards_crud_ok</code><br/>
         F: <code>boards_flow.spec.ts</code> — delete private/public
       </td>
-      <td rowspan="2">Backend allows manage-role deletion, but story specifies owner-only. Need to align implementation with requirements.</td>
-      <td rowspan="2">[]</td>
+      <td rowspan="2">---</td>
+      <td rowspan="2">[V]</td>
     </tr>
     <tr>
-      <td>Manage-role users can delete boards when required.</td>
-      <td>B: <code>boards_regression.rs::board_delete_allows_manage_role</code></td>
+      <td>Only board owner can delete boards (non-owner roles are forbidden).</td>
+      <td>B: <code>boards_regression.rs::board_delete_requires_owner_role</code></td>
     </tr>
     <tr>
       <td rowspan="4">Boards · <a href="../stories/core.md#draw-shaped-nodes-with-links">Draw shaped nodes with links</a></td>

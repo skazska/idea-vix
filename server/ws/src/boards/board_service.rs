@@ -226,11 +226,11 @@ impl CrudService for BoardService {
     }
 
     /// Delete a board.
-    /// - Verifies the caller has `owner` or `manage` role
+    /// - Verifies the caller has `owner` role
     /// - Deletes the board (and related access rows in store)
     async fn delete_item(&self, id: Self::Id, session: &Self::SessionData) -> Result<Self::Item, ModelError> {
         let result = self.transaction_starter.run_in_transaction(async move |trx| {
-            let roles = self.access_store.get_access_roles(id, session, Some(&Vec::from([ROLE_OWNER, ROLE_MANAGE])), trx).await?;
+            let roles = self.access_store.get_access_roles(id, session, Some(&Vec::from([ROLE_OWNER])), trx).await?;
 
             if roles.len() == 0 {
                 return Err(ModelError::Forbidden("You are not allowed to delete this board".to_string()));
