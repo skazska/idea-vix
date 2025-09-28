@@ -4,12 +4,11 @@
 
 use std::sync::Arc;
 use crate::common::crud::{CrudService, ListParams};
-use crate::common::workshop::common_shape_service::{PatchShapeItem, Shape};
-use crate::common::workshop::shape_store::ShapeStore;
 use crate::db::TransactionStarter;
 use crate::api::{deserialize::AuthToken, validation::ValidatedJson};
 use crate::session::session_jwt::SessionJWTService;
-use crate::workshop::shape_service::ShapeService;
+use crate::workshop::shape_service::{PatchShapeItem, Shape, ShapeService};
+use crate::workshop::shape_store::ShapeStore;
 use axum::extract::Query;
 use axum::routing::put;
 use axum::{
@@ -22,6 +21,7 @@ use axum::{
 use serde::Deserialize;
 
 pub mod shape_service;
+pub mod shape_store;
 
 /// Shared state for the workshop routes.
 struct RouteState {

@@ -20,8 +20,6 @@ table shape {
     name VARCHAR(100) [not null]
     description VARCHAR(500)
     definition text [note: 'JSON definition of shape properties']
-    created_at datetime [default: `CURRENT_TIMESTAMP`]
-    updated_at datetime [default: `CURRENT_TIMESTAMP`]
 }
 
 table line {
@@ -30,8 +28,6 @@ table line {
     name VARCHAR(100) [not null]
     description VARCHAR(500)
     definition text [note: 'JSON definition of shape properties']
-    created_at datetime [default: `CURRENT_TIMESTAMP`]
-    updated_at datetime [default: `CURRENT_TIMESTAMP`]
 }
 
 table rule {
@@ -40,8 +36,6 @@ table rule {
     name VARCHAR(100) [not null]
     description VARCHAR(500)
     definition text [note: 'JSON definition of shape properties']
-    created_at datetime [default: `CURRENT_TIMESTAMP`]
-    updated_at datetime [default: `CURRENT_TIMESTAMP`]
 }
 
 // Package

@@ -35,16 +35,12 @@ use crate::{
     common::{
         access::{self, ItemAccess, ItemAccessGrantDto, ItemRole, SqliteItemAccessQueries},
         crud::CrudService,
-        workshop::{
-            common_shape_service::LinkedShapeService,
-            shape_store::ShapeStore,
-        }
     },
     db::TransactionStarter,
     package::package_service::{
         NewPackageItem, Package, PatchPackageItem
     },
-    session::session_jwt::SessionJWTService
+    session::session_jwt::SessionJWTService, workshop::shape_store::ShapeStore
 };
 
 mod package_store;
@@ -89,7 +85,6 @@ pub fn get_router<'a>(
     let access_service = access::CommonItemAccess::new(transaction_starter.clone(), access_store.clone());
 
     let items_store = Arc::new(package_store::PackageStore::new());
-    let shape_service = Arc::new(LinkedShapeService::new(transaction_starter.clone(), shape_store));
     let package_service = package_service::PackageService::new(transaction_starter, items_store, access_store);
 
     let state= Arc::new(RouteState {
@@ -263,7 +258,7 @@ async fn check_access(
     Ok(Json(result))
 }
 
-// // Package-Shape Association Handlers
+// // Package-Shape Association Handlers TODO should be in universal workshop module
 
 // /// Handler: list shapes associated with a package.
 // /// - Requires read access to the package
