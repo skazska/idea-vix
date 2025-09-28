@@ -202,18 +202,45 @@ Legend:
       <td>B: <code>packages_regression.rs::package_update_clears_optional_fields</code></td>
     </tr>
     <tr>
-      <td rowspan="3">Packages · <a href="../stories/core.md#versioning">Versioning</a></td>
-      <td>Owner/manage roles can publish named versions of a package.</td>
+      <td rowspan="3">Packages · <a href="../stories/core.md#delete-package">Delete package</a></td>
+      <td>Package owner can initiate deletion from the package view.</td>
       <td>—</td>
-      <td rowspan="3">Feature not yet implemented; plan backend version history contract tests and UI diff regression.</td>
+      <td rowspan="3">Need backend delete endpoint regression and confirmation flow coverage.</td>
       <td rowspan="3">[]</td>
     </tr>
     <tr>
-      <td>Viewers can select a version and inspect its workshop items.</td>
+      <td>Successful deletion returns the removed package payload and it disappears from subsequent lists.</td>
       <td>—</td>
     </tr>
     <tr>
-      <td>Packages without a published version remain visible only to owners.</td>
+      <td>Deleting a package does not remove its usage or imported items from boards.</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td rowspan="6">Packages · <a href="../stories/core.md#publishing">Publishing</a></td>
+      <td>Newly created packages remain in draft until explicitly published.</td>
+      <td>—</td>
+      <td rowspan="6">Feature not yet implemented; requires draft/publish state management tests and board import integration.</td>
+      <td rowspan="6">[]</td>
+    </tr>
+    <tr>
+      <td>Publishing a package moves the current draft to a published version.</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>After publishing, the next change creates a new draft revision.</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>Only published packages can be imported into boards.</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>Draft packages are visible only to the owner and manage-role collaborators.</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>Each publish action increments the package version counter.</td>
       <td>—</td>
     </tr>
   </tbody>
@@ -456,5 +483,5 @@ Legend:
 ## Summary
 
 - CRUD and access-management stories now map to explicit backend and frontend checks, making coverage gaps (validation negatives, invited-user UI flows) easier to spot at a glance.
-- Board draw mode, package attachments, and workshop CRUD flows now have explicit acceptance criteria and identified automated coverage gaps to drive future test suites.
+- Board draw mode, package attachments, delete flows, and publishing lifecycles have explicit acceptance criteria with clear automation gaps for upcoming work.
 - Session authentication is covered for the happy path across backend and UI, but failure-mode tests are still outstanding.

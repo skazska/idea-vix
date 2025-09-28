@@ -246,7 +246,7 @@ How:
 3. Select item to view []
 4. View item []
 
-##### edit
+##### edit item
 
 Status []
 
@@ -412,7 +412,7 @@ How:
 2. Select item to view []
 3. View item []
 
-#### edit
+#### edit item
 
 Status []
 
