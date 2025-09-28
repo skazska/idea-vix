@@ -29,12 +29,14 @@ impl TestApp {
         let package_router = ws::package::get_router(pool.get_transaction_starter(), jwt_service.clone());
         let boards_router = ws::boards::get_router(pool.get_transaction_starter(), jwt_service.clone());
         let session_router = ws::session::get_router(pool.get(), jwt_service.clone());
+        let workshop_router = ws::workshop::get_router(pool.get_transaction_starter(), jwt_service.clone());
 
         let router = Router::new()
             .route("/", get(|| async { "ok" }))
             .nest("/api/board", boards_router)
             .nest("/api/package", package_router)
-            .nest("/api/session", session_router);
+            .nest("/api/session", session_router)
+            .nest("/api/workshop", workshop_router);
 
         Self { router }
     }
