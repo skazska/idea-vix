@@ -31,7 +31,7 @@ Legend:
     </tr>
     <tr>
       <td>Unauthenticated viewers see only public boards.</td>
-      <td>—</td>
+      <td>B: <code>boards_smoke.rs::boards_crud_ok</code></td>
     </tr>
     <tr>
       <td>Invited users can access private boards they are assigned to.</td>
@@ -177,7 +177,7 @@ Legend:
     </tr>
     <tr>
       <td>The creator is assigned owner/manage access to the new package.</td>
-      <td>B: <code>packages_smoke.rs::packages_crud_ok</code></td>
+  <td>B: <code>packages_smoke.rs::package_access_invite_and_permissions</code></td>
     </tr>
     <tr>
       <td rowspan="4">Packages · <a href="../stories/core.md#change-package-properties">Change package properties</a></td>

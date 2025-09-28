@@ -446,6 +446,50 @@ How:
 
 Restrictions:
 
+### Delete package
+
+Status []
+
+Who: package owner []
+
+How:
+
+1. Navigate to package view []
+2. Click "Delete Package" button []
+3. Confirm deletion []
+
+Restrictions:
+
+Deleting package does not remove its usage in boards or imported items from boards.
+
+### Publishing
+
+Status []
+
+Who:
+
+- package owner []
+- user invited to package with "manage" permission []
+
+How:
+
+1. Navigate to package view []
+2. Click "Publish" button []
+3. Confirm publishing []
+
+Restrictions:
+
+- on create package is in draft state until published []
+- after publishing, first change to package creates new draft []
+- only published package can be imported to board []
+- package in draft state is visible only to its owner and users with "manage" permission []
+- each publishing increments package version []
+
+### Notes
+
+Crud operations for package is similar to board crud operations.
+
+
 ## Access
 
 Status [v]
@@ -500,18 +544,3 @@ How:
 
 Explanation:
 The invited user will receive a notification and when identified by this address will have access and permissions defined in invitation.
-
-## Versioning
-
-Status []
-
-Who:
-
-- package owner []
-- user invited to package with "manage" permission []
-
-How:
-
-1. Package is not 
-2. Select version to view []
-3. Compare with other versions []
