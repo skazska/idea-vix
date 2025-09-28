@@ -7,8 +7,8 @@ use crate::common::crud::{CrudService, ListParams};
 use crate::db::TransactionStarter;
 use crate::api::{deserialize::AuthToken, validation::ValidatedJson};
 use crate::session::session_jwt::SessionJWTService;
-use crate::workshop::shape_service::{PatchShapeItem, Shape, ShapeService};
-use crate::workshop::shape_store::ShapeStore;
+use crate::workshop::service::{PatchShapeItem, Shape, ShapeService};
+use crate::common::workshop_store::ShapeStore;
 use axum::extract::Query;
 use axum::routing::put;
 use axum::{
@@ -20,8 +20,7 @@ use axum::{
 };
 use serde::Deserialize;
 
-pub mod shape_service;
-pub mod shape_store;
+pub mod service;
 
 /// Shared state for the workshop routes.
 struct RouteState {

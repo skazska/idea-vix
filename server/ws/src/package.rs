@@ -35,12 +35,13 @@ use crate::{
     common::{
         access::{self, ItemAccess, ItemAccessGrantDto, ItemRole, SqliteItemAccessQueries},
         crud::CrudService,
+        workshop_store::ShapeStore
     },
     db::TransactionStarter,
     package::package_service::{
         NewPackageItem, Package, PatchPackageItem
     },
-    session::session_jwt::SessionJWTService, workshop::shape_store::ShapeStore
+    session::session_jwt::SessionJWTService,
 };
 
 mod package_store;

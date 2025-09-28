@@ -16,7 +16,7 @@ use crate::common::crud::{CrudQueries, CrudService, ListParams, QueryFilter, Que
 use crate::db::{ TransactionStarter };
 use crate::error::ModelError;
 use crate::session::session_service::SessionData;
-use crate::workshop::shape_store::{NewShapeDb, PatchShapeDb, ShapeDb, ShapeStore};
+use crate::common::workshop_store::{NewShapeDb, PatchShapeDb, ShapeDb, ShapeStore};
 
 lazy_static! {
     static ref SLUG_REGEX: Regex = Regex::new(r"^[a-z][a-z0-9-]*$").unwrap();
