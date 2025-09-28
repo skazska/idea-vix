@@ -16,6 +16,7 @@ Enum role {
 
 table shape {
     id integer [pk, increment]
+    slug VARCHAR(100) [not null, unique, note: 'URL-friendly identifier, auto-generated from name if not provided']
     name VARCHAR(100) [not null]
     description VARCHAR(500)
     definition text [note: 'JSON definition of shape properties']
@@ -25,12 +26,22 @@ table shape {
 
 table line {
     id integer [pk, increment]
+    slug VARCHAR(100) [not null, unique, note: 'URL-friendly identifier, auto-generated from name if not provided']
     name VARCHAR(100) [not null]
+    description VARCHAR(500)
+    definition text [note: 'JSON definition of shape properties']
+    created_at datetime [default: `CURRENT_TIMESTAMP`]
+    updated_at datetime [default: `CURRENT_TIMESTAMP`]
 }
 
 table rule {
     id integer [pk, increment]
+    slug VARCHAR(100) [not null, unique, note: 'URL-friendly identifier, auto-generated from name if not provided']
     name VARCHAR(100) [not null]
+    description VARCHAR(500)
+    definition text [note: 'JSON definition of shape properties']
+    created_at datetime [default: `CURRENT_TIMESTAMP`]
+    updated_at datetime [default: `CURRENT_TIMESTAMP`]
 }
 
 // Package

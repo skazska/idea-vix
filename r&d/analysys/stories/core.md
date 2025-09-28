@@ -107,8 +107,6 @@ How:
 
 #### Draw shaped nodes with links
 
-[Diagram](diagrams.md)
-
 Status []
 
 Who:
@@ -128,33 +126,6 @@ How:
 2.2. attach link to placed node []
 2.3. change link type from available in workshop []
 
-#### Manage node shapes, links, rules and layout (Workshop)
-
-Status []
-
-[Workshop](./workshop.md)
-
-Who:
-
-- board owner []
-- user invited to board with "manage" permission []
-
-How:
-
-0. by viewing items in workshop []
-1. by adding from package []
-    - list available packages []
-    - select package []
-    - check items to use in board []
-2. by adding internal items []
-    - add new item (node shape, link type, connection rule) []
-    - define item []
-    - save item []
-3. by removing internal items []
-    - select item to remove []
-    - confirm removal []
-4. by unchecking items in package []
-
 #### add package to board
 
 Status []
@@ -168,6 +139,166 @@ How:
 1. click "Add Package" button in board view []
 2. Select package from list []
 3. Click "Add" button []
+
+#### remove package from board
+
+Status []
+
+Who:
+
+- board owner []
+
+How:
+
+1. Select package from list []
+2. Click "Remove" button on package []
+
+Restrictions:
+
+- If there are items imported from package to board, removing package from board does not remove items from board.
+
+#### Manage node shapes, links, rules and layout (Workshop)
+
+Status []
+
+
+
+Who:
+
+- board owner []
+- user invited to board with "manage" permission []
+
+##### import items from package
+
+Status []
+
+
+
+Who:
+
+- board owner []
+- user invited to board with "manage" permission []
+
+How:
+
+0. view items in package []
+1. check "Use" box for items to import to board []
+
+Restrictions:
+
+- need to be able to reference items with same slugs from different packages []
+- if there allready item with same slug in board workshop, references to it stay same []
+
+#### unimport items from package
+
+Status []
+
+
+
+Who:
+
+- board owner []
+- user invited to board with "manage" permission []
+
+How:
+
+0. view items in workshop []
+1. uncheck "Use" box for items to remove from board []
+
+Restrictions:
+
+- if item is used in diagram, it cannot be unimported from workshop []
+
+##### add items to workshop
+
+Status []
+
+How:
+
+0. view items in workshop [~]
+1. Activate "Add Shape" to add new shape item to package []
+    - define shape item []
+    - save shape item []
+2. Activate "Add Link" to add new link item to package []
+    - define link item []
+    - save link item []
+3. Activate "Add Rule" to add new connection rule item to package []
+    - define rule item []
+    - save rule item []
+4. Activate "Add Layout" to add new layout item to package []
+    - define layout item []
+    - save layout item []
+
+Restrictions:
+
+- cannot add item with same slug as any existing item in package []
+
+##### view item
+
+Status []
+
+Who: any user with access to the board []
+
+How:
+
+1. Open board view []
+2. Switch to "Workshop" tab []
+3. Select item to view []
+4. View item []
+
+##### edit
+
+Status []
+
+Who:
+
+- board owner []
+- user invited to board with "manage" permission []
+
+How:
+
+1. Open board view []
+2. Switch to "Workshop" tab []
+3. Select item to edit []
+4. Edit item []
+
+##### remove item from workshop
+
+Status []
+
+Who:
+
+- board owner []
+- user invited to board with "manage" permission []
+
+How:
+
+1. Open board view []
+2. Switch to "Workshop" tab []
+3. Select item to remove []
+4. Remove item []
+
+Restrictions:
+
+- cannot remove item if it is used in diagram []
+
+## Delete board
+
+Status []
+
+Who:
+
+- board owner []
+
+How:
+
+1. Navigate to board view []
+2. Click "Delete Board" button []
+3. Confirm deletion []
+
+## Notes
+
+Crud operations for board is similar to package crud operations.
 
 ## Packages
 
@@ -241,7 +372,7 @@ How:
 
 Status [~]
 
-[Workshop](./workshop.md)
+
 
 Who:
 
@@ -251,7 +382,7 @@ Who:
 How:
 
 0. view items in workshop [~]
-1. Activate "Add Shape" to add new shape item to package [~]
+1. Activate "Add Shape" to add new shape item to package []
     - define shape item []
     - save shape item []
 2. Activate "Add Link" to add new link item to package []
@@ -264,11 +395,43 @@ How:
     - define layout item []
     - save layout item []
 
-#### remove item from package
+Restrictions:
+
+- slugs of items in package must be unique []
+
+#### view item
 
 Status []
 
-[Workshop](./workshop.md)
+
+
+Who: any user with access to the package []
+
+How:
+1. Open package view []
+2. Select item to view []
+3. View item []
+
+#### edit
+
+Status []
+
+Who:
+
+- package owner []
+- user invited to package with "manage" permission []
+
+How:
+
+1. Activate "Edit Item" of item in package view's item list []
+2. Modify item []
+3. Save changes []
+
+Restrictions:
+
+#### remove item from package
+
+Status []
 
 Who:
 
@@ -280,6 +443,8 @@ How:
 1. Activate "Remove Item" in package view []
 2. Select item to remove []
 3. Confirm removal []
+
+Restrictions:
 
 ## Access
 
