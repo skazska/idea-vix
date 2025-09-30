@@ -3,7 +3,7 @@ import { createSignal, Show, ErrorBoundary, Suspense, createEffect, Switch, Matc
 import { setTitle } from "../common/providers/page-state";
 import { PackageItemProvider, usePackageItem } from "./providers/item";
 import { Portal } from "solid-js/web";
-import { Edit, Trash2, ArrowLeft, Plus, Save, X, Users } from "lucide-solid";
+import { Edit, Trash2, ArrowLeft, Save, X, Users } from "lucide-solid";
 import { ModalCentered } from "../common/modals";
 import type { TPackage } from "./model";
 import { ENTITY_NAME, PAGE_TITLE, ROUTE } from "./const";
@@ -14,6 +14,7 @@ import Expandable from "../common/expandable/Expandable";
 import { AccessProvider } from "../common/access/access.provider";
 import { AccessMapProvider } from "../common/access/accessMap.provider";
 import Accessible from "../common/access/Accessible";
+import { WorkshopManagerProvider, WorkshopManager } from "../common/workshop";
 
 function PackageContent() {
     console.log("PackageContent rendered");
@@ -265,50 +266,13 @@ function PackageContent() {
                                         </Expandable>
                                     </Accessible>
 
-                                    {/* Node Shapes Section */}
+                                    {/* Workshop Items Section */}
                                     <Accessible roles={["owner", "manage", "edit"]}>
-                                        <Expandable title="Node Shapes" openByDefault={false} name="package-section-shapes">
+                                        <Expandable title="Workshop Items" openByDefault={false} name="package-section-workshop">
                                             <div class="bg-white rounded-lg shadow p-6">
-                                                <div class="flex justify-between items-center mb-4">
-                                                    <h2 class="text-xl font-bold">Node Shapes</h2>
-                                                    <button class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-sm flex items-center gap-1">
-                                                        <Plus size={'0.8rem'}/>
-                                                        Add Shape
-                                                    </button>
-                                                </div>
-                                                <div class="text-gray-500">No node shapes defined yet.</div>
-                                            </div>
-                                        </Expandable>
-                                    </Accessible>
-                                    
-                                    {/* Connection Lines Section */}
-                                    <Accessible roles={["owner", "manage", "edit"]}>
-                                        <Expandable title="Connection Lines" openByDefault={false} name="package-section-lines">
-                                            <div class="bg-white rounded-lg shadow p-6">
-                                                <div class="flex justify-between items-center mb-4">
-                                                    <h2 class="text-xl font-bold">Connection Lines</h2>
-                                                    <button class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-sm flex items-center gap-1">
-                                                        <Plus size={'0.8rem'}/>
-                                                        Add Line
-                                                    </button>
-                                                </div>
-                                                <div class="text-gray-500">No connection lines defined yet.</div>
-                                            </div>
-                                        </Expandable>
-                                    </Accessible>
-                                    
-                                    {/* Connection Rules Section */}
-                                    <Accessible roles={["owner", "manage", "edit"]}>
-                                        <Expandable title="Connection Rules" openByDefault={false} name="package-section-rules">
-                                            <div class="bg-white rounded-lg shadow p-6">
-                                                <div class="flex justify-between items-center mb-4">
-                                                    <h2 class="text-xl font-bold">Connection Rules</h2>
-                                                    <button class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-sm flex items-center gap-1">
-                                                        <Plus size={'0.8rem'}/>
-                                                        Add Rule
-                                                    </button>
-                                                </div>
-                                                <div class="text-gray-500">No connection rules defined yet.</div>
+                                                <WorkshopManagerProvider entityType="package" entityId={packageId!}>
+                                                    <WorkshopManager entityType="package" entityId={packageId!} />
+                                                </WorkshopManagerProvider>
                                             </div>
                                         </Expandable>
                                     </Accessible>
