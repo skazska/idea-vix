@@ -610,6 +610,996 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /api/workshop/shapes:
+    get:
+      tags:
+        - Workshop
+      summary: List all workshop shapes
+      description: Retrieve all available shape blueprints from the global workshop
+      security:
+        - SessionToken: []
+        - {}
+      parameters:
+        - name: ids
+          in: query
+          description: Filter by specific shape IDs
+          schema:
+            type: array
+            items:
+              type: integer
+              format: int64
+        - name: search
+          in: query
+          description: Search shapes by name or description
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum number of results to return
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          description: Number of results to skip
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: List of workshop shapes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkshopItem'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - Workshop
+      summary: Create a new workshop shape
+      description: Add a new shape blueprint to the global workshop
+      security:
+        - SessionToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewWorkshopItem'
+      responses:
+        '201':
+          description: The created workshop shape
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkshopItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/workshop/shapes/{id}:
+    get:
+      tags:
+        - Workshop
+      summary: Get a workshop shape by ID
+      description: Retrieve a specific shape blueprint from the workshop
+      security:
+        - SessionToken: []
+        - {}
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier of the shape
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: The requested workshop shape
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkshopItem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      tags:
+        - Workshop
+      summary: Update a workshop shape
+      description: Update an existing shape blueprint in the workshop
+      security:
+        - SessionToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier of the shape
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchWorkshopItem'
+      responses:
+        '200':
+          description: The updated workshop shape
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkshopItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - Workshop
+      summary: Delete a workshop shape
+      description: Remove a shape blueprint from the workshop
+      security:
+        - SessionToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier of the shape
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Shape deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/workshop/shapes/by-slug/{slug}:
+    get:
+      tags:
+        - Workshop
+      summary: Get a workshop shape by slug
+      description: Retrieve a specific shape blueprint by its slug identifier
+      security:
+        - SessionToken: []
+        - {}
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          description: The slug identifier of the shape
+          schema:
+            type: string
+            pattern: '^[a-z][a-z0-9-]*$'
+      responses:
+        '200':
+          description: The requested workshop shape
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkshopItem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/workshop/lines:
+    get:
+      tags:
+        - Workshop
+      summary: List all workshop lines
+      description: Retrieve all available line blueprints from the global workshop
+      security:
+        - SessionToken: []
+        - {}
+      parameters:
+        - name: ids
+          in: query
+          description: Filter by specific line IDs
+          schema:
+            type: array
+            items:
+              type: integer
+              format: int64
+        - name: search
+          in: query
+          description: Search lines by name or description
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum number of results to return
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          description: Number of results to skip
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: List of workshop lines
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkshopItem'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - Workshop
+      summary: Create a new workshop line
+      description: Add a new line blueprint to the global workshop
+      security:
+        - SessionToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewWorkshopItem'
+      responses:
+        '201':
+          description: The created workshop line
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkshopItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/workshop/lines/{id}:
+    get:
+      tags:
+        - Workshop
+      summary: Get a workshop line by ID
+      description: Retrieve a specific line blueprint from the workshop
+      security:
+        - SessionToken: []
+        - {}
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier of the line
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: The requested workshop line
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkshopItem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      tags:
+        - Workshop
+      summary: Update a workshop line
+      description: Update an existing line blueprint in the workshop
+      security:
+        - SessionToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier of the line
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchWorkshopItem'
+      responses:
+        '200':
+          description: The updated workshop line
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkshopItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - Workshop
+      summary: Delete a workshop line
+      description: Remove a line blueprint from the workshop
+      security:
+        - SessionToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier of the line
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Line deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/workshop/lines/by-slug/{slug}:
+    get:
+      tags:
+        - Workshop
+      summary: Get a workshop line by slug
+      description: Retrieve a specific line blueprint by its slug identifier
+      security:
+        - SessionToken: []
+        - {}
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          description: The slug identifier of the line
+          schema:
+            type: string
+            pattern: '^[a-z][a-z0-9-]*$'
+      responses:
+        '200':
+          description: The requested workshop line
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkshopItem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/workshop/rules:
+    get:
+      tags:
+        - Workshop
+      summary: List all workshop rules
+      description: Retrieve all available rule blueprints from the global workshop
+      security:
+        - SessionToken: []
+        - {}
+      parameters:
+        - name: ids
+          in: query
+          description: Filter by specific rule IDs
+          schema:
+            type: array
+            items:
+              type: integer
+              format: int64
+        - name: search
+          in: query
+          description: Search rules by name or description
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum number of results to return
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          description: Number of results to skip
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: List of workshop rules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkshopItem'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - Workshop
+      summary: Create a new workshop rule
+      description: Add a new rule blueprint to the global workshop
+      security:
+        - SessionToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewWorkshopItem'
+      responses:
+        '201':
+          description: The created workshop rule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkshopItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/workshop/rules/{id}:
+    get:
+      tags:
+        - Workshop
+      summary: Get a workshop rule by ID
+      description: Retrieve a specific rule blueprint from the workshop
+      security:
+        - SessionToken: []
+        - {}
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier of the rule
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: The requested workshop rule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkshopItem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      tags:
+        - Workshop
+      summary: Update a workshop rule
+      description: Update an existing rule blueprint in the workshop
+      security:
+        - SessionToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier of the rule
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchWorkshopItem'
+      responses:
+        '200':
+          description: The updated workshop rule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkshopItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - Workshop
+      summary: Delete a workshop rule
+      description: Remove a rule blueprint from the workshop
+      security:
+        - SessionToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier of the rule
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Rule deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/workshop/rules/by-slug/{slug}:
+    get:
+      tags:
+        - Workshop
+      summary: Get a workshop rule by slug
+      description: Retrieve a specific rule blueprint by its slug identifier
+      security:
+        - SessionToken: []
+        - {}
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          description: The slug identifier of the rule
+          schema:
+            type: string
+            pattern: '^[a-z][a-z0-9-]*$'
+      responses:
+        '200':
+          description: The requested workshop rule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkshopItem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/workshop/layouts:
+    get:
+      tags:
+        - Workshop
+      summary: List all workshop layouts
+      description: Retrieve all available layout blueprints from the global workshop
+      security:
+        - SessionToken: []
+        - {}
+      parameters:
+        - name: ids
+          in: query
+          description: Filter by specific layout IDs
+          schema:
+            type: array
+            items:
+              type: integer
+              format: int64
+        - name: search
+          in: query
+          description: Search layouts by name or description
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum number of results to return
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          description: Number of results to skip
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: List of workshop layouts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkshopItem'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - Workshop
+      summary: Create a new workshop layout
+      description: Add a new layout blueprint to the global workshop
+      security:
+        - SessionToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewWorkshopItem'
+      responses:
+        '201':
+          description: The created workshop layout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkshopItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/workshop/layouts/{id}:
+    get:
+      tags:
+        - Workshop
+      summary: Get a workshop layout by ID
+      description: Retrieve a specific layout blueprint from the workshop
+      security:
+        - SessionToken: []
+        - {}
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier of the layout
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: The requested workshop layout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkshopItem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      tags:
+        - Workshop
+      summary: Update a workshop layout
+      description: Update an existing layout blueprint in the workshop
+      security:
+        - SessionToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier of the layout
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchWorkshopItem'
+      responses:
+        '200':
+          description: The updated workshop layout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkshopItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - Workshop
+      summary: Delete a workshop layout
+      description: Remove a layout blueprint from the workshop
+      security:
+        - SessionToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier of the layout
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Layout deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/workshop/layouts/by-slug/{slug}:
+    get:
+      tags:
+        - Workshop
+      summary: Get a workshop layout by slug
+      description: Retrieve a specific layout blueprint by its slug identifier
+      security:
+        - SessionToken: []
+        - {}
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          description: The slug identifier of the layout
+          schema:
+            type: string
+            pattern: '^[a-z][a-z0-9-]*$'
+      responses:
+        '200':
+          description: The requested workshop layout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkshopItem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/package/{id}/workshop/shapes:
+    get:
+      tags:
+        - Packages
+        - Workshop
+      summary: List shapes associated with a package
+      description: Retrieve all workshop shapes linked to a specific package
+      security:
+        - SessionToken: []
+        - {} # Allow unauthenticated access for public packages
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier of the package
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: List of shapes associated with the package
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkshopItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - Packages
+        - Workshop
+      summary: Associate a shape with a package
+      description: Link an existing workshop shape to a specific package
+      security:
+        - SessionToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier of the package
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LinkWorkshopItemRequest'
+      responses:
+        '201':
+          description: Shape successfully linked to package
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntityWorkshopItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/package/{id}/workshop/shapes/{shape_id}:
+    delete:
+      tags:
+        - Packages
+        - Workshop
+      summary: Remove a shape from a package
+      description: Unlink a workshop shape from a specific package
+      security:
+        - SessionToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier of the package
+          schema:
+            type: integer
+            format: int64
+        - name: shape_id
+          in: path
+          required: true
+          description: The unique identifier of the shape to unlink
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Shape successfully unlinked from package
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/board/{id}/workshop/shapes:
+    get:
+      tags:
+        - Boards
+        - Workshop
+      summary: List shapes associated with a board
+      description: Retrieve all workshop shapes linked to a specific board
+      security:
+        - SessionToken: []
+        - {} # Allow unauthenticated access for public boards
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier of the board
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: List of shapes associated with the board
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkshopItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - Boards
+        - Workshop
+      summary: Associate a shape with a board
+      description: Link an existing workshop shape to a specific board
+      security:
+        - SessionToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier of the board
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LinkWorkshopItemRequest'
+      responses:
+        '201':
+          description: Shape successfully linked to board
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntityWorkshopItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/board/{id}/workshop/shapes/{shape_id}:
+    delete:
+      tags:
+        - Boards
+        - Workshop
+      summary: Remove a shape from a board
+      description: Unlink a workshop shape from a specific board
+      security:
+        - SessionToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier of the board
+          schema:
+            type: integer
+            format: int64
+        - name: shape_id
+          in: path
+          required: true
+          description: The unique identifier of the shape to unlink
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Shape successfully unlinked from board
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /api/session/signin:
     post:
       tags:
@@ -1146,4 +2136,162 @@ components:
       description: Roles granted to the caller for a specific item
       items:
         $ref: '#/components/schemas/AccessRole'
+
+    WorkshopItem:
+      type: object
+      required:
+        - id
+        - name
+        - slug
+        - definition
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier for the workshop item
+          example: 1
+        name:
+          type: string
+          description: Name of the workshop item
+          minLength: 3
+          maxLength: 100
+          example: "Basic Rectangle"
+        slug:
+          type: string
+          description: URL-friendly identifier for the workshop item
+          pattern: '^[a-z][a-z0-9-]*$'
+          example: "basic-rectangle"
+        description:
+          type:
+            - string
+            - 'null'
+          description: Optional description of the workshop item
+          maxLength: 500
+          example: "A simple rectangular shape for diagrams"
+        definition:
+          type: object
+          description: JSON definition of the workshop item (structure varies by item type)
+          example:
+            type: "shape"
+            width: 100
+            height: 60
+            fill: "#ffffff"
+            stroke: "#000000"
+        created_at:
+          type: integer
+          format: int64
+          description: Unix timestamp when the item was created
+          example: 1640995200
+        updated_at:
+          type: integer
+          format: int64
+          description: Unix timestamp when the item was last updated
+          example: 1640995200
+
+    NewWorkshopItem:
+      type: object
+      required:
+        - name
+        - slug
+        - definition
+      properties:
+        name:
+          type: string
+          description: Name of the workshop item
+          minLength: 3
+          maxLength: 100
+          example: "Basic Rectangle"
+        slug:
+          type: string
+          description: URL-friendly identifier for the workshop item
+          pattern: '^[a-z][a-z0-9-]*$'
+          minLength: 3
+          maxLength: 100
+          example: "basic-rectangle"
+        description:
+          type:
+            - string
+            - 'null'
+          description: Optional description of the workshop item
+          maxLength: 500
+          example: "A simple rectangular shape for diagrams"
+        definition:
+          type: object
+          description: JSON definition of the workshop item (structure varies by item type)
+          example:
+            type: "shape"
+            width: 100
+            height: 60
+            fill: "#ffffff"
+            stroke: "#000000"
+
+    PatchWorkshopItem:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the workshop item
+          minLength: 3
+          maxLength: 100
+          example: "Updated Basic Rectangle"
+        description:
+          oneOf:
+            - type: string
+              maxLength: 500
+            - type: 'null'
+          description: Optional description of the workshop item; send null to clear the saved description
+          example: "Updated description for the rectangle shape"
+        definition:
+          type: object
+          description: JSON definition of the workshop item (structure varies by item type)
+          example:
+            type: "shape"
+            width: 120
+            height: 80
+            fill: "#f0f0f0"
+            stroke: "#333333"
+
+    LinkWorkshopItemRequest:
+      type: object
+      required:
+        - item_id
+      properties:
+        item_id:
+          type: integer
+          format: int64
+          description: The ID of the workshop item to link to the entity
+          example: 1
+        name:
+          type: string
+          description: Optional name override for this link (only applicable to certain entity types)
+          maxLength: 255
+          example: "Custom Rectangle Instance"
+
+    EntityWorkshopItem:
+      type: object
+      required:
+        - entity_id
+        - item_id
+        - item
+      properties:
+        entity_id:
+          type: integer
+          format: int64
+          description: ID of the entity (package or board) linked to the workshop item
+          example: 1
+        item_id:
+          type: integer
+          format: int64
+          description: ID of the workshop item
+          example: 1
+        name:
+          type:
+            - string
+            - 'null'
+          description: Optional name override for this link
+          example: "Custom Rectangle Instance"
+        item:
+          $ref: '#/components/schemas/WorkshopItem'
 

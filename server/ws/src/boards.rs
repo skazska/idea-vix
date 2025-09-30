@@ -23,9 +23,11 @@ use crate::{
     common::{
         access::{self, ItemAccess, ItemRole, SqliteItemAccessQueries},
         crud::CrudService,
+        workshop_store::{WorkshopStore, WorkshopItemType},
     },
     db::TransactionStarter,
-    session::session_jwt::SessionJWTService
+    session::session_jwt::SessionJWTService,
+    workshop::generic_service::WorkshopService,
 };
 
 mod board_store;
@@ -35,6 +37,7 @@ struct RouteState {
     access_service: access::CommonItemAccess,
     service: board_service::BoardService,
     jwt_service: Arc<SessionJWTService>,
+    shape_service: Arc<WorkshopService>,
 }
 
 pub fn get_router<'a>(
@@ -49,12 +52,16 @@ pub fn get_router<'a>(
     let access_service = access::CommonItemAccess::new(transaction_starter.clone(), access_store.clone());
 
     let items_store = Arc::new(board_store::BoardStore::new());
-    let board_service = board_service::BoardService::new(transaction_starter, items_store, access_store);
+    let board_service = board_service::BoardService::new(transaction_starter.clone(), items_store, access_store);
+
+    let workshop_store = Arc::new(WorkshopStore::new(WorkshopItemType::Shape));
+    let shape_service = Arc::new(WorkshopService::new(transaction_starter.clone(), workshop_store));
 
     let state= Arc::new(RouteState {
         access_service,
         service: board_service,
-        jwt_service
+        jwt_service,
+        shape_service,
     });
 
     crate::resource_routes!(
@@ -67,7 +74,11 @@ pub fn get_router<'a>(
         list_access,
         revoke_access,
         check_access
-    ).with_state(state)
+    )
+    .route("/{id}/workshop/shapes", axum::routing::get(list_board_shapes))
+    .route("/{id}/workshop/shapes", axum::routing::post(add_board_shape))
+    .route("/{id}/workshop/shapes/{shape_id}", axum::routing::delete(remove_board_shape))
+    .with_state(state)
 }
 
 // #[axum::debug_handler]
@@ -216,4 +227,46 @@ async fn check_access(
         None => vec![],
     };
     Ok(Json(result))
+}
+
+/// - Requires read access to the board
+/// - Returns array of shapes linked to the board
+async fn list_board_shapes(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    Path(board_id): Path<i32>,
+) -> Result<Json<Vec<crate::workshop::generic_service::WorkshopItem>>, (StatusCode, String)> {
+    use crate::common::crud::ListParams;
+    let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
+    let list_params = ListParams { filter: None, pager: None };
+    let result = state.shape_service.list_entity_items("board", board_id as i64, &list_params, session.as_ref()).await.map_err(|e| e.into())?;
+    Ok(Json(result))
+}
+
+/// Handler: add a shape to a board.
+/// - Requires edit access to the board
+/// - Body: { "workshop_item_id": 123, "origin_id": optional_package_id, "name": "optional display name" }
+async fn add_board_shape(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    Path(board_id): Path<i32>,
+    Json(request): Json<crate::workshop::generic_service::LinkWorkshopItemRequest>,
+) -> Result<(StatusCode, Json<crate::workshop::generic_service::EntityWorkshopItem>), (StatusCode, String)> {
+    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+        
+    let linked = state.shape_service.link_item_to_entity("board", board_id as i64, &request, &session).await.map_err(|e| e.into())?;
+    Ok((StatusCode::CREATED, Json(linked)))
+}
+
+/// Handler: remove a shape from a board.
+/// - Requires edit access to the board
+/// - Returns `204 No Content` on success
+async fn remove_board_shape(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    Path((board_id, shape_id)): Path<(i32, i64)>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    state.shape_service.unlink_item_from_entity("board", board_id as i64, shape_id, None, &session).await.map_err(|e| e.into())?;
+    Ok(StatusCode::NO_CONTENT)
 }

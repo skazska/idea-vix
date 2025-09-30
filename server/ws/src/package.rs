@@ -34,14 +34,15 @@ use crate::{
     api::{deserialize::AuthToken, validation::ValidatedJson},
     common::{
         access::{self, ItemAccess, ItemAccessGrantDto, ItemRole, SqliteItemAccessQueries},
-        crud::CrudService,
-        workshop_store::ShapeStore
+        crud::{CrudService, ListParams},
+        workshop_store::{WorkshopStore, WorkshopItemType, EntityWorkshopItemDb}
     },
     db::TransactionStarter,
     package::package_service::{
         NewPackageItem, Package, PatchPackageItem
     },
     session::session_jwt::SessionJWTService,
+    workshop::generic_service::{WorkshopService, WorkshopItem, EntityWorkshopItem},
 };
 
 mod package_store;
@@ -54,6 +55,7 @@ struct RouteState {
     access_service: access::CommonItemAccess,
     service: package_service::PackageService,
     jwt_service: Arc<SessionJWTService>,
+    shape_service: Arc<WorkshopService>,
 }
 
 /// Build a router with all package endpoints.
@@ -78,7 +80,10 @@ pub fn get_router<'a>(
     jwt_service: Arc<SessionJWTService>,
 ) -> axum::Router {
 
-    let shape_store = Arc::new(ShapeStore::new());
+    let shape_service = Arc::new(WorkshopService::new(
+        transaction_starter.clone(),
+        Arc::new(WorkshopStore::new(WorkshopItemType::Shape))
+    ));
     let access_store = Arc::new(SqliteItemAccessQueries::new(
         "package_access_roles",
         "package_id",
@@ -91,7 +96,8 @@ pub fn get_router<'a>(
     let state= Arc::new(RouteState {
         access_service,
         service: package_service,
-        jwt_service
+        jwt_service,
+        shape_service,
     });
 
     crate::resource_routes!(
@@ -105,9 +111,9 @@ pub fn get_router<'a>(
         revoke_access,
         check_access
     )
-    // .route("/{id}/shapes", axum::routing::get(list_package_shapes))
-    // .route("/{id}/shapes", axum::routing::post(add_package_shape))
-    // .route("/{id}/shapes/{shape_id}", axum::routing::delete(remove_package_shape))
+    .route("/{id}/workshop/shapes", axum::routing::get(list_package_shapes))
+    .route("/{id}/workshop/shapes", axum::routing::post(add_package_shape))
+    .route("/{id}/workshop/shapes/{shape_id}", axum::routing::delete(remove_package_shape))
     .with_state(state)
 }
 
@@ -262,43 +268,45 @@ async fn check_access(
 // // Package-Shape Association Handlers TODO should be in universal workshop module
 
 // /// Handler: list shapes associated with a package.
-// /// - Requires read access to the package
-// /// - Returns array of `PackageShape`
-// async fn list_package_shapes(
-//     AuthToken(token): AuthToken,
-//     State(state): State<Arc<RouteState>>,
-//     Path(package_id): Path<i32>,
-// ) -> Result<Json<Vec<PackageShape>>, (StatusCode, String)> {
-//     let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
-//     let result = state.service.list_shapes(package_id, &session).await.map_err(|e| e.into())?;
-//     Ok(Json(result))
-// }
+/// - Requires read access to the package
+/// - Returns array of shapes linked to the package
+async fn list_package_shapes(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    Path(package_id): Path<i32>,
+) -> Result<Json<Vec<crate::workshop::generic_service::WorkshopItem>>, (StatusCode, String)> {
+    use crate::common::crud::ListParams;
+    let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
+    let list_params = ListParams { filter: None, pager: None };
+    let result = state.shape_service.list_entity_items("package", package_id as i64, &list_params, session.as_ref()).await.map_err(|e| e.into())?;
+    Ok(Json(result))
+}
 
-// /// Handler: add a shape to a package.
-// /// - Requires edit access to the package
-// /// - Body: { "shape_id": 123, "name": "optional display name" }
-// /// - Returns the created `PackageShape`
-// async fn add_package_shape(
-//     AuthToken(token): AuthToken,
-//     State(state): State<Arc<RouteState>>,
-//     Path(package_id): Path<i32>,
-//     ValidatedJson(item): ValidatedJson<AddShapeToPackageItem>,
-// ) -> Result<(StatusCode, Json<PackageShape>), (StatusCode, String)> {
-//     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-//     let result = state.service.add_shape(package_id, &item, &session).await.map_err(|e| e.into())?;
-//     Ok((StatusCode::CREATED, Json(result)))
-// }
+/// Handler: add a shape to a package.
+/// - Requires edit access to the package
+/// - Body: { "workshop_item_id": 123 }
+async fn add_package_shape(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    Path(package_id): Path<i32>,
+    Json(request): Json<crate::workshop::generic_service::LinkWorkshopItemRequest>,
+) -> Result<(StatusCode, Json<crate::workshop::generic_service::EntityWorkshopItem>), (StatusCode, String)> {
+    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+        
+    let linked = state.shape_service.link_item_to_entity("package", package_id as i64, &request, &session).await.map_err(|e| e.into())?;
+    Ok((StatusCode::CREATED, Json(linked)))
+}
 
 
-// /// Handler: remove a shape from a package.
-// /// - Requires edit access to the package
-// /// - Returns `204 No Content` on success
-// async fn remove_package_shape(
-//     AuthToken(token): AuthToken,
-//     State(state): State<Arc<RouteState>>,
-//     Path((package_id, slug)): Path<(i32, String)>,
-// ) -> Result<StatusCode, (StatusCode, String)> {
-//     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-//     state.service.remove_shape(package_id, &slug, &session).await.map_err(|e| e.into())?;
-//     Ok(StatusCode::NO_CONTENT)
-// }
+/// Handler: remove a shape from a package.
+/// - Requires edit access to the package
+/// - Returns `204 No Content` on success
+async fn remove_package_shape(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    Path((package_id, shape_id)): Path<(i32, i64)>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    state.shape_service.unlink_item_from_entity("package", package_id as i64, shape_id, None, &session).await.map_err(|e| e.into())?;
+    Ok(StatusCode::NO_CONTENT)
+}

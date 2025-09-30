@@ -187,7 +187,13 @@ async fn workshop_package_link_ok() {
 
     // Remove shape from package workshop  
     let resp = helpers::delete(&app.router, &format!("/api/package/{}/workshop/shapes/{}", package_id, shape_id), Some(&owner_cookie_hdr)).await;
-    assert_eq!(resp.status(), StatusCode::OK);
+    
+    let status = resp.status();
+    if status != StatusCode::NO_CONTENT {
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = std::str::from_utf8(&body).unwrap();
+        panic!("Expected 204 but got {}: {}", status, body_str);
+    }
     
     // Verify shape removed from package
     let resp = helpers::get(&app.router, &format!("/api/package/{}/workshop/shapes", package_id), Some(&owner_cookie_hdr)).await;

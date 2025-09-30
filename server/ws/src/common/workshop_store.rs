@@ -342,7 +342,7 @@ impl WorkshopStore {
         let transaction = trx.get_mut();
 
         let link_table = format!("{}_{}", entity_table, self.table_name());
-        let item_id_col = format!("{}_id", entity_table);
+        let item_id_col = "item_id";
         let workshop_id_col = self.id_column_name();
 
         // Determine if the link table has a name column (board tables have name, package tables don't)
@@ -350,12 +350,12 @@ impl WorkshopStore {
         
         let sql = if has_name_col {
             format!(
-                "INSERT INTO {} ({}, {}, origin_id, name, created_at) VALUES (?1, ?2, ?3, ?4, ?5) RETURNING item_id as item_id, {} as workshop_item_id, origin_id, name, created_at",
+                "INSERT INTO {} ({}, {}, origin_id, name) VALUES (?1, ?2, ?3, ?4) RETURNING item_id as item_id, {} as workshop_item_id, origin_id, name, ?5 as created_at",
                 link_table, item_id_col, workshop_id_col, workshop_id_col
             )
         } else {
             format!(
-                "INSERT INTO {} ({}, {}, origin_id, created_at) VALUES (?1, ?2, ?3, ?4) RETURNING item_id as item_id, {} as workshop_item_id, origin_id, NULL as name, created_at",
+                "INSERT INTO {} ({}, {}, origin_id) VALUES (?1, ?2, ?3) RETURNING item_id as item_id, {} as workshop_item_id, origin_id, NULL as name, ?4 as created_at",
                 link_table, item_id_col, workshop_id_col, workshop_id_col
             )
         };
@@ -368,8 +368,9 @@ impl WorkshopStore {
         if has_name_col {
             query = query.bind(name_override);
         }
+        query = query.bind(now);
 
-        let result = query.bind(now).fetch_one(&mut **transaction).await;
+        let result = query.fetch_one(&mut **transaction).await;
 
         result
     }
@@ -386,18 +387,30 @@ impl WorkshopStore {
         let transaction = trx.get_mut();
 
         let link_table = format!("{}_{}", entity_table, self.table_name());
-        let item_id_col = format!("{}_id", entity_table);
+        let item_id_col = "item_id";
         let workshop_id_col = self.id_column_name();
+        
+        // Determine if the link table has a name column (board tables have name, package tables don't)
+        let has_name_col = entity_table == "board";
+        
+        let sql = if has_name_col {
+            format!(
+                "DELETE FROM {} WHERE {} = ?1 AND {} = ?2 AND origin_id IS ?3 RETURNING item_id as item_id, {} as workshop_item_id, origin_id, name, ?4 as created_at",
+                link_table, item_id_col, workshop_id_col, workshop_id_col
+            )
+        } else {
+            format!(
+                "DELETE FROM {} WHERE {} = ?1 AND {} = ?2 AND origin_id IS ?3 RETURNING item_id as item_id, {} as workshop_item_id, origin_id, NULL as name, ?4 as created_at",
+                link_table, item_id_col, workshop_id_col, workshop_id_col
+            )
+        };
 
-        let sql = format!(
-            "DELETE FROM {} WHERE {} = ?1 AND {} = ?2 AND origin_id IS ?3 RETURNING item_id as item_id, {} as workshop_item_id, origin_id, name, created_at",
-            link_table, item_id_col, workshop_id_col, workshop_id_col
-        );
-
+        let now: i64 = to_unix_timestamp(SystemTime::now()).try_into().unwrap_or(0);
         let result = sqlx::query_as::<_, EntityWorkshopItemDb>(&sql)
             .bind(entity_id)
             .bind(workshop_item_id)
             .bind(origin_id)
+            .bind(now)
             .fetch_one(&mut **transaction)
             .await;
 
@@ -415,7 +428,7 @@ impl WorkshopStore {
         let transaction = trx.get_mut();
 
         let link_table = format!("{}_{}", entity_table, self.table_name());
-        let item_id_col = format!("{}_id", entity_table);
+        let item_id_col = "item_id";
         let workshop_id_col = self.id_column_name();
         let item_table = self.table_name();
 
