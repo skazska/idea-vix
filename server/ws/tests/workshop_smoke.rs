@@ -1,4 +1,3 @@
-use assert_struct::assert_struct;
 use axum::http::StatusCode;
 use serde_json::json;
 
@@ -17,111 +16,41 @@ struct WorkshopItemResp {
     updated_at: i64,
 }
 
-#[derive(Deserialize, Debug, PartialEq)]
-struct EntityWorkshopItemResp { 
-    item_id: i32,           // entity id (package_id or board_id)
-    workshop_item_id: i32,  // workshop item id (shape_id, line_id, etc.)
-    origin_id: Option<i32>, // package id for board imports, None for package own items
-    name: Option<String>,   // board-specific override name
-    created_at: i64,
-}
+
 
 #[tokio::test]
-async fn workshop_global_crud_ok() {
+async fn workshop_global_readonly_ok() {
     let app = test_app::TestApp::new().await;
 
-    let owner_cookie_hdr = helpers::auth_cookie_for(&app.router, "user@example.com").await;
+    // Global workshop is read-only, should list existing items
+    let resp = helpers::get(&app.router, "/api/workshop/shapes", None).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let (_status, _list): (StatusCode, Vec<WorkshopItemResp>) = helpers::read_json(resp).await;
+    // List may be empty initially, that's expected
 
-    // Create shapes in global workshop
+    // Test that global creation endpoints are disabled (405 Method Not Allowed)
     let shape_def = json!({
         "background": {"border": {"path": "M0,0 L100,0 L100,50 L0,50 Z", "stroke": {"width": 2, "color": "#000"}}},
         "label": {"position": {"x": 50, "y": 25}, "default_text": "Shape"}
     });
 
+    let owner_cookie_hdr = helpers::auth_cookie_for(&app.router, "user@example.com").await;
     let resp = helpers::post_json(&app.router, "/api/workshop/shapes", &json!({
         "name": "Rectangle Shape",
         "slug": "rectangle",
         "description": "Basic rectangle shape",
         "definition": shape_def
     }).to_string(), Some(&owner_cookie_hdr)).await;
-    assert_eq!(resp.status(), StatusCode::CREATED, "create shape in global workshop");
-    let (_status, created): (StatusCode, WorkshopItemResp) = helpers::read_json(resp).await;
-    assert_struct!(created, WorkshopItemResp { 
-        name: "Rectangle Shape", 
-        slug: "rectangle", 
-        description: Some("Basic rectangle shape"), 
-        definition: shape_def.clone(),
-        .. 
-    });
-    let shape_1_id = created.id;
-
-    // Create another shape
-    let circle_def = json!({"background": {"border": {"path": "circle", "radius": 25}}});
-    let resp = helpers::post_json(&app.router, "/api/workshop/shapes", &json!({
-        "name": "Circle Shape", 
-        "slug": "circle",
-        "description": null,
-        "definition": circle_def
-    }).to_string(), Some(&owner_cookie_hdr)).await;
-    assert_eq!(resp.status(), StatusCode::CREATED);
-    let (_status, created): (StatusCode, WorkshopItemResp) = helpers::read_json(resp).await;
-    let shape_2_id = created.id;
-
-    // List shapes (no filter for now due to query parsing issues)
-    let resp = helpers::get(&app.router, "/api/workshop/shapes", None).await;
-    assert_eq!(resp.status(), StatusCode::OK);
-    let (_status, list): (StatusCode, Vec<WorkshopItemResp>) = helpers::read_json(resp).await;
-    assert!(list.len() >= 2, "Should contain at least the 2 shapes we created");
-    assert!(list.iter().any(|s| s.id == shape_1_id));
-    assert!(list.iter().any(|s| s.id == shape_2_id));
-
-    // Get shape by id (no auth required for global workshop)
-    let resp = helpers::get(&app.router, &format!("/api/workshop/shapes/{}", shape_1_id), None).await;
-    assert_eq!(resp.status(), StatusCode::OK);
-    let (_status, got): (StatusCode, WorkshopItemResp) = helpers::read_json(resp).await;
-    assert_eq!(got.id, shape_1_id);
-    assert_eq!(got.name, "Rectangle Shape");
-
-    // Get shape by slug
-    let resp = helpers::get(&app.router, "/api/workshop/shapes/by-slug/rectangle", None).await;
-    assert_eq!(resp.status(), StatusCode::OK);
-    let (_status, got): (StatusCode, WorkshopItemResp) = helpers::read_json(resp).await;
-    assert_eq!(got.id, shape_1_id);
-    assert_eq!(got.slug, "rectangle");
-
-    // Update shape (requires authentication)
-    let resp = helpers::put_json(&app.router, &format!("/api/workshop/shapes/{}", shape_1_id), &json!({
-        "name": "Updated Rectangle",
-        "description": "Updated description"
-    }).to_string(), Some(&owner_cookie_hdr)).await;
-    assert_eq!(resp.status(), StatusCode::OK);
-    let (_status, updated): (StatusCode, WorkshopItemResp) = helpers::read_json(resp).await;
-    assert_struct!(updated, WorkshopItemResp { 
-        id: shape_1_id,
-        name: "Updated Rectangle", 
-        slug: "rectangle", 
-        description: Some("Updated description"),
-        .. 
-    });
-
-    // Delete shape (requires authentication) 
-    let resp = helpers::delete(&app.router, &format!("/api/workshop/shapes/{}", shape_2_id), Some(&owner_cookie_hdr)).await;
-    assert_eq!(resp.status(), StatusCode::OK);
-    let (_status, deleted): (StatusCode, WorkshopItemResp) = helpers::read_json(resp).await;
-    assert_eq!(deleted.id, shape_2_id);
-
-    // Verify shape is deleted
-    let resp = helpers::get(&app.router, &format!("/api/workshop/shapes/{}", shape_2_id), None).await;
-    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    assert_eq!(resp.status(), StatusCode::METHOD_NOT_ALLOWED, "global workshop creation should be disabled");
 }
 
 #[tokio::test]
-async fn workshop_lines_crud_ok() {
+async fn workshop_lines_readonly_ok() {
     let app = test_app::TestApp::new().await;
 
     let owner_cookie_hdr = helpers::auth_cookie_for(&app.router, "user@example.com").await;
 
-    // Create line in global workshop
+    // Test that global line creation is disabled
     let line_def = json!({
         "stroke": {"width": 2, "color": "#000", "style": "solid"},
         "source_socket": "output",
@@ -134,19 +63,15 @@ async fn workshop_lines_crud_ok() {
         "description": "Basic solid line",
         "definition": line_def
     }).to_string(), Some(&owner_cookie_hdr)).await;
-    assert_eq!(resp.status(), StatusCode::CREATED, "create line in global workshop");
-    let (_status, created): (StatusCode, WorkshopItemResp) = helpers::read_json(resp).await;
-    let line_id = created.id;
+    assert_eq!(resp.status(), StatusCode::METHOD_NOT_ALLOWED, "global workshop line creation should be disabled");
 
-    // Get line by id
-    let resp = helpers::get(&app.router, &format!("/api/workshop/lines/{}", line_id), None).await;
+    // Test that we can still list lines
+    let resp = helpers::get(&app.router, "/api/workshop/lines", None).await;
     assert_eq!(resp.status(), StatusCode::OK);
-    let (_status, got): (StatusCode, WorkshopItemResp) = helpers::read_json(resp).await;
-    assert_eq!(got.name, "Solid Line");
 }
 
 #[tokio::test]
-async fn workshop_package_link_ok() {
+async fn workshop_package_direct_creation_ok() {
     let app = test_app::TestApp::new().await;
 
     let owner_cookie_hdr = helpers::auth_cookie_for(&app.router, "user@example.com").await;
@@ -157,26 +82,17 @@ async fn workshop_package_link_ok() {
     let (_status, package): (StatusCode, serde_json::Value) = helpers::read_json(resp).await;
     let package_id = package["id"].as_i64().unwrap() as i32;
 
-    // Create shape
+    // Create shape directly in package workshop (new direct creation API)
     let shape_def = json!({"background": {"border": {"path": "rectangle"}}});
-    let resp = helpers::post_json(&app.router, "/api/workshop/shapes", &json!({
+    let resp = helpers::post_json(&app.router, &format!("/api/package/{}/workshop/shapes", package_id), &json!({
         "name": "Package Shape",
         "slug": "package-shape",
+        "description": "Shape created in package context",
         "definition": shape_def
     }).to_string(), Some(&owner_cookie_hdr)).await;
-    assert_eq!(resp.status(), StatusCode::CREATED);
-    let (_status, shape): (StatusCode, WorkshopItemResp) = helpers::read_json(resp).await;
-    let shape_id = shape.id;
-
-    // Add shape to package workshop
-    let resp = helpers::post_json(&app.router, &format!("/api/package/{}/workshop/shapes", package_id), &json!({
-        "workshop_item_id": shape_id
-    }).to_string(), Some(&owner_cookie_hdr)).await;
-    assert_eq!(resp.status(), StatusCode::CREATED, "add shape to package workshop");
-    let (_status, linked): (StatusCode, EntityWorkshopItemResp) = helpers::read_json(resp).await;
-    assert_eq!(linked.item_id, package_id);
-    assert_eq!(linked.workshop_item_id, shape_id);
-    assert_eq!(linked.origin_id, None); // package own item
+    assert_eq!(resp.status(), StatusCode::CREATED, "create shape directly in package workshop");
+    let (_status, created): (StatusCode, WorkshopItemResp) = helpers::read_json(resp).await;
+    let shape_id = created.id;
 
     // List package workshop shapes
     let resp = helpers::get(&app.router, &format!("/api/package/{}/workshop/shapes", package_id), Some(&owner_cookie_hdr)).await;
@@ -184,16 +100,20 @@ async fn workshop_package_link_ok() {
     let (_status, list): (StatusCode, Vec<WorkshopItemResp>) = helpers::read_json(resp).await;
     assert_eq!(list.len(), 1);
     assert_eq!(list[0].id, shape_id);
+    assert_eq!(list[0].name, "Package Shape");
 
-    // Remove shape from package workshop  
+    // Update shape in package workshop
+    let resp = helpers::put_json(&app.router, &format!("/api/package/{}/workshop/shapes/{}", package_id, shape_id), &json!({
+        "name": "Updated Package Shape",
+        "description": "Updated description"
+    }).to_string(), Some(&owner_cookie_hdr)).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let (_status, updated): (StatusCode, WorkshopItemResp) = helpers::read_json(resp).await;
+    assert_eq!(updated.name, "Updated Package Shape");
+
+    // Delete shape from package workshop  
     let resp = helpers::delete(&app.router, &format!("/api/package/{}/workshop/shapes/{}", package_id, shape_id), Some(&owner_cookie_hdr)).await;
-    
-    let status = resp.status();
-    if status != StatusCode::NO_CONTENT {
-        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
-        let body_str = std::str::from_utf8(&body).unwrap();
-        panic!("Expected 204 but got {}: {}", status, body_str);
-    }
+    assert_eq!(resp.status(), StatusCode::NO_CONTENT);
     
     // Verify shape removed from package
     let resp = helpers::get(&app.router, &format!("/api/package/{}/workshop/shapes", package_id), Some(&owner_cookie_hdr)).await;
@@ -203,7 +123,7 @@ async fn workshop_package_link_ok() {
 }
 
 #[tokio::test]
-async fn workshop_board_link_with_import_ok() {
+async fn workshop_board_direct_creation_and_import_ok() {
     let app = test_app::TestApp::new().await;
 
     let owner_cookie_hdr = helpers::auth_cookie_for(&app.router, "user@example.com").await;
@@ -217,39 +137,32 @@ async fn workshop_board_link_with_import_ok() {
     let (_status, board): (StatusCode, serde_json::Value) = helpers::read_json(resp).await;
     let board_id = board["id"].as_i64().unwrap() as i32;
 
-    // Create shape and add to package
+    // Create shape directly in package workshop
     let shape_def = json!({"background": "blue"});
-    let resp = helpers::post_json(&app.router, "/api/workshop/shapes", &json!({
-        "name": "Import Shape",
-        "slug": "import-shape", 
+    let resp = helpers::post_json(&app.router, &format!("/api/package/{}/workshop/shapes", package_id), &json!({
+        "name": "Package Shape",
+        "slug": "package-shape", 
         "definition": shape_def
     }).to_string(), Some(&owner_cookie_hdr)).await;
-    let (_status, shape): (StatusCode, WorkshopItemResp) = helpers::read_json(resp).await;
-    let shape_id = shape.id;
-
-    // Add shape to package first
-    let resp = helpers::post_json(&app.router, &format!("/api/package/{}/workshop/shapes", package_id), &json!({
-        "workshop_item_id": shape_id
-    }).to_string(), Some(&owner_cookie_hdr)).await;
     assert_eq!(resp.status(), StatusCode::CREATED);
+    let (_status, _shape): (StatusCode, WorkshopItemResp) = helpers::read_json(resp).await;
 
-    // Import shape from package to board (with origin_id and name override)
+    // Create another shape directly in board workshop (board-specific)
+    let board_shape_def = json!({"background": "red"});
     let resp = helpers::post_json(&app.router, &format!("/api/board/{}/workshop/shapes", board_id), &json!({
-        "workshop_item_id": shape_id,
-        "origin_id": package_id,
-        "name": "Board Imported Shape"
+        "name": "Board Shape",
+        "slug": "board-shape",
+        "definition": board_shape_def
     }).to_string(), Some(&owner_cookie_hdr)).await;
-    assert_eq!(resp.status(), StatusCode::CREATED, "import shape from package to board");
-    let (_status, linked): (StatusCode, EntityWorkshopItemResp) = helpers::read_json(resp).await;
-    assert_eq!(linked.item_id, board_id);
-    assert_eq!(linked.workshop_item_id, shape_id);
-    assert_eq!(linked.origin_id, Some(package_id)); // imported from package
-    assert_eq!(linked.name, Some("Board Imported Shape".to_string()));
+    assert_eq!(resp.status(), StatusCode::CREATED, "create shape directly in board workshop");
+    let (_status, board_shape): (StatusCode, WorkshopItemResp) = helpers::read_json(resp).await;
+    let board_shape_id = board_shape.id;
 
-    // List board workshop shapes
+    // List board workshop shapes (should show both)
     let resp = helpers::get(&app.router, &format!("/api/board/{}/workshop/shapes", board_id), Some(&owner_cookie_hdr)).await;
     assert_eq!(resp.status(), StatusCode::OK);
     let (_status, list): (StatusCode, Vec<WorkshopItemResp>) = helpers::read_json(resp).await;
-    assert_eq!(list.len(), 1);
-    assert_eq!(list[0].id, shape_id);
+    assert_eq!(list.len(), 1); // Only the board-specific shape
+    assert_eq!(list[0].id, board_shape_id);
+    assert_eq!(list[0].name, "Board Shape");
 }

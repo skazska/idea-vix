@@ -225,6 +225,40 @@ impl WorkshopService {
 
         Ok(result)
     }
+
+    /// Create a workshop item and link it to an entity (package or board).
+    pub async fn create_entity_item(
+        &self,
+        entity_table: &str, // "package" or "board"
+        entity_id: i64,
+        new_item: &mut NewWorkshopItem,
+        session: &SessionData,
+    ) -> Result<WorkshopItem, ModelError> {
+        let store = self.store.clone();
+        let entity_table = entity_table.to_owned();
+        
+        let result = self.transaction_starter.run_in_transaction(async move |trx| {
+            // TODO: Validate that session has manage access to entity
+
+            // First, create the workshop item globally
+            let new_item_db = NewWorkshopItemDb::from(&*new_item);
+            let created_item = store.add_item(&new_item_db, trx).await?;
+            
+            // Then, link it to the entity (package/board owns this item, so origin_id is None)
+            let _link = store.link_item_to_entity(
+                &entity_table,
+                entity_id,
+                created_item.id,
+                None, // origin_id - None means entity owns the item
+                None, // name - None means use the item's own name 
+                trx,
+            ).await?;
+
+            Ok(WorkshopItem::from(created_item))
+        }).await?;
+
+        Ok(result)
+    }
 }
 
 impl CrudService for WorkshopService {

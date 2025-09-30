@@ -77,6 +77,7 @@ pub fn get_router<'a>(
     )
     .route("/{id}/workshop/shapes", axum::routing::get(list_board_shapes))
     .route("/{id}/workshop/shapes", axum::routing::post(add_board_shape))
+    .route("/{id}/workshop/shapes/{shape_id}", axum::routing::put(update_board_shape))
     .route("/{id}/workshop/shapes/{shape_id}", axum::routing::delete(remove_board_shape))
     .with_state(state)
 }
@@ -250,23 +251,44 @@ async fn add_board_shape(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
     Path(board_id): Path<i32>,
-    Json(request): Json<crate::workshop::generic_service::LinkWorkshopItemRequest>,
-) -> Result<(StatusCode, Json<crate::workshop::generic_service::EntityWorkshopItem>), (StatusCode, String)> {
+    ValidatedJson(request): ValidatedJson<crate::workshop::generic_service::NewWorkshopItem>,
+) -> Result<(StatusCode, Json<crate::workshop::generic_service::WorkshopItem>), (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
         
-    let linked = state.shape_service.link_item_to_entity("board", board_id as i64, &request, &session).await.map_err(|e| e.into())?;
-    Ok((StatusCode::CREATED, Json(linked)))
+    let mut new_item = request;
+    let created = state.shape_service.create_entity_item("board", board_id as i64, &mut new_item, &session).await.map_err(|e| e.into())?;
+    Ok((StatusCode::CREATED, Json(created)))
+}
+
+/// Handler: update a shape in a board.
+/// - Requires edit access to the board
+/// - Updates the workshop item globally (not entity-specific)
+/// - Returns the updated WorkshopItem
+async fn update_board_shape(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    Path((_board_id, shape_id)): Path<(i32, i64)>,
+    ValidatedJson(request): ValidatedJson<crate::workshop::generic_service::PatchWorkshopItem>,
+) -> Result<Json<crate::workshop::generic_service::WorkshopItem>, (StatusCode, String)> {
+    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    
+    // TODO: Validate that the shape is linked to this board and user has access
+    let updated = state.shape_service.update_item(shape_id, &request, &session).await.map_err(|e| e.into())?;
+    Ok(Json(updated))
 }
 
 /// Handler: remove a shape from a board.
-/// - Requires edit access to the board
+/// - Requires edit access to the board  
+/// - Deletes the workshop item globally (since it was created in board context)
 /// - Returns `204 No Content` on success
 async fn remove_board_shape(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
-    Path((board_id, shape_id)): Path<(i32, i64)>,
+    Path((_board_id, shape_id)): Path<(i32, i64)>,
 ) -> Result<StatusCode, (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    state.shape_service.unlink_item_from_entity("board", board_id as i64, shape_id, None, &session).await.map_err(|e| e.into())?;
+    
+    // TODO: Validate that the shape is owned by this board and user has access
+    let _deleted = state.shape_service.delete_item(shape_id, &session).await.map_err(|e| e.into())?;
     Ok(StatusCode::NO_CONTENT)
 }
