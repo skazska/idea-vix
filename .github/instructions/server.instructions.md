@@ -4,106 +4,32 @@ description: Backend specific instructions
 applyTo: "server/**"
 ---
 # Backend specific instructions
+`server/ws/`
+`server/ws/sqlite.db`
+`server/ws/migrations/`
+Rust/Axum/SQLx/SQLite.
+Document business logic and non-obvious patterns.
+Named root module file and named folder for included modules.
 
-## Stack
-- Rust
-- Axum
-- SQLx
+Module types: feature modules, utility modules, service modules.
 
-## Code Standards
-- Use `//!` module-level docs for feature modules
-- Document business logic and non-obvious patterns
-- Include API endpoint documentation in router modules
-- Example usage in service/store trait documentation
-- Named root module file and named folder for included modules
+3-Layer Architecture.
 
-## Testing Patterns
+main.rs inits infrastructure, creates services, uses feature to setup routes.
+feature_module.rs adds routes to Router, uses feature_service, common services, feature_store, common stores, utilities in handlers, converts api payloads to service calls params, service call results to api results or errors.
+feature_service.rs implements business logic, uses feature_store, common services, utilities, converts service call params to storage call params, service call results to api results or errors.
+feature_store.rs implements database access, uses SQLx.
 
-### Integration Tests
-- Location: `server/ws/tests/`
-- Use `test_app.rs` harness for in-process HTTP testing
-- Each test gets isolated temp SQLite database
-- Migrations run automatically via `sqlx::migrate!()`
-- Use test helpers in helpers module
-- File naming: `*_int.rs` for integration tests
+Reuse common patterns across features.
+Use parametrized services implementing common traits.
 
+Use `TransactionStarter` pattern for database transaction management.
 
-## Development Workflow
-- Always use: `server/ws/` for all cargo commands
-- Database: SQLite at `server/ws/sqlite.db`
-- Build: Use VS Code task `cargo-build` or `cargo build --bin=ws`
-- Run: Use VS Code task `cargo-run` or `cargo run --bin=ws`
-- Tests: `cargo test` (runs integration tests in `tests/`)
+Api handling with Axum: `AuthToken` in cookies, `ValidatedJson<T>`, `State<Arc<RouteState>>`, `Json<T>` responses.
 
-## Database Management
-- Migrations: Use `sqlx migrate` commands from `server/ws/`
-- Add migration: `sqlx migrate add <migration_name>`
-- Run migrations: `sqlx migrate run`
-- Revert: `sqlx migrate revert`
-- Migrations: `server/ws/migrations/`
-
-## Code Organization (3-Layer Architecture)
-
-### Module Structure Pattern
-Module types: feature modules, utility modules, service modules
-
-feature module follows:
-```
-feature_module.rs         # Router setup + HTTP handlers
-feature_module/
-  ├── feature_service.rs  # Business logic layer
-  └── feature_store.rs    # Data access layer
-```
-```
-Router → Feature Service → Feature Store → SQLx → SQLite
-                        ├→ Common Utilities
-                        └→ Service Modules → Utilities
-```
-
-## Key Implementation Patterns
-
-### Unified Architecture (Boards & Packages)
-- Both feature modules implement identical patterns for consistency
-- Services implement `CrudService` trait for standard CRUD operations
-- Stores implement `CrudQueries` trait for consistent data access
-- Use `TransactionStarter` pattern for database transaction management
-- Leverage `CommonItemAccess` for unified access control across features
-- All entity IDs use `i64` type for consistency
-
-### Route Handlers
-- Extract auth via `AuthToken` from cookies
-- Validate requests with `ValidatedJson<T>`
-- Use `State<Arc<RouteState>>` for dependency injection with shared components
-- Return structured responses via `Json<T>` or status codes
-
-### Services Layer
-- Implement business logic with async traits (CrudService)
-- Take dependencies via constructor injection: Arc&lt;TransactionStarter&gt;, Arc&lt;Store&gt;, Arc&lt;CommonItemAccess&gt;
-- Handle authorization using CommonItemAccess for consistent access control
-- Return domain models, not database representations
-
-### Store Layer
-- Implement CrudQueries trait for consistent interface
-- Use SQLx with TransactionStarter pattern for database operations
-- Return domain models from queries
-- Handle database-specific error mapping
-- Keep SQL queries focused and readable
-
-### Error Handling
-- Use `crate::error::Error` enum with `thiserror`
-- Map database errors to domain errors
-- Provide meaningful error messages for API responses
-
-### JWT Authentication
-- `SessionJWTService` handles encode/decode
-- HTTP-only cookies for token storage
-- `AuthToken` extractor for route handlers
-- Session-based (not stateless) JWT approach
-
+Error Handling: `crate::error::Error` enum with `thiserror`, domain errors mappings with db and http.
 
 ## Configuration
-
-### Environment Variables (override config.toml)
 - `WS_DATABASE_URL`: Database connection string
 - `WS_PORT`: Server port (default: 7878)
 - `WS_APP_JWT_SECRET`: JWT signing secret
