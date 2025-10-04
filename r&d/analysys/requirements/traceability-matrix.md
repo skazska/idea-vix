@@ -148,7 +148,7 @@ Legend:
       <td>—</td>
     </tr>
     <tr>
-      <td>Blueprint definitions capture geometry, labels, sockets, and rules per <a href="../descisions/workshop.md">workshop decisions</a>.</td>
+      <td>Blueprint definitions capture geometry, labels, sockets, and rules per <a href="../requirements/workshop.md">workshop decisions</a>.</td>
       <td>—</td>
     </tr>
     <tr>
@@ -267,7 +267,7 @@ Legend:
       <td rowspan="3">[~]</td>
     </tr>
     <tr>
-      <td>Blueprints validate required geometry, sockets, and styling per <a href="../descisions/workshop.md">workshop spec</a>.</td>
+      <td>Blueprints validate required geometry, sockets, and styling per <a href="../requirements/workshop.md">workshop spec</a>.</td>
       <td>—</td>
     </tr>
     <tr>
@@ -493,7 +493,7 @@ Legend:
   </thead>
   <tbody>
     <tr>
-      <td rowspan="3">Workshop · <a href="../descisions/workshop.md#global-workshop">Global workshop catalog</a></td>
+      <td rowspan="3">Workshop · <a href="../requirements/workshop.md#global-workshop">Global workshop catalog</a></td>
       <td>List/search surfaces workshop items across boards and packages with package/board slug composition.</td>
       <td>—</td>
       <td rowspan="3">Global catalog not yet implemented; requires shared service with role-aware filtering and UI explorer.</td>
@@ -516,4 +516,4 @@ Legend:
 
 - Coverage mapping now mirrors the current backend and Playwright suites—board updates, package deletions, and duplicate invite conflicts point to the exact tests exercising them.
 - Board and package tables continue to house the workshop management stories from `core.md` with gaps called out where no automation exists yet.
-- Workshop section stays focused on the global catalog operations from `descisions/workshop.md`; draw mode, package attachments, publishing lifecycle, and workshop CRUD still await automated coverage.
+- Workshop section stays focused on the global catalog operations from `requirements/workshop.md`; draw mode, package attachments, publishing lifecycle, and workshop CRUD still await automated coverage.

@@ -3,8 +3,12 @@ description: project GitHub Copilot instructions
 ---
 applyTo: "**"
 ---
-# General Coding Standards
-- Modularity and Extensibility.
+
+Backend details: See `.github/instructions/server.instructions.md`
+Frontend details: See `.github/instructions/webapp.instructions.md`
+
+# General Coding Standards Focus
+- Modularity, Extensibility, Reusability.
 - Type Safety and Consistency.
 - Error Handling and Resilience.
 - Dependency Flow, No Circular Dependencies.
@@ -13,70 +17,33 @@ applyTo: "**"
 - Consistent Naming Conventions.
 - Code Comments and Annotations.
 
+# Testing
+Testing as important as coding.
+When plan, implement, run tests, consider: `r&d/dev-docs/testing/testing_overview.md`
 
-## Testing
-- Comprehensive Testing.
-- Unit Testing for Utilities.
+# Project Documentation
+- `r&d/dev-docs/openapi.yaml` - API - is a contract between frontend and backend.
 
+- `r&d/analysis/stories/*` - core feature concept, user stories, status.
+- `r&d/analysis/requirements/*` - requirements. 
+- `r&d/dev-docs/storage.dbml` - database schema.
+- `r&d/dev-docs/project-implementation-overview.md` - project implementation overview.
+- Keep documents up-to-date with code changes.
 
-## Requirements
-- use `r&d/analysis/stories/*` for core feature concept and user stories and their implementation status.
-- use `r&d/analysis/requirements/*` for technical requirements 
-
-
-## Documentation
-- Clear and Concise Documentation.
-- Use `r&d/dev-docs/openapi.yaml` for API documentation.
-- Keep API documentation up-to-date with code changes.
-- Use `r&d/dev-docs/storage.dbml` for database schema documentation.
-- Keep database documentation in sync with migrations.
-- Use `r&d/dev-docs/project-implementation-overview.md` for project implementation overview documentation.
-- Keep implementation details up-to-date with code changes.
-
-## Architecture
-- Backend: See `.github/instructions/server.instructions.md`
-- Frontend: See `.github/instructions/webapp.instructions.md`
-- Auth Flow: Email-based sessions via JWT cookies (no passwords)
-
-## System Overview
+# System Overview
 
 ```
 Browser (SolidJS) -> HTTP/JSON -> Axum Routers -> Services ...
-                                 |                   |
                                  |-- JWT (cookie) ---|
 ```
 
-## Cross-Tier Patterns
-- use RESTful API docs: `r&d/dev-docs/openapi.yaml`
+- Auth Flow: Email-based sessions via JWT cookies (no passwords)
+- RESTful API: `r&d/dev-docs/openapi.yaml`
 - JSON payloads
 - HTTP-only cookies: JWT tokens for session management
 - Error responses: Consistent error format across all endpoints
 
-## Configuration & Environment
-- **Frontend**: `VITE_*` prefixed for client-side variables
--
-## Testing Strategy
+## Dev log
+Code change iterations must follow dev log process: `r&d/dev-log/README.md` - dev log structure and usage
 
-### Integration Focus
-- **Frontend**: End-to-end Playwright tests for critical user journeys
-- **Test isolation**: Each test gets clean database state
-
-### Test Data
-- **Auth**: Use test helper `auth_cookie_for(router, "email")` for authenticated requests
-- **Database**: Temp SQLite files with automatic migrations for each test
-- **E2E**: Requires backend server running during frontend tests
-
-## Code Standards
-
-### Modularity Principles
-- **No circular dependencies** between feature modules
-- **Clear layer boundaries**: Presentation → Application → Persistence
-- **Feature isolation**: Boards, packages, sessions don't directly depend on each other
-- **Common utilities**: Shared modules (`error`, `db`, `config`) stay dependency-free
-
-### Documentation Standards
-- **Architecture docs**: High-level patterns in `r&d/dev-docs/`
-- **Code docs**: Module-level documentation for business logic
-- **API docs**: Endpoint documentation in router modules
-- **Examples**: Include usage examples in complex utilities
 

@@ -10,7 +10,7 @@ type SessionLocators = {
   signoutButton: Locator;
 };
 
-test.describe('Authentication Flow', () => {
+test.describe('@Smoke Authentication Flow', () => {
   let locators: SessionLocators;
 
   test.beforeEach(async ({ page }) => {

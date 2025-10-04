@@ -19,7 +19,7 @@ struct WorkshopItemResp {
 
 
 #[tokio::test]
-async fn workshop_global_readonly_ok() {
+async fn workshop_global_readonly_smoke_ok() {
     let app = test_app::TestApp::new().await;
 
     // Global workshop is read-only, should list existing items
@@ -45,7 +45,7 @@ async fn workshop_global_readonly_ok() {
 }
 
 #[tokio::test]
-async fn workshop_lines_readonly_ok() {
+async fn workshop_lines_readonly_smoke_ok() {
     let app = test_app::TestApp::new().await;
 
     let owner_cookie_hdr = helpers::auth_cookie_for(&app.router, "user@example.com").await;
@@ -71,7 +71,7 @@ async fn workshop_lines_readonly_ok() {
 }
 
 #[tokio::test]
-async fn workshop_package_direct_creation_ok() {
+async fn workshop_package_direct_creation_smoke_ok() {
     let app = test_app::TestApp::new().await;
 
     let owner_cookie_hdr = helpers::auth_cookie_for(&app.router, "user@example.com").await;
@@ -123,7 +123,7 @@ async fn workshop_package_direct_creation_ok() {
 }
 
 #[tokio::test]
-async fn workshop_board_direct_creation_and_import_ok() {
+async fn workshop_board_direct_creation_and_import_smoke_ok() {
     let app = test_app::TestApp::new().await;
 
     let owner_cookie_hdr = helpers::auth_cookie_for(&app.router, "user@example.com").await;

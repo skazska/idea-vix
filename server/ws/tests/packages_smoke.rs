@@ -13,7 +13,7 @@ struct AccessMapping { item_id: i32, address: String, role: String }
 
 
 #[tokio::test]
-async fn packages_crud_ok() {
+async fn packages_crud_smoke_ok() {
     let app = test_app::TestApp::new().await;
 
     let owner_cookie_hdr = helpers::auth_cookie_for(&app.router, "user@example.com").await;
@@ -88,7 +88,7 @@ async fn packages_crud_ok() {
 }
 
 #[tokio::test]
-async fn package_access_invite_and_permissions() {
+async fn package_access_invite_and_permissions_cmoke() {
     let app = test_app::TestApp::new().await;
 
     // Owner session

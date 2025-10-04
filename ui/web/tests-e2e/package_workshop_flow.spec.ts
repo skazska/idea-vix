@@ -204,7 +204,7 @@ const testDefinitions = {
 };
 
 // Tests
-test.describe('Workshop Items Management', () => {
+test.describe('@Smoke Workshop Items Management', () => {
   test.beforeEach(async ({ request, context, page }) => {
     await apiSignInAndApplyCookie(request, context, 'e2e@example.com', 'some_code');
     await createTestPackage(page);

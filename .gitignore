@@ -9,5 +9,6 @@ target/
 
 sqlite.db
 sqlite.db*
+sqlite::*
 
 WARP.md

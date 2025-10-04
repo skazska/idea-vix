@@ -1,146 +1,47 @@
 # Testing Overview
 
-Purpose: Summarize test layers and provide step-by-step instructions to run them locally.
-
-## What is covered
-
-- Backend integration tests (Rust): Axum Router + Services + Stores + SQLx + SQLite + JWT flow
-- Frontend end-to-end (E2E) tests (Playwright): critical UI flows against a running backend
-
-## Test tiers
-
-| Tier | Purpose | Backend scope | Frontend scope | Typical triggers |
-| --- | --- | --- | --- | --- |
-| **Smoke** | Fast confidence check for auth and CRUD lifecycles | `sessions_smoke.rs::sessions_flow_ok`, `boards_smoke.rs::boards_crud_ok`, `packages_smoke.rs::packages_crud_ok` | `auth_flow.spec.ts` | Pre-commit hooks, PR fast feedback |
-| **Regression** | Full coverage of role/access and destructive paths | Smoke suite + `boards_regression.rs`, `packages_regression.rs`, `home_int.rs` | All Playwright specs (`auth`, `boards`, `packages`, `board_access`, `package_access`) | Nightly CI, pre-release gates |
-
-### Smoke tier (≈ 3–4 minutes)
-
-- Runs in-memory SQLite databases and one happy-path Playwright journey.
-- Use when iterating locally or before pushing changes.
-- Commands:
-  - Backend: `cargo test --test sessions_smoke sessions_flow_ok -- --nocapture`, `cargo test --test boards_smoke boards_crud_ok`, `cargo test --test packages_smoke packages_crud_ok`
-  - Frontend: `npm run test:e2e -- --grep "@smoke"` *(requires tagging, see Notes)*
-
-### Regression tier (≈ 12–15 minutes)
-
-- Exercises all integration specs, including access-role permutations and destructive flows.
-- Runs the full Playwright matrix while backend and UI servers are up.
-- Commands:
-  - Backend: `cargo test --tests`
-  - Frontend: `npm run test:e2e`
-
-Notes:
-
-- Tag Playwright tests with `@smoke` annotations (`test('@smoke ...')`) to make the smoke command effective.
-- Extend the smoke tier with negative-path tests once unit coverage is added for validation utilities.
-- Backend smoke commands can be grouped once we add a `cargo test --test smoke` harness (see Testing Plan for follow-up).
+- Follow coding standards. Use helper functions.
 
 ## Prerequisites
 
 - Rust toolchain (cargo)
-- Node.js and npm
-- For E2E: Playwright browsers (`npx playwright install`)
+- SQLite database, migrations, sqlx CLI
+- Node.js and npm for web UI (npm run dev)
+- E2E on Playwright with browsers (npm run test:e2e)
 
-Notes:
+## Coverage
 
-- Backend tests create a temp SQLite database and run migrations via `sqlx::migrate!`, no manual DB setup needed.
-- Cargo.toml already enables `sqlx` features: `macros`, `migrate`.
+- Requirements coverage: see `r&d/analysys/requirements/traceability-matrix.md`
+- Backend unit tests (Rust): utility functions.
+- Backend integration tests (Rust): Axum Router + Services + Stores + SQLx + SQLite + JWT flow
+- Frontend end-to-end (E2E) tests (Playwright)
 
----
+## Test tiers
+
+from project root:
+
+1. unit: `./ci/test_unit.sh`
+2. integration: `./ci/test_integration.sh --smoke`, `./ci/test_integration.sh`
+3. e2e: `./ci/test_e2e.sh --smoke`, `./ci/test_e2e.sh` - starts backend on :7879, frontend preview on :4173
+4. all: `./ci/test_all.sh --smoke`, `./ci/test_all.sh`
 
 ## Backend Tests (Rust)
 
-### Integration Tests
+### Units
 
-Location:
+run: `cargo test --lib`
+source: `#[cfg(test)]` in source files, e.g. `server/ws/src/config.rs`
 
-- `server/ws/tests/`
-  - `test_app.rs` (harness)
-  - Smoke: `sessions_smoke.rs`, `boards_smoke.rs`, `packages_smoke.rs`
-  - Regression: `boards_regression.rs`, `packages_regression.rs`, `home_int.rs`
+### Integration
 
-How it works:
+run: `cargo test smoke`/`cargo test` in `server/ws`
+source: `server/ws/tests/`, querying `test_app` using `helpers`.
+db: in-memory SQLite prepared in `test_app.rs`.
+JWT service is initialized with a test secret; session flow uses stub code `some_code`
 
-- In-process testing via `tower::ServiceExt::oneshot` against the Axum Router
-- Temp SQLite file per test for isolation; migrations run automatically
-- JWT service is initialized with a test secret; session flow uses stub code `some_code`
+## E2E Tests (Playwright)
 
-Helpers:
-
-- Shared helpers live at `server/ws/tests/helpers/mod.rs` and provide:
-  - `auth_cookie_for(&Router, &str)` to get an Authorization cookie via signin+verify
-  - `get/post_json/put_json/delete` for concise in-process requests
-  - `read_json` to parse JSON bodies in tests
-  Example usage:
-
-  ```rust
-  let cookie = helpers::auth_cookie_for(&app.router, "user@example.com").await;
-  let resp = helpers::get(&app.router, "/api/package", Some(&cookie)).await;
-  assert_eq!(resp.status(), axum::http::StatusCode::OK);
-  ```
-
-### Unit Tests
-
-Location:
-  in source files, e.g. `server/ws/src/config.rs`
-
-### Run Tests
-
-Run all tests:
-
-```bash
-cd server
-cargo test
-```
-
-Compile tests without running: `bash cargo test --no-run`
-Run lib unit tests: `bash cargo test --lib`
-Run bin unit tests: `bash cargo test --bin ws`
-Run a single integration test: `bash cargo test --test sessions_smoke`
-Run all integration tests: `bash cargo test --tests`
-Run regression-only suite: `bash cargo test --test boards_regression -- --nocapture` + `bash cargo test --test packages_regression -- --nocapture`
-Run tests filtered by name: `bash cargo test <test_name>`
-
-## Frontend E2E Tests (Playwright)
-
-Location:
-
-- `ui/web/tests-e2e/`
-  - `playwright.config.ts`
-  - `auth_flow.spec.ts`
-
-Assumptions:
-
-- Backend runs on `http://localhost:7878` (use VS Code task `cargo-run`)
-- UI dev server runs on `http://localhost:5173` (started by Playwright `webServer`)
-
-Install and run:
-
-```bash
-cd ui/web
-npm install
-npx playwright install
-npm run test:e2e
-```
-
-Headed mode (for debugging): `bash npm run test:e2e:headed`
-
-Optional:
-
-- Override UI server URL via `UI_BASE_URL` env if needed; defaults to `http://localhost:5173` in `playwright.config.ts`.
-
----
-
-## Troubleshooting
-
-- If E2E tests fail to connect, ensure the backend is running on port 7878.
-- If TypeScript can’t resolve `@playwright/test`, run `npm install` in `ui/web`.
-- If migrations fail in integration tests, verify `server/ws/migrations/` exists and is readable.
-
----
-
-## CI (hint)
-
-- Job 1 (Rust): format, clippy, `cargo test` in `server/ws`
-- Job 2 (Node): install, build UI, start backend+UI, run Playwright E2E
+source: `ui/web/tests-e2e/`
+config - `playwright.config.ts`
+requirements: backend server running on :7878
+run: `npm run test:e2e`, `bash npm run test:e2e:headed` - on :5173

@@ -8,7 +8,7 @@ export default defineConfig({
     headless: true,
   },
   webServer: {
-    command: 'npm run dev',
+    command: 'npm run build && npm run dev',
     url: process.env.UI_BASE_URL || 'http://localhost:5173',
     reuseExistingServer: true,
     cwd: './',

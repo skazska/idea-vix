@@ -19,7 +19,7 @@ async function createPackage(page: Page, name: string, isPublic = false) {
   await row.getByTestId('open-package-item').click();
 }
 
-test.describe('Package access management', () => {
+test.describe('@Smoke Package access management', () => {
   test.beforeEach(async ({ request, context }) => {
     await apiSignInAndApplyCookie(request, context, 'owner@example.com', 'some_code');
   });

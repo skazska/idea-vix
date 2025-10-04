@@ -5,7 +5,7 @@
 Install dependencies
 
 ```bash
-npm install # or pnpm install or yarn install
+npm install
 ```
 
 Using Solid.js with [TypeScript](https://www.typescriptlang.org/)

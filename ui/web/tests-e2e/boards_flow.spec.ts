@@ -80,7 +80,7 @@ function getEditFormLocators(page: Page) {
 
 // Tests
 
-test.describe('Board flow', () => {
+test.describe('@Smoke Board flow', () => {
   test.beforeEach(async ({ request, context }) => {
     await apiSignInAndApplyCookie(request, context, 'e2e@example.com', 'some_code');
   });

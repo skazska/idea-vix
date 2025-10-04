@@ -88,7 +88,7 @@ function getEditFormLocators(page: Page) {
 
 // Tests
 
-test.describe('Package flow', () => {
+test.describe('@Smoke Package flow', () => {
   test.beforeEach(async ({ request, context }) => {
     await apiSignInAndApplyCookie(request, context, 'e2e@example.com', 'some_code');
   });

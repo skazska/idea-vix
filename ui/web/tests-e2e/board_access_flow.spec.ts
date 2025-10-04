@@ -19,7 +19,7 @@ async function createBoard(page: Page, name: string, isPublic = false) {
   await row.getByRole('link').first().click();
 }
 
-test.describe('Board access management', () => {
+test.describe('@Smmoke Board access management', () => {
   test.beforeEach(async ({ request, context }) => {
     await apiSignInAndApplyCookie(request, context, 'owner@example.com', 'some_code');
   });

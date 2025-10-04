@@ -1,0 +1,28 @@
+warning: unused imports: `EntityWorkshopItemDb`, `EntityWorkshopItem`, `ListParams`, and `WorkshopItem`
+  --> ws/src/package.rs:37:29
+   |
+37 |         crud::{CrudService, ListParams},
+   |                             ^^^^^^^^^^
+38 |         workshop_store::{WorkshopStore, WorkshopItemType, EntityWorkshopItemDb}
+   |                                                           ^^^^^^^^^^^^^^^^^^^^
+...
+45 |     workshop::generic_service::{WorkshopService, WorkshopItem, EntityWorkshopItem},
+   |                                                  ^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused variable: `session`
+   --> ws/src/workshop/generic_service.rs:176:9
+    |
+176 |         session: &SessionData,
+    |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_session`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: `ws` (lib) generated 2 warnings (run `cargo fix --lib -p ws` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.14s
+     Running `/home/ska/work/stup/idea-vix/server/target/debug/ws`
+Configuration file not found: config.toml
+Using default configuration values.
+Starting server on 0.0.0.0:7879
+Using database: sqlite::memory: pool 5

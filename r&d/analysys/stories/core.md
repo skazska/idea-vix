@@ -1,28 +1,6 @@
-# User stories User stories
+# User stories
 
-- [Concept](#concept)
-- [Boards](#boards)
-  - [View boards](#view-boards)
-  - [Create board](#create-board)
-  - [Work with board](#work-with-board)
-    - [Change board properties](#change-board-properties)
-    - [Draw shaped nodes with links](#draw-shaped-nodes-with-links)
-    - [Manage node shapes, links, rules and layout](#manage-node-shapes-links-rules-and-layout)
-    - [add package to board](#add-package-to-board)
-- [Packages](#packages)
-  - [View packages](#view-packages)
-  - [Create package](#create-package)
-  - [Work with package](#work-with-package)
-    - [Change package properties](#change-package-properties)
-    - [Add items to package](#add-items-to-package)
-- [Access](#access)
-  - [Identification](#identification)
-  - [Ownership](#ownership)
-  - [Invite user to board or package](#invite-user-to-board-or-package)
-
-## Implementation status
-
-### Legend
+## Legend
 
 [v] - implemented
 [~] - partially implemented
