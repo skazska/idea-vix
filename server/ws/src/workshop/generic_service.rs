@@ -8,8 +8,6 @@
 //! - Support all workshop item types: shapes, lines, rules, layouts
 
 use std::sync::Arc;
-use lazy_static::lazy_static;
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -21,10 +19,7 @@ use crate::common::workshop_store::{
     NewWorkshopItemDb, PatchWorkshopItemDb, WorkshopItemDb, WorkshopStore,
     EntityWorkshopItemDb,
 };
-
-lazy_static! {
-    static ref SLUG_REGEX: Regex = Regex::new(r"^[a-z][a-z0-9-]*$").unwrap();
-}
+use crate::common::slug::SLUG_REGEX;
 
 /// API representation of a workshop item.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -148,60 +143,6 @@ impl WorkshopService {
         Ok(WorkshopItem::from(result))
     }
 
-    /// Link a workshop item to an entity (package or board).
-    pub async fn link_item_to_entity(
-        &self,
-        entity_table: &str, // "package" or "board"
-        entity_id: i64,
-        request: &LinkWorkshopItemRequest,
-        _session: &SessionData,
-    ) -> Result<EntityWorkshopItem, ModelError> {
-        let result = self.transaction_starter.run_in_transaction(async move |trx| {
-            let link = self.store.link_item_to_entity(
-                entity_table,
-                entity_id, 
-                request.workshop_item_id,
-                request.origin_id,
-                request.name.as_deref(),
-                trx,
-            ).await?;
-            Ok(link)
-        }).await?;
-
-        Ok(EntityWorkshopItem::from(result))
-    }
-
-
-
-    /// Unlink a workshop item from an entity.
-    pub async fn unlink_item_from_entity(
-        &self,
-        entity_table: &str,
-        entity_id: i64,
-        workshop_item_id: i64,
-        origin_id: Option<i64>,
-        _session: &SessionData,
-    ) -> Result<EntityWorkshopItem, ModelError> {
-        let store = self.store.clone();
-        let entity_table = entity_table.to_owned();
-        
-        let result = self.transaction_starter.run_in_transaction(async move |trx| {
-            // TODO: Validate that session has manage access to entity
-
-            let link = store.unlink_item_from_entity(
-                &entity_table,
-                entity_id,
-                workshop_item_id,
-                origin_id,
-                trx,
-            ).await?;
-
-            Ok(EntityWorkshopItem::from(link))
-        }).await?;
-
-        Ok(result)
-    }
-
     /// List workshop items linked to an entity.
     pub async fn list_entity_items(
         &self,
@@ -235,7 +176,7 @@ impl WorkshopService {
         session: &SessionData,
     ) -> Result<WorkshopItem, ModelError> {
         let store = self.store.clone();
-        let entity_table = entity_table.to_owned();
+        // let entity_table = entity_table.to_owned();
         
         let result = self.transaction_starter.run_in_transaction(async move |trx| {
             // TODO: Validate that session has manage access to entity
@@ -246,7 +187,7 @@ impl WorkshopService {
             
             // Then, link it to the entity (package/board owns this item, so origin_id is None)
             let _link = store.link_item_to_entity(
-                &entity_table,
+                entity_table,
                 entity_id,
                 created_item.id,
                 None, // origin_id - None means entity owns the item

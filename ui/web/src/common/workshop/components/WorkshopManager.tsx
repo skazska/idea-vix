@@ -62,7 +62,8 @@ export function WorkshopManager(_props: WorkshopManagerProps) {
         } catch (error) {
             console.error("Failed to save workshop item:", error);
             setIsLoading(false);
-            // Error is handled in the form component
+            // Re-throw the error so the form component can handle it
+            throw error;
         }
     };
     

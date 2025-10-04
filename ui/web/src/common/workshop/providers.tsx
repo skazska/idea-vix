@@ -45,16 +45,28 @@ export const WorkshopManagerProvider: ParentComponent<WorkshopManagerProviderPro
             const results = await Promise.all([
                 apis.shapes.list(props.entityId).then(items => 
                     items.map(item => ({ ...item, item_type: "shapes" as WorkshopItemType }))
-                ),
+                ).catch(error => {
+                    console.log(`No shapes found for ${props.entityType} ${props.entityId}:`, error);
+                    return [];
+                }),
                 apis.lines.list(props.entityId).then(items => 
                     items.map(item => ({ ...item, item_type: "lines" as WorkshopItemType }))
-                ),
+                ).catch(error => {
+                    console.log(`No lines found for ${props.entityType} ${props.entityId}:`, error);
+                    return [];
+                }),
                 apis.rules.list(props.entityId).then(items => 
                     items.map(item => ({ ...item, item_type: "rules" as WorkshopItemType }))
-                ),
+                ).catch(error => {
+                    console.log(`No rules found for ${props.entityType} ${props.entityId}:`, error);
+                    return [];
+                }),
                 apis.layouts.list(props.entityId).then(items => 
                     items.map(item => ({ ...item, item_type: "layouts" as WorkshopItemType }))
-                ),
+                ).catch(error => {
+                    console.log(`No layouts found for ${props.entityType} ${props.entityId}:`, error);
+                    return [];
+                }),
             ]);
             
             return results.flat();

@@ -158,7 +158,21 @@ export function WorkshopItemForm(props: WorkshopItemFormProps) {
             }
         } catch (error) {
             console.error("Failed to save workshop item:", error);
-            setErrors({ save: "Failed to save. Please try again." });
+            let errorMessage = "Failed to save. Please try again.";
+            
+            // Provide more specific error messages based on the error
+            if (error && typeof error === 'object' && 'message' in error) {
+                const message = (error as any).message;
+                if (message.includes('Unique constraint violation')) {
+                    errorMessage = "An item with this name already exists. Please choose a different name.";
+                } else if (message.includes('404')) {
+                    errorMessage = "The requested resource was not found. Please refresh and try again.";
+                } else if (message.includes('403')) {
+                    errorMessage = "You don't have permission to perform this action.";
+                }
+            }
+            
+            setErrors({ save: errorMessage });
         }
     };
     

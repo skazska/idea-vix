@@ -22,7 +22,6 @@ use axum::{
 };
 use serde::Deserialize;
 
-pub mod service;
 pub mod generic_service;
 
 /// Shared state for the workshop routes.
