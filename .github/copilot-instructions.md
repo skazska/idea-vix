@@ -10,7 +10,7 @@ Prompt starts with line:
  `fix`|`feat`|`refactor` - New change iteration
  `go {some name}` - Continue iteration with name if it exists and is not completed
 
-[dev log index file](index.md) contains:
+[dev log index file](../dev-log/index.md) contains:
 name,date(YY-MM-DD),purpose,status(draft,in-progress,completed),ref detail files  -  required to be added when new change iteration requested.
 
 Iteration details are in folder named `YY-MM-DD-{name}`.

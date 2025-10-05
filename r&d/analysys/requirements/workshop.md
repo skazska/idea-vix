@@ -96,7 +96,7 @@ How:
 - defines restrictions for options of the link.
 - defines rendering of the link.
 
-### Model
+### Link Model
 
 - stroke - defines the stroke properties
   - width - defines the stroke width
@@ -117,11 +117,7 @@ How:
 
 ## Connection Rule TODO
 
-
-
 ## Layout TODO
-
-
 
 ## Management of workshop (as package or in board)
 

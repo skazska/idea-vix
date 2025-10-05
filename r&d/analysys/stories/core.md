@@ -139,8 +139,6 @@ Restrictions:
 
 Status []
 
-
-
 Who:
 
 - board owner []
@@ -149,8 +147,6 @@ Who:
 ##### import items from package
 
 Status []
-
-
 
 Who:
 
@@ -170,8 +166,6 @@ Restrictions:
 #### unimport items from package
 
 Status []
-
-
 
 Who:
 
@@ -350,8 +344,6 @@ How:
 
 Status [~]
 
-
-
 Who:
 
 - package owner []
@@ -377,18 +369,19 @@ Restrictions:
 
 - slugs of items in package must be unique []
 
-#### view item
+#### view package item
 
 Status []
 
 Who: any user with access to the package []
 
 How:
+
 1. Open package view []
 2. Select item to view []
 3. View item []
 
-#### edit item
+#### edit package item
 
 Status []
 
@@ -461,10 +454,9 @@ Restrictions:
 - package in draft state is visible only to its owner and users with "manage" permission []
 - each publishing increments package version []
 
-### Notes
+### Package Notes
 
 Crud operations for package is similar to board crud operations.
-
 
 ## Access
 
