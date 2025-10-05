@@ -41,3 +41,13 @@ CREATE TABLE `package_rule` (
     FOREIGN KEY (origin_id) REFERENCES package(id) ON DELETE SET NULL
 );
 
+-- Add package_layout table for workshop layout items
+CREATE TABLE `package_layout` (
+    item_id INTEGER NOT NULL,
+    layout_id INTEGER NOT NULL,
+    origin_id INTEGER,
+    PRIMARY KEY (item_id, layout_id, origin_id),
+    FOREIGN KEY (item_id) REFERENCES package(id) ON DELETE CASCADE,
+    FOREIGN KEY (layout_id) REFERENCES layout(id) ON DELETE CASCADE,
+    FOREIGN KEY (origin_id) REFERENCES package(id) ON DELETE SET NULL
+);

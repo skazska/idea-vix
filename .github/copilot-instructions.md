@@ -5,17 +5,22 @@ applyTo: "**"
 ---
 
 Code change iterations must follow dev log process:
+
+Prompt starts with line:
+ `fix`|`feature` - New change iteration
+ `go {some name}` - Continue iteration with name if it exists and is not completed
+
 [dev log index file](index.md) contains:
-name,date(YY-MM-DD),purpose,status(draft,in-progress,completed),ref detail files
+name,date(YY-MM-DD),purpose,status(draft,in-progress,completed),ref detail files  -  required to be added when new change iteration requested.
 
 Iteration details are in folder named `YY-MM-DD-{name}`.
 Types of detail files:
 
 `definition.md` - to define the iteration:
 
-- purpose and goals (MUST)
-- definition of done (MUST)
-- description of the feature or change (MUST)
+- purpose and goals or problem (MUST)
+- definition of done (SHOULD)
+- description of the feature or change (SHOULD)
 - references to focus documents, code, data, documentation (SHOULD)
 - requirements and specifications (SHOULD)
 - any problems, open questions, uncertainties, challenges anticipated (COULD)

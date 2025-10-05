@@ -60,7 +60,7 @@ export function WorkshopItemList(props: WorkshopItemListProps) {
                         {(item) => (
                             <div 
                                 class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
-                                data-testid={`workshop-item-${item.id}`}
+                                data-testid={`workshop-item-${item.slug}`}
                             >
                                 <div class="flex-1">
                                     <div class="flex items-center gap-3">
@@ -80,7 +80,7 @@ export function WorkshopItemList(props: WorkshopItemListProps) {
                                             class="text-blue-600 hover:text-blue-800 p-1"
                                             onClick={() => props.onView!(item)}
                                             title="View details"
-                                            data-testid={`view-${props.itemType}-${item.id}-button`}
+                                            data-testid={`view-${props.itemType}-${item.slug}-button`}
                                         >
                                             <Eye size="1rem" />
                                         </button>
@@ -91,7 +91,7 @@ export function WorkshopItemList(props: WorkshopItemListProps) {
                                             class="text-green-600 hover:text-green-800 p-1"
                                             onClick={() => props.onEdit!(item)}
                                             title="Edit"
-                                            data-testid={`edit-${props.itemType}-${item.id}-button`}
+                                            data-testid={`workshop-edit-${item.slug}`}
                                         >
                                             <Edit size="1rem" />
                                         </button>
@@ -103,7 +103,7 @@ export function WorkshopItemList(props: WorkshopItemListProps) {
                                             onClick={() => handleDelete(item)}
                                             title="Delete"
                                             disabled={isDeleting() === item.id}
-                                            data-testid={`delete-${props.itemType}-${item.id}-button`}
+                                            data-testid={`workshop-delete-${item.slug}`}
                                         >
                                             <Trash2 size="1rem" />
                                         </button>
