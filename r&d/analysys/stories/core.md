@@ -360,18 +360,18 @@ Who:
 How:
 
 0. view items in workshop [~]
-1. Activate "Add Shape" to add new shape item to package []
+1. Activate "Add Shape" to add new shape item to package [v]
     - define shape item []
-    - save shape item []
-2. Activate "Add Link" to add new link item to package []
+    - save shape item [v]
+2. Activate "Add Link" to add new link item to package [v]
     - define link item []
-    - save link item []
-3. Activate "Add Rule" to add new connection rule item to package []
+    - save link item [v]
+3. Activate "Add Rule" to add new connection rule item to package [v]
     - define rule item []
-    - save rule item []
-4. Activate "Add Layout" to add new layout item to package []
+    - save rule item [v]
+4. Activate "Add Layout" to add new layout item to package [v]
     - define layout item []
-    - save layout item []
+    - save layout item [v]
 
 Restrictions:
 
@@ -380,8 +380,6 @@ Restrictions:
 #### view item
 
 Status []
-
-
 
 Who: any user with access to the package []
 

@@ -52,8 +52,8 @@ CREATE TABLE `board_rule` (
 );
 
 
--- Add package_layout table for workshop layout items
-CREATE TABLE `package_layout` (
+-- Add board_layout table for workshop layout items
+CREATE TABLE `board_layout` (
     item_id INTEGER NOT NULL,
     layout_id INTEGER NOT NULL,
     origin_id INTEGER,

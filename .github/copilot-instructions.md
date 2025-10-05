@@ -4,19 +4,18 @@ description: project GitHub Copilot instructions
 applyTo: "**"
 ---
 
-Code change iterations must follow dev log process:
+# Code change iterations must follow dev log process:
 
 Prompt starts with line:
- `fix`|`feat` - New change iteration
+ `fix`|`feat`|`refactor` - New change iteration
  `go {some name}` - Continue iteration with name if it exists and is not completed
 
 [dev log index file](index.md) contains:
 name,date(YY-MM-DD),purpose,status(draft,in-progress,completed),ref detail files  -  required to be added when new change iteration requested.
 
 Iteration details are in folder named `YY-MM-DD-{name}`.
-Types of detail files:
 
-`definition.md` - to define the iteration:
+1. `definition.md` - to define the iteration:
 
 - purpose and goals or problem (MUST)
 - definition of done (SHOULD)
@@ -26,32 +25,35 @@ Types of detail files:
 - any problems, open questions, uncertainties, challenges anticipated (COULD)
 - any relevant diagrams or illustrations (COULD)
 
-`research.md` - To register results of research or analysis related to the iteration:
+2. `research.md` - To register results of research or analysis related to the iteration (should pass an overview):
 
 - analysis of definition content
 - code, data, documentation stressed or referenced in definition or project documentation in `dev-docs` and `analysis` folders
 - insights, findings, conclusions to be used for implementation with references.
 - any weak points, lack of clarity, requests for additional information.
 
-`plan.md` - To outline the approach, tasks, and description of what, how and why to be done: changing, adding, removing, actualizing tests, code, data, documentation, other artifacts.
+3. `plan.md` - To outline the approach, tasks, and description of what, how and why to be done: changing, adding, removing, actualizing tests, code, data, documentation, other artifacts (should pass overview). 
 
-`implementation.md` - To log the actual implementation details and progress according to the plan:
+for code change, it should look like:
+- tests related tasks
+- code related tasks
+- testing related tasks
+- documentation related tasks
+
+4. `testing.md` - To plan and log the testing process and decisions on done according to the definition of done or goals.
+
+5. `implementation.md` - To log the actual implementation details and progress according to the plan (should be actualized per each task done):
 
 - tasks with status
 - any deviations from the plan with reasons
 - any problems, issues, blockers encountered
 - references to code changes, commits, pull requests
 
-
-`testing.md` - To log the testing process and decisions on done according to the definition of done or goals.
-
-`status.md` - To log any problems, issues encountered which is not related to iteration and next steps.
-
-details: `dev-log/README.md`
+6. `status.md` - To log  any problems, issues encountered which is not related to iteration and next steps.
 
 
-Backend details: See `.github/instructions/server.instructions.md`
-Frontend details: See `.github/instructions/webapp.instructions.md`
+Backend instructions details: See `.github/instructions/server.instructions.md`
+Frontend instructions details: See `.github/instructions/webapp.instructions.md`
 
 # General Coding Standards Focus
 - Modularity, Extensibility, Reusability.

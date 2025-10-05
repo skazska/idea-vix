@@ -5,4 +5,4 @@ DROP TABLE `board_package`;
 DROP TABLE `board_shape`;
 DROP TABLE `board_line`;
 DROP TABLE `board_rule`;
-DROP TABLE IF EXISTS `package_layout`;
+DROP TABLE IF EXISTS `board_layout`;
