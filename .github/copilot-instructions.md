@@ -7,7 +7,7 @@ applyTo: "**"
 Code change iterations must follow dev log process:
 
 Prompt starts with line:
- `fix`|`feature` - New change iteration
+ `fix`|`feat` - New change iteration
  `go {some name}` - Continue iteration with name if it exists and is not completed
 
 [dev log index file](index.md) contains:
