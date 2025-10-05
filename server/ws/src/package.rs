@@ -56,6 +56,9 @@ struct RouteState {
     service: package_service::PackageService,
     jwt_service: Arc<SessionJWTService>,
     shape_service: Arc<WorkshopService>,
+    line_service: Arc<WorkshopService>,
+    rule_service: Arc<WorkshopService>,
+    layout_service: Arc<WorkshopService>,
 }
 
 /// Build a router with all package endpoints.
@@ -84,6 +87,18 @@ pub fn get_router<'a>(
         transaction_starter.clone(),
         Arc::new(WorkshopStore::new(WorkshopItemType::Shape))
     ));
+    let line_service = Arc::new(WorkshopService::new(
+        transaction_starter.clone(),
+        Arc::new(WorkshopStore::new(WorkshopItemType::Line))
+    ));
+    let rule_service = Arc::new(WorkshopService::new(
+        transaction_starter.clone(),
+        Arc::new(WorkshopStore::new(WorkshopItemType::Rule))
+    ));
+    let layout_service = Arc::new(WorkshopService::new(
+        transaction_starter.clone(),
+        Arc::new(WorkshopStore::new(WorkshopItemType::Layout))
+    ));
     let access_store = Arc::new(SqliteItemAccessQueries::new(
         "package_access_roles",
         "package_id",
@@ -98,6 +113,9 @@ pub fn get_router<'a>(
         service: package_service,
         jwt_service,
         shape_service,
+        line_service,
+        rule_service,
+        layout_service,
     });
 
     crate::resource_routes!(
@@ -115,6 +133,18 @@ pub fn get_router<'a>(
     .route("/{id}/workshop/shapes", axum::routing::post(add_package_shape))
     .route("/{id}/workshop/shapes/{shape_id}", axum::routing::put(update_package_shape))
     .route("/{id}/workshop/shapes/{shape_id}", axum::routing::delete(remove_package_shape))
+    .route("/{id}/workshop/lines", axum::routing::get(list_package_lines))
+    .route("/{id}/workshop/lines", axum::routing::post(add_package_line))
+    .route("/{id}/workshop/lines/{line_id}", axum::routing::put(update_package_line))
+    .route("/{id}/workshop/lines/{line_id}", axum::routing::delete(remove_package_line))
+    .route("/{id}/workshop/rules", axum::routing::get(list_package_rules))
+    .route("/{id}/workshop/rules", axum::routing::post(add_package_rule))
+    .route("/{id}/workshop/rules/{rule_id}", axum::routing::put(update_package_rule))
+    .route("/{id}/workshop/rules/{rule_id}", axum::routing::delete(remove_package_rule))
+    .route("/{id}/workshop/layouts", axum::routing::get(list_package_layouts))
+    .route("/{id}/workshop/layouts", axum::routing::post(add_package_layout))
+    .route("/{id}/workshop/layouts/{layout_id}", axum::routing::put(update_package_layout))
+    .route("/{id}/workshop/layouts/{layout_id}", axum::routing::delete(remove_package_layout))
     .with_state(state)
 }
 
@@ -330,5 +360,203 @@ async fn remove_package_shape(
     
     // TODO: Validate that the shape is owned by this package and user has access
     let _deleted = state.shape_service.delete_item(shape_id, &session).await.map_err(|e| e.into())?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+// Package-Line Association Handlers
+
+/// Handler: list lines associated with a package.
+/// - Requires read access to the package
+/// - Returns array of lines linked to the package
+async fn list_package_lines(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    Path(package_id): Path<i32>,
+) -> Result<Json<Vec<crate::workshop::generic_service::WorkshopItem>>, (StatusCode, String)> {
+    use crate::common::crud::ListParams;
+    let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
+    let list_params = ListParams { filter: None, pager: None };
+    let result = state.line_service.list_entity_items("package", package_id as i64, &list_params, session.as_ref()).await.map_err(|e| e.into())?;
+    Ok(Json(result))
+}
+
+/// Handler: add a line to a package.
+/// - Requires edit access to the package
+/// - Body: { "workshop_item_id": 123 }
+async fn add_package_line(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    Path(package_id): Path<i32>,
+    ValidatedJson(request): ValidatedJson<crate::workshop::generic_service::NewWorkshopItem>,
+) -> Result<(StatusCode, Json<crate::workshop::generic_service::WorkshopItem>), (StatusCode, String)> {
+    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+        
+    let mut new_item = request;
+    let created = state.line_service.create_entity_item("package", package_id as i64, &mut new_item, &session).await.map_err(|e| e.into())?;
+    Ok((StatusCode::CREATED, Json(created)))
+}
+
+/// Handler: update a line in a package.
+/// - Requires edit access to the package
+/// - Updates the workshop item globally (not entity-specific)
+/// - Returns the updated WorkshopItem
+async fn update_package_line(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    Path((_package_id, line_id)): Path<(i32, i64)>,
+    ValidatedJson(request): ValidatedJson<crate::workshop::generic_service::PatchWorkshopItem>,
+) -> Result<Json<crate::workshop::generic_service::WorkshopItem>, (StatusCode, String)> {
+    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    
+    // TODO: Validate that the line is linked to this package and user has access
+    let updated = state.line_service.update_item(line_id, &request, &session).await.map_err(|e| e.into())?;
+    Ok(Json(updated))
+}
+
+/// Handler: remove a line from a package.
+/// - Requires edit access to the package  
+/// - Deletes the workshop item globally (since it was created in package context)
+/// - Returns `204 No Content` on success
+async fn remove_package_line(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    Path((_package_id, line_id)): Path<(i32, i64)>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    
+    // TODO: Validate that the line is owned by this package and user has access
+    let _deleted = state.line_service.delete_item(line_id, &session).await.map_err(|e| e.into())?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+// Package-Rule Association Handlers
+
+/// Handler: list rules associated with a package.
+/// - Requires read access to the package
+/// - Returns array of rules linked to the package
+async fn list_package_rules(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    Path(package_id): Path<i32>,
+) -> Result<Json<Vec<crate::workshop::generic_service::WorkshopItem>>, (StatusCode, String)> {
+    use crate::common::crud::ListParams;
+    let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
+    let list_params = ListParams { filter: None, pager: None };
+    let result = state.rule_service.list_entity_items("package", package_id as i64, &list_params, session.as_ref()).await.map_err(|e| e.into())?;
+    Ok(Json(result))
+}
+
+/// Handler: add a rule to a package.
+/// - Requires edit access to the package
+/// - Body: { "workshop_item_id": 123 }
+async fn add_package_rule(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    Path(package_id): Path<i32>,
+    ValidatedJson(request): ValidatedJson<crate::workshop::generic_service::NewWorkshopItem>,
+) -> Result<(StatusCode, Json<crate::workshop::generic_service::WorkshopItem>), (StatusCode, String)> {
+    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+        
+    let mut new_item = request;
+    let created = state.rule_service.create_entity_item("package", package_id as i64, &mut new_item, &session).await.map_err(|e| e.into())?;
+    Ok((StatusCode::CREATED, Json(created)))
+}
+
+/// Handler: update a rule in a package.
+/// - Requires edit access to the package
+/// - Updates the workshop item globally (not entity-specific)
+/// - Returns the updated WorkshopItem
+async fn update_package_rule(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    Path((_package_id, rule_id)): Path<(i32, i64)>,
+    ValidatedJson(request): ValidatedJson<crate::workshop::generic_service::PatchWorkshopItem>,
+) -> Result<Json<crate::workshop::generic_service::WorkshopItem>, (StatusCode, String)> {
+    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    
+    // TODO: Validate that the rule is linked to this package and user has access
+    let updated = state.rule_service.update_item(rule_id, &request, &session).await.map_err(|e| e.into())?;
+    Ok(Json(updated))
+}
+
+/// Handler: remove a rule from a package.
+/// - Requires edit access to the package  
+/// - Deletes the workshop item globally (since it was created in package context)
+/// - Returns `204 No Content` on success
+async fn remove_package_rule(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    Path((_package_id, rule_id)): Path<(i32, i64)>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    
+    // TODO: Validate that the rule is owned by this package and user has access
+    let _deleted = state.rule_service.delete_item(rule_id, &session).await.map_err(|e| e.into())?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+// Package-Layout Association Handlers
+
+/// Handler: list layouts associated with a package.
+/// - Requires read access to the package
+/// - Returns array of layouts linked to the package
+async fn list_package_layouts(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    Path(package_id): Path<i32>,
+) -> Result<Json<Vec<crate::workshop::generic_service::WorkshopItem>>, (StatusCode, String)> {
+    use crate::common::crud::ListParams;
+    let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
+    let list_params = ListParams { filter: None, pager: None };
+    let result = state.layout_service.list_entity_items("package", package_id as i64, &list_params, session.as_ref()).await.map_err(|e| e.into())?;
+    Ok(Json(result))
+}
+
+/// Handler: add a layout to a package.
+/// - Requires edit access to the package
+/// - Body: { "workshop_item_id": 123 }
+async fn add_package_layout(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    Path(package_id): Path<i32>,
+    ValidatedJson(request): ValidatedJson<crate::workshop::generic_service::NewWorkshopItem>,
+) -> Result<(StatusCode, Json<crate::workshop::generic_service::WorkshopItem>), (StatusCode, String)> {
+    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+        
+    let mut new_item = request;
+    let created = state.layout_service.create_entity_item("package", package_id as i64, &mut new_item, &session).await.map_err(|e| e.into())?;
+    Ok((StatusCode::CREATED, Json(created)))
+}
+
+/// Handler: update a layout in a package.
+/// - Requires edit access to the package
+/// - Updates the workshop item globally (not entity-specific)
+/// - Returns the updated WorkshopItem
+async fn update_package_layout(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    Path((_package_id, layout_id)): Path<(i32, i64)>,
+    ValidatedJson(request): ValidatedJson<crate::workshop::generic_service::PatchWorkshopItem>,
+) -> Result<Json<crate::workshop::generic_service::WorkshopItem>, (StatusCode, String)> {
+    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    
+    // TODO: Validate that the layout is linked to this package and user has access
+    let updated = state.layout_service.update_item(layout_id, &request, &session).await.map_err(|e| e.into())?;
+    Ok(Json(updated))
+}
+
+/// Handler: remove a layout from a package.
+/// - Requires edit access to the package  
+/// - Deletes the workshop item globally (since it was created in package context)
+/// - Returns `204 No Content` on success
+async fn remove_package_layout(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<RouteState>>,
+    Path((_package_id, layout_id)): Path<(i32, i64)>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    
+    // TODO: Validate that the layout is owned by this package and user has access
+    let _deleted = state.layout_service.delete_item(layout_id, &session).await.map_err(|e| e.into())?;
     Ok(StatusCode::NO_CONTENT)
 }

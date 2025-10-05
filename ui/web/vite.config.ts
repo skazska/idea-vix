@@ -9,12 +9,12 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: process.env.WS_PORT ? `http://localhost:${process.env.WS_PORT}` : 'http://localhost:7878',
+        target: `http://localhost:${process.env.WS_PORT || 7878}`,
         changeOrigin: true,
         // rewrite: (path) => path.replace(/^\/api/, '')
       },
       '/socket.io': {
-        target: process.env.WS_PORT ? `http://localhost:${process.env.WS_PORT}` : 'http://localhost:7878',
+        target: `http://localhost:${process.env.WS_PORT || 7878}`,
         changeOrigin: true,
         ws: true,
         // rewrite: (path) => path.replace(/^\/socket.io/, '/socket.io')

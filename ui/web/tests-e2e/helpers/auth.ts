@@ -9,13 +9,13 @@ export async function apiSignInAndApplyCookie(
   address = 'e2e@example.com',
   code = 'some_code'
 ): Promise<void> {
-  const signin = await request.post(`http://localhost:${process.env.WS_PORT}/api/session/signin`, {
+  const signin = await request.post(`http://localhost:${process.env.WS_PORT || 7878}/api/session/signin`, {
     headers: { 'content-type': 'application/json' },
     data: { address },
   });
   if (!signin.ok()) throw new Error('signin failed');
 
-  const verify = await request.post(`http://localhost:${process.env.WS_PORT}/api/session/verify`, {
+  const verify = await request.post(`http://localhost:${process.env.WS_PORT || 7878}/api/session/verify`, {
     headers: { 'content-type': 'application/json' },
     data: { address, code },
   });
