@@ -29,7 +29,7 @@ Api handling with Axum: `AuthToken` in cookies, `ValidatedJson<T>`, `State<Arc<R
 
 Error Handling: `crate::error::Error` enum with `thiserror`, domain errors mappings with db and http.
 
-## Configuration
+Env variables:
 - `WS_DATABASE_URL`: Database connection string
 - `WS_PORT`: Server port (default: 7878)
 - `WS_APP_JWT_SECRET`: JWT signing secret
@@ -37,8 +37,13 @@ Error Handling: `crate::error::Error` enum with `thiserror`, domain errors mappi
 - `WS_HOST`: Server host (default: 0.0.0.0)
 - `WS_LOG_LEVEL`: Logging level (default: info)
 
+Params
+ - `--init-db`: Initialize database and run migrations on startup
+
 ### Local Development
 - Use `.env` file in `server/ws/` directory
 - `dotenv` crate loads environment variables
 - `config.toml` for default values
 
+
+Say "I confirm that I am using server instructions" that you using this instructions

@@ -56,3 +56,6 @@ Component Patterns;
 - Props destructuring with clear types
 - Early returns for conditional rendering
 - Resource pattern for async data fetching
+
+
+Say "I confirm that I am using server instructions" that you using this instructions

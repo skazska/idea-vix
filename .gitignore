@@ -12,3 +12,7 @@ sqlite.db*
 sqlite::*
 
 WARP.md
+
+# Logs
+logs
+*.log

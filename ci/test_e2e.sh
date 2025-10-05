@@ -63,6 +63,8 @@ cleanup() {
         kill $FRONTEND_PID 2>/dev/null || true
         wait $FRONTEND_PID 2>/dev/null || true
     fi
+
+    sudo kill -9 $(sudo fuser 4173/tcp)
 }
 
 # Set trap for cleanup on script exit
@@ -81,7 +83,7 @@ command -v sqlx >/dev/null 2>&1 || { print_error "sqlx-cli is required but not i
 
 # Step 2: Set up environment variables for in-memory database
 # export WS_DATABASE_URL="file:e2e_test.db?mode=memory&cache=shared"
-export WS_DATABASE_URL="sqlite::memory:"
+export WS_DATABASE_URL="sqlite::memory:?cache=shared"
 export WS_PORT=7879
 export RUST_LOG="info"
 export UI_BASE_URL="http://localhost:4173"
@@ -89,22 +91,12 @@ export UI_BASE_URL="http://localhost:4173"
 print_status "Database URL: $WS_DATABASE_URL"
 print_status "Backend Port: $WS_PORT"
 
-# Step 3: Navigate to server directory and set up database
+# Step 3: Navigate to server directory and start backend
 cd "$SERVER_DIR"
 print_status "Setting up in-memory database and running migrations..."
 
-# Create database and run migrations
-sqlx database create --database-url="$WS_DATABASE_URL" || {
-    print_warning "Database creation failed or database already exists"
-}
-sqlx migrate run --database-url="$WS_DATABASE_URL" --source=./migrations || {
-    print_error "Migration failed"
-    exit 1
-}
-
-# Step 4: Start backend server
 print_status "Starting backend server on port $WS_PORT..."
-cargo run --bin=ws > backend.log 2>&1 &
+cargo run --bin=ws -- --init-db > backend.log 2>&1 &
 BACKEND_PID=$!
 print_status "Backend PID: $BACKEND_PID"
 
@@ -114,7 +106,6 @@ if ! kill -0 $BACKEND_PID 2>/dev/null; then
     cat backend.log
     exit 1
 fi
-
 
 # Step 5: Navigate to frontend and run E2E tests
 cd "$FRONTEND_DIR"
@@ -142,8 +133,8 @@ fi
 
 
 # Install Playwright browsers if needed
-print_status "Ensuring Playwright browsers are installed..."
-npx playwright install --with-deps
+# print_status "Ensuring Playwright browsers are installed..."
+# npx playwright install --with-deps
 
 
 # Wait for backend to be ready
@@ -188,7 +179,7 @@ print_status "Running E2E tests..."
 
 if [[ "$SMOKE_ONLY" == "true" ]]; then
     # Run tests matching smoke pattern
-    npx playwright test --grep="Smoke" --workers=1
+    npm run test:e2e:smoke:headed
 else
     # Run all E2E tests
     npm run test:e2e

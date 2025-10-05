@@ -3,8 +3,26 @@ use std::sync::Arc;
 use axum::{
     routing::{get}, Router
 };
+use clap::Parser;
 
 use ws::{boards, config::Config, package, db, session, workshop};
+
+/// WebSocket server application
+#[derive(Parser, Debug)]
+#[command(name = "ws")]
+#[command(about = "WebSocket server application", long_about = None)]
+struct Args {
+    /// Initialize database and run migrations
+    #[arg(long)]
+    init_db: bool,
+}
+
+/// Run database migrations
+async fn run_migrations(pool: Arc<sqlx::Pool<sqlx::Sqlite>>) -> Result<(), sqlx::migrate::MigrateError> {
+    sqlx::migrate!("./migrations")
+        .run(&*pool)
+        .await
+}
 
 // #[tokio::main]
 #[tokio::main(flavor = "current_thread")]
@@ -12,6 +30,7 @@ async fn main() {
     // witt? 
     tracing_subscriber::fmt::init();
 
+    let args = Args::parse();
     let config = Config::new();
 
     println!("Starting server on {}:{}", config.host, config.port);
@@ -21,6 +40,16 @@ async fn main() {
         &config.database_url,
         config.database_pool,
     ).await;
+
+    // Run migrations if --init-db flag is provided
+    if args.init_db {
+        println!("Running database migrations...");
+        if let Err(e) = run_migrations(connection.get()).await {
+            eprintln!("Failed to run migrations: {}", e);
+            std::process::exit(1);
+        }
+        println!("Database migrations completed successfully");
+    }
 
     let jwt_adapter = ws::jwt_adapter::JwtAdapter::new(
         &config.app_jwt_secret,

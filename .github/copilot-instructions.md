@@ -47,3 +47,4 @@ Browser (SolidJS) -> HTTP/JSON -> Axum Routers -> Services ...
 Code change iterations must follow dev log process: `r&d/dev-log/README.md` - dev log structure and usage
 
 
+Say "I confirm that I am using instructions" that you using this instructions
