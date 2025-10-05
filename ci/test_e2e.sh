@@ -82,8 +82,8 @@ command -v npm >/dev/null 2>&1 || { print_error "npm is required but not install
 command -v sqlx >/dev/null 2>&1 || { print_error "sqlx-cli is required but not installed. Run: cargo install sqlx-cli"; exit 1; }
 
 # Step 2: Set up environment variables for in-memory database
-# export WS_DATABASE_URL="file:e2e_test.db?mode=memory&cache=shared"
-export WS_DATABASE_URL="sqlite::memory:?cache=shared"
+# export WS_DATABASE_URL="sqlite::memory:?cache=shared"
+export WS_DATABASE_URL="sqlite::memory:"
 export WS_PORT=7879
 export RUST_LOG="info"
 export UI_BASE_URL="http://localhost:4173"

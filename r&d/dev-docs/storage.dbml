@@ -88,6 +88,15 @@ table package_rule {
     }
 }
 
+table package_layout {
+    package_id integer [ref: > package.id]
+    layout_id integer [ref: > layout.id]
+
+    indexes {
+        (package_id, layout_id) [pk, unique]
+    }
+}
+
 
 // Board
 table board {

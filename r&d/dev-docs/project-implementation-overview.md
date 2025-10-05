@@ -34,12 +34,12 @@ Tiers:
 Crate `server/ws/src/` modules and roles:
 
 - `main.rs`: bootstraps config, DB pool, JWT service; mounts routers
-- Routers (presentation): `boards.rs`, `package.rs`, `session.rs`
-- Services (application): `boards/board_service.rs`, `package/package_service.rs`, `session/session_service.rs`
-- Stores (persistence): `boards/board_store.rs`, `package/package_store.rs`, `session/session_store.rs`
+- Routers (presentation): `boards.rs`, `package.rs`, `workshop.rs`, `session.rs`
+- Services (application): `boards/board_service.rs`, `package/package_service.rs`, `workshop/generic_service.rs`, `session/session_service.rs`
+- Stores (persistence): `boards/board_store.rs`, `package/package_store.rs`, `common/workshop_store.rs`, `session/session_store.rs`
 - Infrastructure: `config.rs`, `db.rs` (pool + time utils), `jwt_adapter.rs`, `session/session_jwt.rs`, `ext_comm{,/email}.rs`
 - Common patterns: `TransactionStarter` for database operations, `CommonItemAccess` for access control
-- Unified traits: `CrudService` and `CrudQueries` implemented by both boards and packages
+- Unified traits: `CrudService` and `CrudQueries` implemented by boards, packages, and workshop items
 - API helpers: `api/{validation,results,deserialize}.rs`
 - Error type: `error.rs`
 
@@ -47,8 +47,11 @@ Testing (high-level): Integration tests exercise routers → services → stores
 
 Mounted endpoints (see routers):
 
-- `/api/board`: list, create, get, update, delete
-- `/api/package`: list, create, get, update, delete
+- `/api/board`: list, create, get, update, delete, access management
+- `/api/board/{id}/workshop/shapes`: list, create, update, delete workshop shapes
+- `/api/package`: list, create, get, update, delete, access management
+- `/api/package/{id}/workshop/{shapes|lines|rules|layouts}`: list, create, update, delete workshop items
+- `/api/workshop/{shapes|lines|rules|layouts}`: global read-only discovery
 - `/api/session`: signin, verify, me, signout
 
 ## 4) Runtime components (frontend)
@@ -59,6 +62,7 @@ Folder `ui/web/src/`:
 - Features:
   - Boards: `boards/` (pages, forms, model, providers)
   - Packages: `package/` (pages, forms, model, providers)
+  - Workshop: `common/workshop/` (components, model, providers, API for shapes, lines, rules, layouts)
   - Session: `session/` (session UI, forms, model, providers)
 - Shared: `common/`, `assets/`
 
@@ -94,6 +98,18 @@ Packages
 - Architecture: Implements CrudService and CrudQueries traits with TransactionStarter pattern
 - DTOs: `Package`, `NewPackageItem`, `PatchPackageItem` (partial with explicit null handling)
 - Note: Boards feature module now mirrors this structure exactly
+
+Workshop Items
+
+- Types: shapes, lines, rules, layouts (diagram element blueprints)
+- Global: Read-only discovery via `/api/workshop/{shapes|lines|rules|layouts}`
+- Entity-specific: CRUD operations within packages and boards context
+  - Package routes: `/api/package/{id}/workshop/{shapes|lines|rules|layouts}`
+  - Board routes: `/api/board/{id}/workshop/{shapes|lines|rules|layouts}` (shapes only currently)
+- Architecture: Generic `WorkshopService` with type-specific `WorkshopStore` instances
+- Association tables: `package_shape`, `package_line`, `package_rule`, `package_layout`
+- DTOs: `WorkshopItem`, `NewWorkshopItem`, `PatchWorkshopItem`
+- Features: slug-based semantic identifiers, JSON definition storage, board imports from packages
 
 Sessions/Auth (passwordless)
 
