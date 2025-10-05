@@ -61,7 +61,6 @@ pub struct PatchWorkshopItem {
 pub struct LinkWorkshopItemRequest {
     pub workshop_item_id: i64,
     pub origin_id: Option<i64>, // package id for board imports
-    pub name: Option<String>,   // board-specific name override
 }
 
 /// Response model for entity-workshop-item association.
@@ -70,7 +69,6 @@ pub struct EntityWorkshopItem {
     pub item_id: i64,           // entity id (package_id or board_id)
     pub workshop_item_id: i64,  // workshop item id 
     pub origin_id: Option<i64>, // package id for board imports, None for entity own items
-    pub name: Option<String>,   // entity-specific override name
     pub created_at: i64,
 }
 
@@ -115,7 +113,6 @@ impl From<EntityWorkshopItemDb> for EntityWorkshopItem {
             item_id: db.item_id,
             workshop_item_id: db.workshop_item_id,
             origin_id: db.origin_id,
-            name: db.name,
             created_at: db.created_at,
         }
     }
@@ -191,7 +188,6 @@ impl WorkshopService {
                 entity_id,
                 created_item.id,
                 None, // origin_id - None means entity owns the item
-                None, // name - None means use the item's own name 
                 trx,
             ).await?;
 

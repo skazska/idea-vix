@@ -2995,11 +2995,6 @@ components:
           format: int64
           description: The ID of the workshop item to link to the entity
           example: 1
-        name:
-          type: string
-          description: Optional name override for this link (only applicable to certain entity types)
-          maxLength: 255
-          example: "Custom Rectangle Instance"
 
     EntityWorkshopItem:
       type: object
@@ -3018,12 +3013,6 @@ components:
           format: int64
           description: ID of the workshop item
           example: 1
-        name:
-          type:
-            - string
-            - 'null'
-          description: Optional name override for this link
-          example: "Custom Rectangle Instance"
         item:
           $ref: '#/components/schemas/WorkshopItem'
 

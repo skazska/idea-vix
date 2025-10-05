@@ -77,6 +77,31 @@
 
 **Total**: 21 integration tests, all passed
 
+### New Integration Tests Added
+
+8. **boards_workshop_lines** (2 tests, 0.07s)
+   - board_workshop_lines_full_crud ✅
+   - board_workshop_lines_requires_authentication ✅
+
+9. **boards_workshop_rules** (2 tests, 0.06s)
+   - board_workshop_rules_full_crud ✅
+   - board_workshop_rules_requires_authentication ✅
+
+10. **boards_workshop_layouts** (2 tests, 0.07s)
+    - board_workshop_layouts_full_crud ✅
+    - board_workshop_layouts_requires_authentication ✅
+
+**New Tests Total**: 6 integration tests, all passed
+**Grand Total**: 27 integration tests, all passed
+
+## Bug Found and Fixed
+
+**Database Schema Issue**: The `board_rule` and `board_layout` tables were missing the `name` column that exists in `board_shape` and `board_line` tables.
+
+**Fix Applied**: Updated migration `20250727044835_create_boards.up.sql` to add the `name VARCHAR(100)` column to both tables.
+
+**Impact**: Without this fix, creating rules and layouts for boards would fail with 500 errors because the code expected the column to exist based on the entity type being "board".
+
 ## Definition of Done Verification
 
 ### ✅ 1. Board workshop supports all four item types

@@ -278,7 +278,7 @@ async fn list_board_shapes(
 
 /// Handler: add a shape to a board.
 /// - Requires edit access to the board
-/// - Body: { "workshop_item_id": 123, "origin_id": optional_package_id, "name": "optional display name" }
+/// - Body: { "name": "Shape Name", "slug": "shape-slug", "description": "optional", "definition": {...} }
 async fn add_board_shape(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
@@ -344,7 +344,7 @@ async fn list_board_lines(
 
 /// Handler: add a line to a board.
 /// - Requires edit access to the board
-/// - Body: { "workshop_item_id": 123, "origin_id": optional_package_id, "name": "optional display name" }
+/// - Body: { "name": "Line Name", "slug": "line-slug", "description": "optional", "definition": {...} }
 async fn add_board_line(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
@@ -410,7 +410,7 @@ async fn list_board_rules(
 
 /// Handler: add a rule to a board.
 /// - Requires edit access to the board
-/// - Body: { "workshop_item_id": 123, "origin_id": optional_package_id, "name": "optional display name" }
+/// - Body: { "name": "Rule Name", "slug": "rule-slug", "description": "optional", "definition": {...} }
 async fn add_board_rule(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
@@ -476,7 +476,7 @@ async fn list_board_layouts(
 
 /// Handler: add a layout to a board.
 /// - Requires edit access to the board
-/// - Body: { "workshop_item_id": 123, "origin_id": optional_package_id, "name": "optional display name" }
+/// - Body: { "name": "Layout Name", "slug": "layout-slug", "description": "optional", "definition": {...} }
 async fn add_board_layout(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,

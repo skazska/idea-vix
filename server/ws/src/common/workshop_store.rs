@@ -272,7 +272,6 @@ pub struct EntityWorkshopItemDb {
     pub item_id: i64, // entity id (package_id or board_id)
     pub workshop_item_id: i64, // workshop item id (shape_id, line_id, rule_id, layout_id)
     pub origin_id: Option<i64>, // package id for board imports, None for package own items
-    pub name: Option<String>, // board-specific override name
     pub created_at: i64,
 }
 
@@ -335,7 +334,6 @@ impl WorkshopStore {
         entity_id: i64,
         workshop_item_id: i64,
         origin_id: Option<i64>,
-        name_override: Option<&str>,
         trx: &mut Trx,
     ) -> Result<EntityWorkshopItemDb, DbErr> {
         let now: i64 = to_unix_timestamp(SystemTime::now()).try_into().unwrap_or(0);
@@ -345,32 +343,18 @@ impl WorkshopStore {
         let item_id_col = "item_id";
         let workshop_id_col = self.id_column_name();
 
-        // Determine if the link table has a name column (board tables have name, package tables don't)
-        let has_name_col = entity_table == "board";
-        
-        let sql = if has_name_col {
-            format!(
-                "INSERT INTO {} ({}, {}, origin_id, name) VALUES (?1, ?2, ?3, ?4) RETURNING item_id as item_id, {} as workshop_item_id, origin_id, name, ?5 as created_at",
-                link_table, item_id_col, workshop_id_col, workshop_id_col
-            )
-        } else {
-            format!(
-                "INSERT INTO {} ({}, {}, origin_id) VALUES (?1, ?2, ?3) RETURNING item_id as item_id, {} as workshop_item_id, origin_id, NULL as name, ?4 as created_at",
-                link_table, item_id_col, workshop_id_col, workshop_id_col
-            )
-        };
+        let sql = format!(
+            "INSERT INTO {} ({}, {}, origin_id) VALUES (?1, ?2, ?3) RETURNING item_id as item_id, {} as workshop_item_id, origin_id, ?4 as created_at",
+            link_table, item_id_col, workshop_id_col, workshop_id_col
+        );
 
-        let mut query = sqlx::query_as::<_, EntityWorkshopItemDb>(&sql)
+        let result = sqlx::query_as::<_, EntityWorkshopItemDb>(&sql)
             .bind(entity_id)
             .bind(workshop_item_id)
-            .bind(origin_id);
-
-        if has_name_col {
-            query = query.bind(name_override);
-        }
-        query = query.bind(now);
-
-        let result = query.fetch_one(&mut **transaction).await;
+            .bind(origin_id)
+            .bind(now)
+            .fetch_one(&mut **transaction)
+            .await;
 
         result
     }
@@ -389,21 +373,11 @@ impl WorkshopStore {
         let link_table = format!("{}_{}", entity_table, self.table_name());
         let item_id_col = "item_id";
         let workshop_id_col = self.id_column_name();
-        
-        // Determine if the link table has a name column (board tables have name, package tables don't)
-        let has_name_col = entity_table == "board";
-        
-        let sql = if has_name_col {
-            format!(
-                "DELETE FROM {} WHERE {} = ?1 AND {} = ?2 AND origin_id IS ?3 RETURNING item_id as item_id, {} as workshop_item_id, origin_id, name, ?4 as created_at",
-                link_table, item_id_col, workshop_id_col, workshop_id_col
-            )
-        } else {
-            format!(
-                "DELETE FROM {} WHERE {} = ?1 AND {} = ?2 AND origin_id IS ?3 RETURNING item_id as item_id, {} as workshop_item_id, origin_id, NULL as name, ?4 as created_at",
-                link_table, item_id_col, workshop_id_col, workshop_id_col
-            )
-        };
+
+        let sql = format!(
+            "DELETE FROM {} WHERE {} = ?1 AND {} = ?2 AND origin_id IS ?3 RETURNING item_id as item_id, {} as workshop_item_id, origin_id, ?4 as created_at",
+            link_table, item_id_col, workshop_id_col, workshop_id_col
+        );
 
         let now: i64 = to_unix_timestamp(SystemTime::now()).try_into().unwrap_or(0);
         let result = sqlx::query_as::<_, EntityWorkshopItemDb>(&sql)

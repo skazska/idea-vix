@@ -23,7 +23,6 @@ CREATE TABLE `board_shape` (
     item_id INTEGER NOT NULL,
     shape_id INTEGER NOT NULL,
     origin_id INTEGER,
-    name VARCHAR(100),
     PRIMARY KEY (item_id, shape_id, origin_id),
     FOREIGN KEY (item_id) REFERENCES board(id) ON DELETE CASCADE,
     FOREIGN KEY (shape_id) REFERENCES shape(id) ON DELETE CASCADE,
@@ -34,7 +33,6 @@ CREATE TABLE `board_line` (
     item_id INTEGER NOT NULL,
     line_id INTEGER NOT NULL,
     origin_id INTEGER,
-    name VARCHAR(100),
     PRIMARY KEY (item_id, line_id, origin_id),
     FOREIGN KEY (item_id) REFERENCES board(id) ON DELETE CASCADE,
     FOREIGN KEY (line_id) REFERENCES line(id) ON DELETE CASCADE,
@@ -58,7 +56,7 @@ CREATE TABLE `board_layout` (
     layout_id INTEGER NOT NULL,
     origin_id INTEGER,
     PRIMARY KEY (item_id, layout_id, origin_id),
-    FOREIGN KEY (item_id) REFERENCES package(id) ON DELETE CASCADE,
+    FOREIGN KEY (item_id) REFERENCES board(id) ON DELETE CASCADE,
     FOREIGN KEY (layout_id) REFERENCES layout(id) ON DELETE CASCADE,
     FOREIGN KEY (origin_id) REFERENCES package(id) ON DELETE SET NULL
 );
