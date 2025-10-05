@@ -14,6 +14,7 @@ import Expandable from "../common/expandable/Expandable";
 import { AccessProvider } from "../common/access/access.provider";
 import { AccessMapProvider } from "../common/access/accessMap.provider";
 import Accessible from "../common/access/Accessible";
+import { WorkshopManagerProvider, WorkshopManager } from "../common/workshop";
 
 function BoardContent() {
     console.log("BoardContent rendered");
@@ -262,6 +263,17 @@ function BoardContent() {
                                             <AccessMapProvider id={b().id} api={boardApi}>
                                                 <AccessManager id={b().id}/>
                                             </AccessMapProvider>
+                                        </Expandable>
+                                    </Accessible>
+
+                                    {/* Workshop Items Section */}
+                                    <Accessible roles={["owner", "manage", "edit"]}>
+                                        <Expandable title="Workshop Items" openByDefault={false} name="board-section-workshop">
+                                            <div class="bg-white rounded-lg shadow p-6">
+                                                <WorkshopManagerProvider entityType="board" entityId={boardId!}>
+                                                    <WorkshopManager entityType="board" entityId={boardId!} />
+                                                </WorkshopManagerProvider>
+                                            </div>
                                         </Expandable>
                                     </Accessible>
                                 </div>
