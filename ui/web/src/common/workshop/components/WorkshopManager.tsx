@@ -4,7 +4,7 @@ import type { WorkshopItemType, NewWorkshopItem, PatchWorkshopItem } from "../mo
 import type { WorkshopItemWithType } from "../providers";
 import { getWorkshopItemTypeDisplayName } from "../model";
 import { useWorkshopManager } from "../providers";
-import { WorkshopItemForm } from "./";
+import { WorkshopItemForm } from "./WorkshopItemForm";
 
 export interface WorkshopManagerProps {
     entityType: "package" | "board";
