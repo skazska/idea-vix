@@ -54,11 +54,30 @@ import { WorkshopManagerProvider, WorkshopManager } from "../common/workshop";
 **Actions**:
 - Build the frontend application
 - Verify no TypeScript errors
-- Test in browser (if possible) to ensure:
-  - Workshop Items section appears in board detail view
-  - Section is only visible to users with owner/manage/edit roles
-  - Can create, edit, and delete workshop items
-  - Tab navigation works correctly between item types
+
+---
+
+### 4. Create E2E Tests
+
+**File**: `/ui/web/tests-e2e/board_workshop_flow.spec.ts`
+
+**Content**: Mirror the package workshop E2E tests with board-specific adaptations
+
+**Test Cases to Implement**:
+1. Open workshop section and display tabs
+2. Create shape items
+3. Create items of all types (shapes, lines, rules, layouts)
+4. Edit existing workshop items
+5. Delete workshop items
+6. Form validation
+7. Cancel form without saving
+8. Switch between item type tabs
+9. Persist workshop items after page reload
+
+**Why**: 
+- Ensures board workshop functionality works correctly
+- Provides automated regression testing
+- Maintains parity with package workshop test coverage
 
 ---
 
@@ -69,6 +88,7 @@ After implementation:
 2. Users can manage shapes, lines, rules, and layouts for boards
 3. The UI maintains consistency with the existing package implementation
 4. No breaking changes to existing functionality
+5. Comprehensive E2E test coverage ensures quality and prevents regressions
 
 ## Dependencies
 

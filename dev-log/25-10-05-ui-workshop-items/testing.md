@@ -79,10 +79,62 @@ Since this is a UI feature addition that reuses existing tested components, test
 
 ## Automated Tests
 
-No new automated tests required at this stage because:
-- Workshop components already have their own tests
-- This is purely integrating existing components
-- E2E tests for workshop functionality already exist from package implementation
+### E2E Test Suite Created
+
+**File**: `/ui/web/tests-e2e/board_workshop_flow.spec.ts`
+
+**Test Suite**: `@Smoke Board Workshop Items Management`
+
+**Tests Implemented**:
+
+1. ✅ **should open workshop section and display tabs**
+   - Verifies all item type tabs are visible
+   - Checks default tab selection
+
+2. ✅ **should create a shape item**
+   - Tests shape creation workflow
+   - Verifies item display and action buttons
+
+3. ✅ **should create items of all types**
+   - Creates shapes, lines, rules, and layouts
+   - Verifies tab counts update correctly
+
+4. ✅ **should edit an existing workshop item**
+   - Tests edit workflow with form pre-population
+   - Verifies updates are saved and displayed
+
+5. ✅ **should delete a workshop item**
+   - Tests deletion with confirmation dialog
+   - Verifies item removal and tab count update
+
+6. ✅ **should validate form inputs**
+   - Tests empty form validation
+   - Tests invalid JSON validation
+   - Verifies successful submission after fixes
+
+7. ✅ **should cancel form without saving**
+   - Tests cancel button functionality
+   - Verifies no item is created
+
+8. ✅ **should switch between item type tabs**
+   - Tests tab navigation
+   - Verifies correct items shown per tab
+
+9. ✅ **should persist workshop items after page reload**
+   - Tests data persistence
+   - Verifies items remain after reload
+
+### Running the Tests
+
+```bash
+cd ui/web
+npm run test:e2e -- board_workshop_flow.spec.ts
+```
+
+Or run all E2E tests:
+```bash
+npm run test:e2e
+```
 
 ## Definition of Done Verification
 

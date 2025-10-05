@@ -15,6 +15,13 @@ Successfully implemented UI for managing workshop items in board detail view. Th
    - Added Workshop Items expandable section after Access management section
    - Section restricted to users with owner/manage/edit roles
 
+### Files Created
+
+1. **`/ui/web/tests-e2e/board_workshop_flow.spec.ts`**
+   - Comprehensive E2E test suite for board workshop functionality
+   - 9 test cases covering all CRUD operations
+   - Mirrors package workshop test structure
+
 ### Build Status
 
 ✅ Frontend builds successfully
@@ -24,21 +31,25 @@ Successfully implemented UI for managing workshop items in board detail view. Th
 ### Testing Status
 
 - ✅ Build verification: Passed
+- ✅ E2E test suite: Created (board_workshop_flow.spec.ts)
 - ⏳ Manual UI testing: Requires running application (recommended but not blocking)
-- ⏳ E2E testing: Can be done as follow-up
+- ⏳ E2E test execution: Can be run as part of CI/CD
 
 ## Next Steps (Optional)
 
 The implementation is complete and ready for use. Optional follow-up activities:
 
-1. **Manual Testing**: Start the dev server and manually verify:
+1. **Run E2E Tests**: Execute the new E2E test suite:
+   ```bash
+   cd ui/web && npm run test:e2e -- board_workshop_flow.spec.ts
+   ```
+
+2. **Manual Testing**: Start the dev server and manually verify:
    - Workshop Items section appears in board detail view
    - Section respects role permissions
    - CRUD operations work for all workshop item types
 
-2. **Documentation Updates**: If needed, update user-facing documentation to mention board workshop functionality
-
-3. **E2E Tests**: Consider adding E2E tests similar to package workshop tests (can be separate iteration)
+3. **Documentation Updates**: If needed, update user-facing documentation to mention board workshop functionality
 
 ## Known Issues
 
