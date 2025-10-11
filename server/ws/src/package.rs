@@ -18,7 +18,7 @@
 //! use axum::Router;
 //! use crate::package; // adjust path to where this module is located
 //! 
-//! async fn build_app(pool: Arc<sqlx::Pool<sqlx::Sqlite>>, jwt: Arc<crate::session::session_jwt::SessionJWTService>) -> Router {
+//! async fn build_app(pool: Arc<sqlx::Pool<sqlx::Sqlite>>, jwt: Arc<SessionJWTService>) -> Router {
 //!     Router::new()
 //!         .nest("/api/package", package::get_router(pool, jwt))
 //! }
@@ -35,14 +35,14 @@ use crate::{
     common::{
         access::{self, ItemAccess, ItemAccessGrantDto, ItemRole, SqliteItemAccessQueries},
         crud::{CrudService, ListParams},
-        workshop_store::{WorkshopStore, WorkshopItemType, EntityWorkshopItemDb}
+        workshop_store::{EntityWorkshopItemDb, WorkshopItemType, WorkshopStore}
     },
     db::TransactionStarter,
     package::package_service::{
         NewPackageItem, Package, PatchPackageItem
     },
     session::session_jwt::SessionJWTService,
-    workshop::generic_service::{WorkshopService, WorkshopItem, EntityWorkshopItem},
+    workshop::generic_service::{EntityWorkshopItem, NewWorkshopItem, PatchWorkshopItem, WorkshopItem, WorkshopService},
 };
 
 mod package_store;
@@ -118,33 +118,43 @@ pub fn get_router<'a>(
         layout_service,
     });
 
-    crate::resource_routes!(
+    crate::resource_router!(
         get_items,
         add_item,
         get_item,
         update_item,
-        delete_item,
+        delete_item
+    )
+    .nest("/{id}", crate::access_router!(
         add_access,
         list_access,
         revoke_access,
         check_access
-    )
-    .route("/{id}/workshop/shapes", axum::routing::get(list_package_shapes))
-    .route("/{id}/workshop/shapes", axum::routing::post(add_package_shape))
-    .route("/{id}/workshop/shapes/{shape_id}", axum::routing::put(update_package_shape))
-    .route("/{id}/workshop/shapes/{shape_id}", axum::routing::delete(remove_package_shape))
-    .route("/{id}/workshop/lines", axum::routing::get(list_package_lines))
-    .route("/{id}/workshop/lines", axum::routing::post(add_package_line))
-    .route("/{id}/workshop/lines/{line_id}", axum::routing::put(update_package_line))
-    .route("/{id}/workshop/lines/{line_id}", axum::routing::delete(remove_package_line))
-    .route("/{id}/workshop/rules", axum::routing::get(list_package_rules))
-    .route("/{id}/workshop/rules", axum::routing::post(add_package_rule))
-    .route("/{id}/workshop/rules/{rule_id}", axum::routing::put(update_package_rule))
-    .route("/{id}/workshop/rules/{rule_id}", axum::routing::delete(remove_package_rule))
-    .route("/{id}/workshop/layouts", axum::routing::get(list_package_layouts))
-    .route("/{id}/workshop/layouts", axum::routing::post(add_package_layout))
-    .route("/{id}/workshop/layouts/{layout_id}", axum::routing::put(update_package_layout))
-    .route("/{id}/workshop/layouts/{layout_id}", axum::routing::delete(remove_package_layout))
+    ))
+    .nest("/{id}/workshop/shapes", crate::workshop_item_router!(
+        list_package_shapes,
+        add_package_shape,
+        update_package_shape,
+        remove_package_shape
+    ))
+    .nest("/{id}/workshop/lines", crate::workshop_item_router!(
+        list_package_lines,
+        add_package_line,
+        update_package_line,
+        remove_package_line
+    ))
+    .nest("/{id}/workshop/rules", crate::workshop_item_router!(
+        list_package_rules,
+        add_package_rule,
+        update_package_rule,
+        remove_package_rule
+    ))
+    .nest("/{id}/workshop/layouts", crate::workshop_item_router!(
+        list_package_layouts,
+        add_package_layout,
+        update_package_layout,
+        remove_package_layout
+    ))
     .with_state(state)
 }
 
@@ -305,7 +315,7 @@ async fn list_package_shapes(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
     Path(package_id): Path<i32>,
-) -> Result<Json<Vec<crate::workshop::generic_service::WorkshopItem>>, (StatusCode, String)> {
+) -> Result<Json<Vec<WorkshopItem>>, (StatusCode, String)> {
     use crate::common::crud::ListParams;
     let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
     let list_params = ListParams { filter: None, pager: None };
@@ -320,8 +330,8 @@ async fn add_package_shape(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
     Path(package_id): Path<i32>,
-    ValidatedJson(request): ValidatedJson<crate::workshop::generic_service::NewWorkshopItem>,
-) -> Result<(StatusCode, Json<crate::workshop::generic_service::WorkshopItem>), (StatusCode, String)> {
+    ValidatedJson(request): ValidatedJson<NewWorkshopItem>,
+) -> Result<(StatusCode, Json<WorkshopItem>), (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
         
     let mut new_item = request;
@@ -337,8 +347,8 @@ async fn update_package_shape(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
     Path((_package_id, shape_id)): Path<(i32, i64)>,
-    ValidatedJson(request): ValidatedJson<crate::workshop::generic_service::PatchWorkshopItem>,
-) -> Result<Json<crate::workshop::generic_service::WorkshopItem>, (StatusCode, String)> {
+    ValidatedJson(request): ValidatedJson<PatchWorkshopItem>,
+) -> Result<Json<WorkshopItem>, (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
     
     // TODO: Validate that the shape is linked to this package and user has access
@@ -372,8 +382,7 @@ async fn list_package_lines(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
     Path(package_id): Path<i32>,
-) -> Result<Json<Vec<crate::workshop::generic_service::WorkshopItem>>, (StatusCode, String)> {
-    use crate::common::crud::ListParams;
+) -> Result<Json<Vec<WorkshopItem>>, (StatusCode, String)> {
     let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
     let list_params = ListParams { filter: None, pager: None };
     let result = state.line_service.list_entity_items("package", package_id as i64, &list_params, session.as_ref()).await.map_err(|e| e.into())?;
@@ -387,8 +396,8 @@ async fn add_package_line(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
     Path(package_id): Path<i32>,
-    ValidatedJson(request): ValidatedJson<crate::workshop::generic_service::NewWorkshopItem>,
-) -> Result<(StatusCode, Json<crate::workshop::generic_service::WorkshopItem>), (StatusCode, String)> {
+    ValidatedJson(request): ValidatedJson<NewWorkshopItem>,
+) -> Result<(StatusCode, Json<WorkshopItem>), (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
         
     let mut new_item = request;
@@ -404,8 +413,8 @@ async fn update_package_line(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
     Path((_package_id, line_id)): Path<(i32, i64)>,
-    ValidatedJson(request): ValidatedJson<crate::workshop::generic_service::PatchWorkshopItem>,
-) -> Result<Json<crate::workshop::generic_service::WorkshopItem>, (StatusCode, String)> {
+    ValidatedJson(request): ValidatedJson<PatchWorkshopItem>,
+) -> Result<Json<WorkshopItem>, (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
     
     // TODO: Validate that the line is linked to this package and user has access
@@ -438,8 +447,7 @@ async fn list_package_rules(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
     Path(package_id): Path<i32>,
-) -> Result<Json<Vec<crate::workshop::generic_service::WorkshopItem>>, (StatusCode, String)> {
-    use crate::common::crud::ListParams;
+) -> Result<Json<Vec<WorkshopItem>>, (StatusCode, String)> {
     let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
     let list_params = ListParams { filter: None, pager: None };
     let result = state.rule_service.list_entity_items("package", package_id as i64, &list_params, session.as_ref()).await.map_err(|e| e.into())?;
@@ -453,8 +461,8 @@ async fn add_package_rule(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
     Path(package_id): Path<i32>,
-    ValidatedJson(request): ValidatedJson<crate::workshop::generic_service::NewWorkshopItem>,
-) -> Result<(StatusCode, Json<crate::workshop::generic_service::WorkshopItem>), (StatusCode, String)> {
+    ValidatedJson(request): ValidatedJson<NewWorkshopItem>,
+) -> Result<(StatusCode, Json<WorkshopItem>), (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
         
     let mut new_item = request;
@@ -470,8 +478,8 @@ async fn update_package_rule(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
     Path((_package_id, rule_id)): Path<(i32, i64)>,
-    ValidatedJson(request): ValidatedJson<crate::workshop::generic_service::PatchWorkshopItem>,
-) -> Result<Json<crate::workshop::generic_service::WorkshopItem>, (StatusCode, String)> {
+    ValidatedJson(request): ValidatedJson<PatchWorkshopItem>,
+) -> Result<Json<WorkshopItem>, (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
     
     // TODO: Validate that the rule is linked to this package and user has access
@@ -504,8 +512,7 @@ async fn list_package_layouts(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
     Path(package_id): Path<i32>,
-) -> Result<Json<Vec<crate::workshop::generic_service::WorkshopItem>>, (StatusCode, String)> {
-    use crate::common::crud::ListParams;
+) -> Result<Json<Vec<WorkshopItem>>, (StatusCode, String)> {
     let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
     let list_params = ListParams { filter: None, pager: None };
     let result = state.layout_service.list_entity_items("package", package_id as i64, &list_params, session.as_ref()).await.map_err(|e| e.into())?;
@@ -519,8 +526,8 @@ async fn add_package_layout(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
     Path(package_id): Path<i32>,
-    ValidatedJson(request): ValidatedJson<crate::workshop::generic_service::NewWorkshopItem>,
-) -> Result<(StatusCode, Json<crate::workshop::generic_service::WorkshopItem>), (StatusCode, String)> {
+    ValidatedJson(request): ValidatedJson<NewWorkshopItem>,
+) -> Result<(StatusCode, Json<WorkshopItem>), (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
         
     let mut new_item = request;
@@ -536,8 +543,8 @@ async fn update_package_layout(
     AuthToken(token): AuthToken,
     State(state): State<Arc<RouteState>>,
     Path((_package_id, layout_id)): Path<(i32, i64)>,
-    ValidatedJson(request): ValidatedJson<crate::workshop::generic_service::PatchWorkshopItem>,
-) -> Result<Json<crate::workshop::generic_service::WorkshopItem>, (StatusCode, String)> {
+    ValidatedJson(request): ValidatedJson<PatchWorkshopItem>,
+) -> Result<Json<WorkshopItem>, (StatusCode, String)> {
     let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
     
     // TODO: Validate that the layout is linked to this package and user has access

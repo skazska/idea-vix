@@ -64,9 +64,9 @@ export async function revokeBoardAccess(backend: IBackend, id: string, address: 
 
 export async function myBoardAccess(backend: IBackend, id: string): Promise<AccessRole[]> {
     return getResponse(
-        backend.fetchJson(`${REST_PATH}/${id}/my/access`),
+        backend.fetchJson(`${REST_PATH}/${id}/access/my`),
         (data) => data as AccessRole[],
-        `${REST_PATH}/${id}/my/access`
+        `${REST_PATH}/${id}/access/my`
     );
 }
 

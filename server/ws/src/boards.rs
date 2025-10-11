@@ -84,33 +84,42 @@ pub fn get_router<'a>(
         layout_service,
     });
 
-    crate::resource_routes!(
+    crate::resource_router!(
         get_items,
         add_item,
         get_item,
         update_item,
-        delete_item,
+        delete_item
+    ).nest("/{id}", crate::access_router!(
         add_access,
         list_access,
         revoke_access,
         check_access
-    )
-    .route("/{id}/workshop/shapes", axum::routing::get(list_board_shapes))
-    .route("/{id}/workshop/shapes", axum::routing::post(add_board_shape))
-    .route("/{id}/workshop/shapes/{shape_id}", axum::routing::put(update_board_shape))
-    .route("/{id}/workshop/shapes/{shape_id}", axum::routing::delete(remove_board_shape))
-    .route("/{id}/workshop/lines", axum::routing::get(list_board_lines))
-    .route("/{id}/workshop/lines", axum::routing::post(add_board_line))
-    .route("/{id}/workshop/lines/{line_id}", axum::routing::put(update_board_line))
-    .route("/{id}/workshop/lines/{line_id}", axum::routing::delete(remove_board_line))
-    .route("/{id}/workshop/rules", axum::routing::get(list_board_rules))
-    .route("/{id}/workshop/rules", axum::routing::post(add_board_rule))
-    .route("/{id}/workshop/rules/{rule_id}", axum::routing::put(update_board_rule))
-    .route("/{id}/workshop/rules/{rule_id}", axum::routing::delete(remove_board_rule))
-    .route("/{id}/workshop/layouts", axum::routing::get(list_board_layouts))
-    .route("/{id}/workshop/layouts", axum::routing::post(add_board_layout))
-    .route("/{id}/workshop/layouts/{layout_id}", axum::routing::put(update_board_layout))
-    .route("/{id}/workshop/layouts/{layout_id}", axum::routing::delete(remove_board_layout))
+    ))
+    .nest("/{id}/workshop/shapes", crate::workshop_item_router!(
+        list_board_shapes,
+        add_board_shape,
+        update_board_shape,
+        remove_board_shape
+    ))
+    .nest("/{id}/workshop/lines", crate::workshop_item_router!(
+        list_board_lines,
+        add_board_line,
+        update_board_line,
+        remove_board_line
+    ))
+    .nest("/{id}/workshop/rules", crate::workshop_item_router!(
+        list_board_rules,
+        add_board_rule,
+        update_board_rule,
+        remove_board_rule
+    ))
+    .nest("/{id}/workshop/layouts", crate::workshop_item_router!(
+        list_board_layouts,
+        add_board_layout,
+        update_board_layout,
+        remove_board_layout
+    ))
     .with_state(state)
 }
 

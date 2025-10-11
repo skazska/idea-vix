@@ -66,9 +66,9 @@ export async function revokePackageAccess(backend: IBackend, id: string, address
 
 export async function myPackageAccess(backend: IBackend, id: string): Promise<AccessRole[]> {
     return getResponse(
-        backend.fetchJson(`${REST_PATH}/${id}/my/access`),
+        backend.fetchJson(`${REST_PATH}/${id}/access/my`),
         (data) => data as AccessRole[],
-        `${REST_PATH}/${id}/my/access`
+        `${REST_PATH}/${id}/access/my`
     );
 }
 
