@@ -12,7 +12,7 @@
 //! - JSON definition storage as TEXT in SQLite
 //! - Generic across all workshop item types using parametrization
 
-use std::time::SystemTime;
+use std::{sync::Arc, time::SystemTime};
 use sqlx::Error;
 
 use crate::{common::crud::{CrudQueries, QueryLister}, db::{to_unix_timestamp, DbErr, Trx, TrxTrait}};
@@ -51,191 +51,6 @@ pub type LayoutLister<'a> = WorkshopItemLister<'a>;
 pub type LayoutDb = WorkshopItemDb;
 pub type NewLayoutDb<'a> = NewWorkshopItemDb<'a>;
 pub type PatchLayoutDb<'a> = PatchWorkshopItemDb<'a>;
-
-/***
- * Specific store implementations
- */
-
-/// Shape-specific store for backward compatibility
-pub struct ShapeStore {
-    inner: WorkshopStore,
-}
-
-impl ShapeStore {
-    pub fn new() -> Self {
-        Self {
-            inner: WorkshopStore::new(WorkshopItemType::Shape),
-        }
-    }
-
-    /// Get a shape by slug for semantic lookups.
-    pub async fn get_item_by_slug(&self, slug: &str, trx: &mut Trx) -> Result<ShapeDb, DbErr> {
-        self.inner.get_item_by_slug(slug, trx).await
-    }
-}
-
-impl<'a> CrudQueries<'a> for ShapeStore {
-    type Item = ShapeDb;
-    type NewItem = NewShapeDb<'a>;
-    type PatchItem = PatchShapeDb<'a>;
-    type Lister = ShapeLister<'a>;
-    type Id = i64;
-
-    async fn add_item(&self, item: &Self::NewItem, trx: &mut Trx) -> Result<Self::Item, DbErr> {
-        self.inner.add_item(item, trx).await
-    }
-
-    async fn get_items(&self, lister: &Self::Lister, trx: &mut Trx) -> Result<Vec<Self::Item>, DbErr> {
-        self.inner.get_items(lister, trx).await
-    }
-
-    async fn get_item(&self, id: Self::Id, access: Option<&'a str>, trx: &mut Trx) -> Result<Self::Item, DbErr> {
-        self.inner.get_item(id, access, trx).await
-    }
-
-    async fn update_item(&self, id: Self::Id, patch: &Self::PatchItem, trx: &mut Trx) -> Result<Self::Item, DbErr> {
-        self.inner.update_item(id, patch, trx).await
-    }
-
-    async fn delete_item(&self, id: Self::Id, trx: &mut Trx) -> Result<Self::Item, DbErr> {
-        self.inner.delete_item(id, trx).await
-    }
-}
-
-/// Line-specific store
-pub struct LineStore {
-    inner: WorkshopStore,
-}
-
-impl LineStore {
-    pub fn new() -> Self {
-        Self {
-            inner: WorkshopStore::new(WorkshopItemType::Line),
-        }
-    }
-
-    pub async fn get_item_by_slug(&self, slug: &str, trx: &mut Trx) -> Result<LineDb, DbErr> {
-        self.inner.get_item_by_slug(slug, trx).await
-    }
-}
-
-impl<'a> CrudQueries<'a> for LineStore {
-    type Item = LineDb;
-    type NewItem = NewLineDb<'a>;
-    type PatchItem = PatchLineDb<'a>;
-    type Lister = LineLister<'a>;
-    type Id = i64;
-
-    async fn add_item(&self, item: &Self::NewItem, trx: &mut Trx) -> Result<Self::Item, DbErr> {
-        self.inner.add_item(item, trx).await
-    }
-
-    async fn get_items(&self, lister: &Self::Lister, trx: &mut Trx) -> Result<Vec<Self::Item>, DbErr> {
-        self.inner.get_items(lister, trx).await
-    }
-
-    async fn get_item(&self, id: Self::Id, access: Option<&'a str>, trx: &mut Trx) -> Result<Self::Item, DbErr> {
-        self.inner.get_item(id, access, trx).await
-    }
-
-    async fn update_item(&self, id: Self::Id, patch: &Self::PatchItem, trx: &mut Trx) -> Result<Self::Item, DbErr> {
-        self.inner.update_item(id, patch, trx).await
-    }
-
-    async fn delete_item(&self, id: Self::Id, trx: &mut Trx) -> Result<Self::Item, DbErr> {
-        self.inner.delete_item(id, trx).await
-    }
-}
-
-/// Rule-specific store
-pub struct RuleStore {
-    inner: WorkshopStore,
-}
-
-impl RuleStore {
-    pub fn new() -> Self {
-        Self {
-            inner: WorkshopStore::new(WorkshopItemType::Rule),
-        }
-    }
-
-    pub async fn get_item_by_slug(&self, slug: &str, trx: &mut Trx) -> Result<RuleDb, DbErr> {
-        self.inner.get_item_by_slug(slug, trx).await
-    }
-}
-
-impl<'a> CrudQueries<'a> for RuleStore {
-    type Item = RuleDb;
-    type NewItem = NewRuleDb<'a>;
-    type PatchItem = PatchRuleDb<'a>;
-    type Lister = RuleLister<'a>;
-    type Id = i64;
-
-    async fn add_item(&self, item: &Self::NewItem, trx: &mut Trx) -> Result<Self::Item, DbErr> {
-        self.inner.add_item(item, trx).await
-    }
-
-    async fn get_items(&self, lister: &Self::Lister, trx: &mut Trx) -> Result<Vec<Self::Item>, DbErr> {
-        self.inner.get_items(lister, trx).await
-    }
-
-    async fn get_item(&self, id: Self::Id, access: Option<&'a str>, trx: &mut Trx) -> Result<Self::Item, DbErr> {
-        self.inner.get_item(id, access, trx).await
-    }
-
-    async fn update_item(&self, id: Self::Id, patch: &Self::PatchItem, trx: &mut Trx) -> Result<Self::Item, DbErr> {
-        self.inner.update_item(id, patch, trx).await
-    }
-
-    async fn delete_item(&self, id: Self::Id, trx: &mut Trx) -> Result<Self::Item, DbErr> {
-        self.inner.delete_item(id, trx).await
-    }
-}
-
-/// Layout-specific store
-pub struct LayoutStore {
-    inner: WorkshopStore,
-}
-
-impl LayoutStore {
-    pub fn new() -> Self {
-        Self {
-            inner: WorkshopStore::new(WorkshopItemType::Layout),
-        }
-    }
-
-    pub async fn get_item_by_slug(&self, slug: &str, trx: &mut Trx) -> Result<LayoutDb, DbErr> {
-        self.inner.get_item_by_slug(slug, trx).await
-    }
-}
-
-impl<'a> CrudQueries<'a> for LayoutStore {
-    type Item = LayoutDb;
-    type NewItem = NewLayoutDb<'a>;
-    type PatchItem = PatchLayoutDb<'a>;
-    type Lister = LayoutLister<'a>;
-    type Id = i64;
-
-    async fn add_item(&self, item: &Self::NewItem, trx: &mut Trx) -> Result<Self::Item, DbErr> {
-        self.inner.add_item(item, trx).await
-    }
-
-    async fn get_items(&self, lister: &Self::Lister, trx: &mut Trx) -> Result<Vec<Self::Item>, DbErr> {
-        self.inner.get_items(lister, trx).await
-    }
-
-    async fn get_item(&self, id: Self::Id, access: Option<&'a str>, trx: &mut Trx) -> Result<Self::Item, DbErr> {
-        self.inner.get_item(id, access, trx).await
-    }
-
-    async fn update_item(&self, id: Self::Id, patch: &Self::PatchItem, trx: &mut Trx) -> Result<Self::Item, DbErr> {
-        self.inner.update_item(id, patch, trx).await
-    }
-
-    async fn delete_item(&self, id: Self::Id, trx: &mut Trx) -> Result<Self::Item, DbErr> {
-        self.inner.delete_item(id, trx).await
-    }
-}
 
 /// Database model for a workshop item row (shape, line, rule, layout).
 #[derive(sqlx::FromRow, Debug, Clone)]
@@ -311,6 +126,13 @@ pub struct WorkshopStore {
     item_type: WorkshopItemType,
 }
 
+pub struct WorkshopStores {
+    pub shape_store: Arc<WorkshopStore>,
+    pub line_store: Arc<WorkshopStore>,
+    pub rule_store: Arc<WorkshopStore>,
+    pub layout_store: Arc<WorkshopStore>,
+}
+
 impl WorkshopStore {
     /// Create a new store for the specified workshop item type.
     pub fn new(item_type: WorkshopItemType) -> Self { 
@@ -365,7 +187,6 @@ impl WorkshopStore {
         entity_table: &str,
         entity_id: i64,
         workshop_item_id: i64,
-        origin_id: Option<i64>,
         trx: &mut Trx,
     ) -> Result<EntityWorkshopItemDb, DbErr> {
         let transaction = trx.get_mut();
@@ -375,7 +196,7 @@ impl WorkshopStore {
         let workshop_id_col = self.id_column_name();
 
         let sql = format!(
-            "DELETE FROM {} WHERE {} = ?1 AND {} = ?2 AND origin_id IS ?3 RETURNING item_id as item_id, {} as workshop_item_id, origin_id, ?4 as created_at",
+            "DELETE FROM {} WHERE {} = ?1 AND {} = ?2 RETURNING item_id as item_id, {} as workshop_item_id, origin_id, ?4 as created_at",
             link_table, item_id_col, workshop_id_col, workshop_id_col
         );
 
@@ -383,7 +204,6 @@ impl WorkshopStore {
         let result = sqlx::query_as::<_, EntityWorkshopItemDb>(&sql)
             .bind(entity_id)
             .bind(workshop_item_id)
-            .bind(origin_id)
             .bind(now)
             .fetch_one(&mut **transaction)
             .await;

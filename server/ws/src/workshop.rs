@@ -7,11 +7,11 @@ use std::sync::Arc;
 use crate::common::crud::{CrudService, ListParams};
 use crate::db::TransactionStarter;
 use crate::session::session_jwt::SessionJWTService;
-use crate::workshop::generic_service::{
+use crate::workshop::workshop_service::{
     WorkshopService,
     Shape, Line, Rule, Layout,
 };
-use crate::common::workshop_store::{WorkshopItemType, WorkshopStore};
+use crate::common::workshop_store::{WorkshopStores};
 use axum::extract::Query;
 use axum::{
     extract::{Path, State},
@@ -22,8 +22,8 @@ use axum::{
 };
 use serde::Deserialize;
 
-pub mod generic_service;
-
+pub mod workshop_service;
+pub mod entity_service;
 /// Shared state for the workshop routes.
 struct RouteState {
     shape_service: WorkshopService,
@@ -36,16 +36,12 @@ struct RouteState {
 pub fn get_router(
     transaction_starter: Arc<TransactionStarter>,
     _jwt_service: Arc<SessionJWTService>,
+    workshop_stores: Arc<WorkshopStores>,
 ) -> Router {
-    let shape_store = Arc::new(WorkshopStore::new(WorkshopItemType::Shape));
-    let line_store = Arc::new(WorkshopStore::new(WorkshopItemType::Line));
-    let rule_store = Arc::new(WorkshopStore::new(WorkshopItemType::Rule));
-    let layout_store = Arc::new(WorkshopStore::new(WorkshopItemType::Layout));
-    
-    let shape_service = WorkshopService::new(transaction_starter.clone(), shape_store);
-    let line_service = WorkshopService::new(transaction_starter.clone(), line_store);
-    let rule_service = WorkshopService::new(transaction_starter.clone(), rule_store);
-    let layout_service = WorkshopService::new(transaction_starter.clone(), layout_store);
+    let shape_service = WorkshopService::new(transaction_starter.clone(), workshop_stores.shape_store.clone());
+    let line_service = WorkshopService::new(transaction_starter.clone(), workshop_stores.line_store.clone());
+    let rule_service = WorkshopService::new(transaction_starter.clone(), workshop_stores.rule_store.clone());
+    let layout_service = WorkshopService::new(transaction_starter.clone(), workshop_stores.layout_store.clone());
 
     let state = Arc::new(RouteState {
         shape_service,

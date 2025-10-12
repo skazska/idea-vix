@@ -25,11 +25,13 @@ macro_rules! resource_router {
         $add_item:expr,
         $get_item:expr,
         $update_item:expr,
-        $delete_item:expr
+        $delete_item:expr,
+        $state:expr
     ) => {{
         ::axum::Router::new()
             .route("/{id}", ::axum::routing::get($get_item).put($update_item).delete($delete_item))
             .route("/", ::axum::routing::get($get_items).post($add_item))
+            .with_state($state)
     }};
 }
 
@@ -53,13 +55,15 @@ macro_rules! access_router {
         $add_access:expr,
         $list_access:expr,
         $revoke_access:expr,
-        $check_access:expr
+        $check_access:expr,
+        $state:expr
     ) => {{
         ::axum::Router::new()
             .route("/access/my", ::axum::routing::get($check_access))
             .route("/access/{address}", ::axum::routing::delete($revoke_access))
             .route("/access", ::axum::routing::post($add_access).get($list_access))
-    }};
+            .with_state($state)
+        }};
 }
 
 /// Build a Router with standard workshop-item of given type routes for an entity.
@@ -82,18 +86,22 @@ macro_rules! workshop_item_router {
         $get_workshop_items:expr,
         $add_workshop_item:expr,
         $update_workshop_item:expr,
-        $delete_workshop_item:expr
+        $delete_workshop_item:expr,
+        $workshop_state:expr
     ) => {{
         ::axum::Router::new()
             .route("/{workshop_item_id}", ::axum::routing::put($update_workshop_item).delete($delete_workshop_item))
             .route("/", ::axum::routing::get($get_workshop_items).post($add_workshop_item))
+            .with_state($workshop_state)
     }};
 }
 
+
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use axum::{extract::Path, response::{self, IntoResponse}, Json, Router};
+    use std::sync::Arc;
+
+    use axum::{extract::{Path, State}, response::{self, IntoResponse}, Json};
     use tower::util::ServiceExt;
     use serde::Serialize;
 
@@ -103,26 +111,49 @@ mod tests {
         name: String,
     }
 
+    #[derive(Debug, Clone)]
+    struct CommonState {
+        common: String,
+    }
+
+    #[derive(Debug, Clone)]
+    struct CrudState {
+        crud: String,
+    }
+
+    #[derive(Debug, Clone)]
+    struct AccessState {
+        access: String,
+    }
+
     #[tokio::test]
     async fn test_resource_routes() {
+        let common_state: Arc<CommonState> = Arc::new(CommonState {
+            common: "common".to_string(),
+        });
+
+        let crud_state: Arc<CrudState> = Arc::new(CrudState {
+            crud: "crud".to_string(),
+        });
+
+        let access_state: Arc<AccessState> = Arc::new(AccessState {
+            access: "access".to_string(),
+        });
+
         let router = resource_router!(
             get_items,
             add_item,
             get_item,
             update_item,
-            delete_item
+            delete_item,
+            Arc::new((common_state.clone(), crud_state.clone()))
         )
         .nest("/1", access_router!(
             add_access,
             list_access,
             revoke_access,
-            check_access
-        ))
-        .nest("/1/testitems", workshop_item_router!(
-            get_items,
-            add_item,
-            update_item,
-            delete_item
+            check_access,
+            Arc::new((common_state.clone(), access_state.clone()))
         ));
 
         let response = router.clone()
@@ -233,15 +264,16 @@ mod tests {
 
     }
 
-    async fn get_items() -> impl IntoResponse {
+    async fn get_items(State(state): State<Arc<(Arc<CommonState>, Arc<CrudState>)>>) -> impl IntoResponse {
+        let (common_state, crud_state) = state.as_ref();
         Json(vec![
             TestItem {
                 id: 1,
-                name: "Item 1".to_string(),
+                name: common_state.common.clone(),
             },
             TestItem {
                 id: 2,
-                name: "Item 2".to_string(),
+                name: crud_state.crud.clone(),
             },
         ])
     }
@@ -269,8 +301,9 @@ mod tests {
     async fn add_access() -> impl IntoResponse {
         Json("Access added")
     }
-    async fn list_access() -> impl IntoResponse {
-        Json(vec!["user1", "user2"])
+    async fn list_access(State(state): State<Arc<(Arc<CommonState>, Arc<AccessState>)>>) -> impl IntoResponse {
+        let (common_state, access_state) = state.as_ref();
+        Json(vec![common_state.common.clone(), access_state.access.clone()])
     }
     async fn revoke_access(path: Path<String>) -> impl IntoResponse {
         let path: &str = path.as_ref();

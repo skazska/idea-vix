@@ -5,7 +5,7 @@ use axum::{
 };
 use clap::Parser;
 
-use ws::{boards, config::Config, package, db, session, workshop};
+use ws::{boards, common::workshop_store::{WorkshopItemType, WorkshopStore, WorkshopStores}, config::Config, db, package, session, workshop};
 
 /// WebSocket server application
 #[derive(Parser, Debug)]
@@ -58,10 +58,17 @@ async fn main() {
 
     let jwt_service = Arc::new(session::session_jwt::SessionJWTService::new(jwt_adapter));
 
-    let package_router = package::get_router(connection.get_transaction_starter(), jwt_service.clone());
-    let boards_router = boards::get_router(connection.get_transaction_starter(), jwt_service.clone());
+    let workshop_stores = Arc::new(WorkshopStores {
+        shape_store: Arc::new(WorkshopStore::new(WorkshopItemType::Shape)),
+        line_store: Arc::new(WorkshopStore::new(WorkshopItemType::Line)),
+        rule_store: Arc::new(WorkshopStore::new(WorkshopItemType::Rule)),
+        layout_store: Arc::new(WorkshopStore::new(WorkshopItemType::Layout)),
+    });
+
+    let package_router = package::get_router(connection.get_transaction_starter(), jwt_service.clone(), workshop_stores.clone());
+    let boards_router = boards::get_router(connection.get_transaction_starter(), jwt_service.clone(), workshop_stores.clone());
     let session_router = session::get_router(connection.get(), jwt_service.clone());
-    let workshop_router = workshop::get_router(connection.get_transaction_starter(), jwt_service.clone());
+    let workshop_router = workshop::get_router(connection.get_transaction_starter(), jwt_service.clone(), workshop_stores.clone());
 
     let app = Router::new()
         .route("/", get(root))

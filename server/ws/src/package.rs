@@ -33,33 +33,25 @@ use axum::{
 use crate::{
     api::{deserialize::AuthToken, validation::ValidatedJson},
     common::{
-        access::{self, ItemAccess, ItemAccessGrantDto, ItemRole, SqliteItemAccessQueries},
+        access::{CommonItemAccess, ItemAccess, ItemAccessGrantDto, ItemRole, SqliteItemAccessQueries},
         crud::{CrudService, ListParams},
-        workshop_store::{EntityWorkshopItemDb, WorkshopItemType, WorkshopStore}
+        workshop_store::WorkshopStores
     },
     db::TransactionStarter,
     package::package_service::{
-        NewPackageItem, Package, PatchPackageItem
+        NewPackageItem, Package, PackageService, PatchPackageItem
     },
     session::session_jwt::SessionJWTService,
-    workshop::generic_service::{EntityWorkshopItem, NewWorkshopItem, PatchWorkshopItem, WorkshopItem, WorkshopService},
+    workshop::{
+        entity_service::WorkshopEntityService,
+        workshop_service::{ NewWorkshopItem, PatchWorkshopItem, WorkshopItem }
+    }
 };
 
 mod package_store;
 mod package_service;
 
-/// Shared state for the package routes.
-///
-/// Holds the service layer and JWT service required by handlers.
-struct RouteState {
-    access_service: access::CommonItemAccess,
-    service: package_service::PackageService,
-    jwt_service: Arc<SessionJWTService>,
-    shape_service: Arc<WorkshopService>,
-    line_service: Arc<WorkshopService>,
-    rule_service: Arc<WorkshopService>,
-    layout_service: Arc<WorkshopService>,
-}
+const ENTITY: &str = "package";
 
 /// Build a router with all package endpoints.
 ///
@@ -78,84 +70,82 @@ struct RouteState {
 /// - `jwt_service`: JWT service wrapped in `Arc`
 ///
 /// Returns an Axum `Router` ready to be nested under a path like `/api/package`.
-pub fn get_router<'a>(
+pub fn get_router(
     transaction_starter: Arc<TransactionStarter>,
     jwt_service: Arc<SessionJWTService>,
+    workshop_stores: Arc<WorkshopStores>,
 ) -> axum::Router {
 
-    let shape_service = Arc::new(WorkshopService::new(
-        transaction_starter.clone(),
-        Arc::new(WorkshopStore::new(WorkshopItemType::Shape))
-    ));
-    let line_service = Arc::new(WorkshopService::new(
-        transaction_starter.clone(),
-        Arc::new(WorkshopStore::new(WorkshopItemType::Line))
-    ));
-    let rule_service = Arc::new(WorkshopService::new(
-        transaction_starter.clone(),
-        Arc::new(WorkshopStore::new(WorkshopItemType::Rule))
-    ));
-    let layout_service = Arc::new(WorkshopService::new(
-        transaction_starter.clone(),
-        Arc::new(WorkshopStore::new(WorkshopItemType::Layout))
-    ));
     let access_store = Arc::new(SqliteItemAccessQueries::new(
         "package_access_roles",
         "package_id",
     ));
-    let access_service = access::CommonItemAccess::new(transaction_starter.clone(), access_store.clone());
 
     let items_store = Arc::new(package_store::PackageStore::new());
-    let package_service = package_service::PackageService::new(transaction_starter, items_store, access_store);
-
-    let state= Arc::new(RouteState {
-        access_service,
-        service: package_service,
-        jwt_service,
-        shape_service,
-        line_service,
-        rule_service,
-        layout_service,
-    });
 
     crate::resource_router!(
         get_items,
         add_item,
         get_item,
         update_item,
-        delete_item
+        delete_item,
+        Arc::new((jwt_service.clone(), PackageService::new(
+            transaction_starter.clone(),
+            items_store,
+            access_store.clone(),
+        )))
     )
     .nest("/{id}", crate::access_router!(
         add_access,
         list_access,
         revoke_access,
-        check_access
+        check_access,
+        Arc::new((jwt_service.clone(), CommonItemAccess::new(transaction_starter.clone(), access_store.clone())))
     ))
     .nest("/{id}/workshop/shapes", crate::workshop_item_router!(
-        list_package_shapes,
-        add_package_shape,
-        update_package_shape,
-        remove_package_shape
+        list_package_items,
+        add_package_item,
+        update_package_item,
+        remove_package_item,
+        Arc::new((jwt_service.clone(), WorkshopEntityService::new(
+            ENTITY,
+            transaction_starter.clone(),
+            workshop_stores.shape_store.clone(),
+        )))
     ))
     .nest("/{id}/workshop/lines", crate::workshop_item_router!(
-        list_package_lines,
-        add_package_line,
-        update_package_line,
-        remove_package_line
+        list_package_items,
+        add_package_item,
+        update_package_item,
+        remove_package_item,
+        Arc::new((jwt_service.clone(), WorkshopEntityService::new(
+            ENTITY,
+            transaction_starter.clone(),
+            workshop_stores.line_store.clone(),
+        )))
     ))
     .nest("/{id}/workshop/rules", crate::workshop_item_router!(
-        list_package_rules,
-        add_package_rule,
-        update_package_rule,
-        remove_package_rule
+        list_package_items,
+        add_package_item,
+        update_package_item,
+        remove_package_item,
+        Arc::new((jwt_service.clone(), WorkshopEntityService::new(
+            ENTITY,
+            transaction_starter.clone(),
+            workshop_stores.rule_store.clone(),
+        )))
     ))
     .nest("/{id}/workshop/layouts", crate::workshop_item_router!(
-        list_package_layouts,
-        add_package_layout,
-        update_package_layout,
-        remove_package_layout
+        list_package_items,
+        add_package_item,
+        update_package_item,
+        remove_package_item,
+        Arc::new((jwt_service.clone(), WorkshopEntityService::new(
+            ENTITY,
+            transaction_starter.clone(),
+            workshop_stores.layout_store.clone(),
+        )))
     ))
-    .with_state(state)
 }
 
 // #[axum::debug_handler]
@@ -163,16 +153,17 @@ pub fn get_router<'a>(
 /// - Returns only public packages when no valid JWT is provided
 /// - With a valid JWT, also returns packages accessible to the user
 /// - Returns a JSON array of `Package`
-async fn get_items(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>) -> Result<Json<Vec<Package>>, (StatusCode, String)> {
-    let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
-    
+async fn get_items(AuthToken(token): AuthToken, State(state): State<Arc<(Arc<SessionJWTService>, PackageService)>>) -> Result<Json<Vec<Package>>, (StatusCode, String)> {
+    let (jwt_service, package_service) = state.as_ref();
+    let session = jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
+
     // Create default list parameters
     let lister = package_service::PackageLister {
         filter: None,
         pager: None,
     };
 
-    let result = state.service.get_items(&lister, session.as_ref()).await.map_err(|e| e.into())?;
+    let result = package_service.get_items(&lister, session.as_ref()).await.map_err(|e| e.into())?;
 
     Ok(Json(result))
 }
@@ -187,9 +178,10 @@ async fn get_items(AuthToken(token): AuthToken, State(state): State<Arc<RouteSta
 /// ```json
 /// { "name": "My Package", "description": "optional", "is_public": true }
 /// ```
-async fn add_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>, ValidatedJson(mut item): ValidatedJson<NewPackageItem>) -> Result<(StatusCode, Json<Package>), (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    let result = state.service.add_item(&mut item, &session).await.map_err(|e| e.into())?;
+async fn add_item(AuthToken(token): AuthToken, State(state): State<Arc<(Arc<SessionJWTService>, PackageService)>>, ValidatedJson(mut item): ValidatedJson<NewPackageItem>) -> Result<(StatusCode, Json<Package>), (StatusCode, String)> {
+    let (jwt_service, service) = state.as_ref();
+    let session = jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    let result = service.add_item(&mut item, &session).await.map_err(|e| e.into())?;
     Ok((StatusCode::CREATED, Json(result)))
 }
 
@@ -198,9 +190,10 @@ async fn add_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteStat
 /// - Returns public packages without authentication
 /// - Private packages require access for the caller
 /// - Returns `404` if the package is not accessible or does not exist
-async fn get_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>, axum::extract::Path(id): Path<i64>) -> Result<Json<Package>, (StatusCode, String)> {
-    let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
-    let result = state.service.get_item(id, session.as_ref()).await.map_err(|e| e.into())?;
+async fn get_item(AuthToken(token): AuthToken, State(state): State<Arc<(Arc<SessionJWTService>, PackageService)>>, axum::extract::Path(id): Path<i64>) -> Result<Json<Package>, (StatusCode, String)> {
+    let (jwt_service, service) = state.as_ref();
+    let session = jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
+    let result = service.get_item(id, session.as_ref()).await.map_err(|e| e.into())?;
     Ok(Json(result))
 }
 
@@ -215,9 +208,10 @@ async fn get_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteStat
 /// Example payloads:
 /// - Update name only: `{ "name": "New Name" }`
 /// - Clear description: `{ "description": null }`
-async fn update_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>, axum::extract::Path(id): Path<i64>, ValidatedJson(item): ValidatedJson<PatchPackageItem>) -> Result<Json<Package>, (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    let result = state.service.update_item(id, &item, &session).await.map_err(|e| e.into())?;
+async fn update_item(AuthToken(token): AuthToken, State(state): State<Arc<(Arc<SessionJWTService>, PackageService)>>, axum::extract::Path(id): Path<i64>, ValidatedJson(item): ValidatedJson<PatchPackageItem>) -> Result<Json<Package>, (StatusCode, String)> {
+    let (jwt_service, service) = state.as_ref();
+    let session = jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    let result = service.update_item(id, &item, &session).await.map_err(|e| e.into())?;
     Ok(Json(result))
 }
 
@@ -226,10 +220,11 @@ async fn update_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteS
 /// - Authenticates via JWT
 /// - Requires `owner` or `manage` role
 /// - Returns `200 Ok` and deleted package on success
-async fn delete_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>, axum::extract::Path(id): Path<i64>) -> Result<Json<Package>, (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+async fn delete_item(AuthToken(token): AuthToken, State(state): State<Arc<(Arc<SessionJWTService>, PackageService)>>, axum::extract::Path(id): Path<i64>) -> Result<Json<Package>, (StatusCode, String)> {
+    let (jwt_service, service) = state.as_ref();
+    let session = jwt_service.get_session_data(&token).map_err(|e| e.into())?;
     // perform deletion, ignore returned entity for API contract
-    let result = state.service.delete_item(id, &session).await.map_err(|e| e.into())?;
+    let result = service.delete_item(id, &session).await.map_err(|e| e.into())?;
     Ok(Json(result))
 }
 
@@ -241,17 +236,18 @@ async fn delete_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteS
 /// - Returns created mapping
 async fn add_access(
     AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
+    State(state): State<Arc<(Arc<SessionJWTService>, CommonItemAccess)>>,
     axum::extract::Path(id): Path<i64>,
     ValidatedJson(item): ValidatedJson<ItemAccessGrantDto>,
 ) -> Result<Json<ItemRole<i64>>, (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    let (jwt_service, service) = state.as_ref();
+    let session = jwt_service.get_session_data(&token).map_err(|e| e.into())?;
     let role_dto = ItemRole {
         address: item.address,
         role: item.role,
         item_id: id,
     };
-    let result = state.access_service.add_access_role(role_dto, &session).await.map_err(|e| e.into())?;
+    let result = service.add_access_role(role_dto, &session).await.map_err(|e| e.into())?;
     Ok(Json(result))
 }
 
@@ -262,11 +258,12 @@ async fn add_access(
 /// - Path: /{id}/access/{address}
 async fn revoke_access(
     AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
+    State(state): State<Arc<(Arc<SessionJWTService>, CommonItemAccess)>>,
     Path((id, address)): Path<(i64, String)>,
 ) -> Result<Json<Vec<ItemRole<i64>>>, (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    let result = state.access_service.revoke_access_roles(id, address, &session).await.map_err(|e| e.into())?;
+    let (jwt_service, access_service) = state.as_ref();
+    let session = jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    let result = access_service.revoke_access_roles(id, address, &session).await.map_err(|e| e.into())?;
     Ok(Json(result))
 }
 
@@ -277,11 +274,12 @@ async fn revoke_access(
 /// - Returns array of mappings
 async fn list_access(
     AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
+    State(state): State<Arc<(Arc<SessionJWTService>, CommonItemAccess)>>,
     Path(id): Path<i64>,
 ) -> Result<Json<Vec<ItemRole<i64>>>, (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    let result = state.access_service.list_access_roles(id, &session).await.map_err(|e| e.into())?;
+    let (jwt_service, access_service) = state.as_ref();
+    let session = jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    let result = access_service.list_access_roles(id, &session).await.map_err(|e| e.into())?;
     Ok(Json(result))
 }
 
@@ -292,13 +290,14 @@ async fn list_access(
 /// - Returns `404` if the package is not accessible or does not exist
 async fn check_access(
     AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
+    State(state): State<Arc<(Arc<SessionJWTService>, CommonItemAccess)>>,
     Path(id): Path<i64>,
 ) -> Result<Json<Vec<String>>, (StatusCode, String)> {
-    let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
+    let (jwt_service, access_service) = state.as_ref();
+    let session = jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
     let result = match &session {
         Some(s) => {
-            let roles = state.access_service.get_my_access_roles(id, &s).await.map_err(|e| e.into())?;
+            let roles = access_service.get_my_access_roles(id, &s).await.map_err(|e| e.into())?;
             roles.into_iter().map(|r| r.into()).collect::<Vec<String>>()
         },
         None => vec![],
@@ -306,36 +305,35 @@ async fn check_access(
     Ok(Json(result))
 }
 
-// // Package-Shape Association Handlers TODO should be in universal workshop module
-
-// /// Handler: list shapes associated with a package.
+/// Handler: list items associated with a package.
 /// - Requires read access to the package
-/// - Returns array of shapes linked to the package
-async fn list_package_shapes(
+/// - Returns array of items linked to the package
+async fn list_package_items(
     AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
+    State(state): State<Arc<(Arc<SessionJWTService>, WorkshopEntityService)>>,
     Path(package_id): Path<i32>,
 ) -> Result<Json<Vec<WorkshopItem>>, (StatusCode, String)> {
-    use crate::common::crud::ListParams;
-    let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
+    let (jwt_service, service) = state.as_ref();
+    let session = jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
     let list_params = ListParams { filter: None, pager: None };
-    let result = state.shape_service.list_entity_items("package", package_id as i64, &list_params, session.as_ref()).await.map_err(|e| e.into())?;
+    let result = service.list_entity_items( package_id as i64, &list_params, session.as_ref()).await.map_err(|e| e.into())?;
     Ok(Json(result))
 }
 
 /// Handler: add a shape to a package.
 /// - Requires edit access to the package
 /// - Body: { "workshop_item_id": 123 }
-async fn add_package_shape(
+async fn add_package_item(
     AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path(package_id): Path<i32>,
+    State(state): State<Arc<(Arc<SessionJWTService>, WorkshopEntityService)>>,
+    Path(package_id): Path<i64>,
     ValidatedJson(request): ValidatedJson<NewWorkshopItem>,
 ) -> Result<(StatusCode, Json<WorkshopItem>), (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-        
+    let (jwt_service, service) = state.as_ref();
+    let session = jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+
     let mut new_item = request;
-    let created = state.shape_service.create_entity_item("package", package_id as i64, &mut new_item, &session).await.map_err(|e| e.into())?;
+    let created = service.create_entity_item(package_id, &mut new_item, &session).await.map_err(|e| e.into())?;
     Ok((StatusCode::CREATED, Json(created)))
 }
 
@@ -343,227 +341,33 @@ async fn add_package_shape(
 /// - Requires edit access to the package
 /// - Updates the workshop item globally (not entity-specific)
 /// - Returns the updated WorkshopItem
-async fn update_package_shape(
+async fn update_package_item(
     AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path((_package_id, shape_id)): Path<(i32, i64)>,
+    State(state): State<Arc<(Arc<SessionJWTService>, WorkshopEntityService)>>,
+    Path((package_id, item_id)): Path<(i64, i64)>,
     ValidatedJson(request): ValidatedJson<PatchWorkshopItem>,
 ) -> Result<Json<WorkshopItem>, (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    
-    // TODO: Validate that the shape is linked to this package and user has access
-    let updated = state.shape_service.update_item(shape_id, &request, &session).await.map_err(|e| e.into())?;
+    let (jwt_service, service) = state.as_ref();
+    let session = jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+
+    // TODO: Validate that the item is linked to this package and user has access
+    let updated = service.update_entity_item(package_id, item_id, &request, &session).await.map_err(|e| e.into())?;
     Ok(Json(updated))
 }
-
 
 /// Handler: remove a shape from a package.
 /// - Requires edit access to the package  
 /// - Deletes the workshop item globally (since it was created in package context)
 /// - Returns `204 No Content` on success
-async fn remove_package_shape(
+async fn remove_package_item(
     AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path((_package_id, shape_id)): Path<(i32, i64)>,
+    State(state): State<Arc<(Arc<SessionJWTService>, WorkshopEntityService)>>,
+    Path((package_id, item_id)): Path<(i64, i64)>,
 ) -> Result<StatusCode, (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    
-    // TODO: Validate that the shape is owned by this package and user has access
-    let _deleted = state.shape_service.delete_item(shape_id, &session).await.map_err(|e| e.into())?;
-    Ok(StatusCode::NO_CONTENT)
-}
+    let (jwt_service, service) = state.as_ref();
+    let session = jwt_service.get_session_data(&token).map_err(|e| e.into())?;
 
-// Package-Line Association Handlers
-
-/// Handler: list lines associated with a package.
-/// - Requires read access to the package
-/// - Returns array of lines linked to the package
-async fn list_package_lines(
-    AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path(package_id): Path<i32>,
-) -> Result<Json<Vec<WorkshopItem>>, (StatusCode, String)> {
-    let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
-    let list_params = ListParams { filter: None, pager: None };
-    let result = state.line_service.list_entity_items("package", package_id as i64, &list_params, session.as_ref()).await.map_err(|e| e.into())?;
-    Ok(Json(result))
-}
-
-/// Handler: add a line to a package.
-/// - Requires edit access to the package
-/// - Body: { "workshop_item_id": 123 }
-async fn add_package_line(
-    AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path(package_id): Path<i32>,
-    ValidatedJson(request): ValidatedJson<NewWorkshopItem>,
-) -> Result<(StatusCode, Json<WorkshopItem>), (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-        
-    let mut new_item = request;
-    let created = state.line_service.create_entity_item("package", package_id as i64, &mut new_item, &session).await.map_err(|e| e.into())?;
-    Ok((StatusCode::CREATED, Json(created)))
-}
-
-/// Handler: update a line in a package.
-/// - Requires edit access to the package
-/// - Updates the workshop item globally (not entity-specific)
-/// - Returns the updated WorkshopItem
-async fn update_package_line(
-    AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path((_package_id, line_id)): Path<(i32, i64)>,
-    ValidatedJson(request): ValidatedJson<PatchWorkshopItem>,
-) -> Result<Json<WorkshopItem>, (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    
-    // TODO: Validate that the line is linked to this package and user has access
-    let updated = state.line_service.update_item(line_id, &request, &session).await.map_err(|e| e.into())?;
-    Ok(Json(updated))
-}
-
-/// Handler: remove a line from a package.
-/// - Requires edit access to the package  
-/// - Deletes the workshop item globally (since it was created in package context)
-/// - Returns `204 No Content` on success
-async fn remove_package_line(
-    AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path((_package_id, line_id)): Path<(i32, i64)>,
-) -> Result<StatusCode, (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    
-    // TODO: Validate that the line is owned by this package and user has access
-    let _deleted = state.line_service.delete_item(line_id, &session).await.map_err(|e| e.into())?;
-    Ok(StatusCode::NO_CONTENT)
-}
-
-// Package-Rule Association Handlers
-
-/// Handler: list rules associated with a package.
-/// - Requires read access to the package
-/// - Returns array of rules linked to the package
-async fn list_package_rules(
-    AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path(package_id): Path<i32>,
-) -> Result<Json<Vec<WorkshopItem>>, (StatusCode, String)> {
-    let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
-    let list_params = ListParams { filter: None, pager: None };
-    let result = state.rule_service.list_entity_items("package", package_id as i64, &list_params, session.as_ref()).await.map_err(|e| e.into())?;
-    Ok(Json(result))
-}
-
-/// Handler: add a rule to a package.
-/// - Requires edit access to the package
-/// - Body: { "workshop_item_id": 123 }
-async fn add_package_rule(
-    AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path(package_id): Path<i32>,
-    ValidatedJson(request): ValidatedJson<NewWorkshopItem>,
-) -> Result<(StatusCode, Json<WorkshopItem>), (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-        
-    let mut new_item = request;
-    let created = state.rule_service.create_entity_item("package", package_id as i64, &mut new_item, &session).await.map_err(|e| e.into())?;
-    Ok((StatusCode::CREATED, Json(created)))
-}
-
-/// Handler: update a rule in a package.
-/// - Requires edit access to the package
-/// - Updates the workshop item globally (not entity-specific)
-/// - Returns the updated WorkshopItem
-async fn update_package_rule(
-    AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path((_package_id, rule_id)): Path<(i32, i64)>,
-    ValidatedJson(request): ValidatedJson<PatchWorkshopItem>,
-) -> Result<Json<WorkshopItem>, (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    
-    // TODO: Validate that the rule is linked to this package and user has access
-    let updated = state.rule_service.update_item(rule_id, &request, &session).await.map_err(|e| e.into())?;
-    Ok(Json(updated))
-}
-
-/// Handler: remove a rule from a package.
-/// - Requires edit access to the package  
-/// - Deletes the workshop item globally (since it was created in package context)
-/// - Returns `204 No Content` on success
-async fn remove_package_rule(
-    AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path((_package_id, rule_id)): Path<(i32, i64)>,
-) -> Result<StatusCode, (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    
-    // TODO: Validate that the rule is owned by this package and user has access
-    let _deleted = state.rule_service.delete_item(rule_id, &session).await.map_err(|e| e.into())?;
-    Ok(StatusCode::NO_CONTENT)
-}
-
-// Package-Layout Association Handlers
-
-/// Handler: list layouts associated with a package.
-/// - Requires read access to the package
-/// - Returns array of layouts linked to the package
-async fn list_package_layouts(
-    AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path(package_id): Path<i32>,
-) -> Result<Json<Vec<WorkshopItem>>, (StatusCode, String)> {
-    let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
-    let list_params = ListParams { filter: None, pager: None };
-    let result = state.layout_service.list_entity_items("package", package_id as i64, &list_params, session.as_ref()).await.map_err(|e| e.into())?;
-    Ok(Json(result))
-}
-
-/// Handler: add a layout to a package.
-/// - Requires edit access to the package
-/// - Body: { "workshop_item_id": 123 }
-async fn add_package_layout(
-    AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path(package_id): Path<i32>,
-    ValidatedJson(request): ValidatedJson<NewWorkshopItem>,
-) -> Result<(StatusCode, Json<WorkshopItem>), (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-        
-    let mut new_item = request;
-    let created = state.layout_service.create_entity_item("package", package_id as i64, &mut new_item, &session).await.map_err(|e| e.into())?;
-    Ok((StatusCode::CREATED, Json(created)))
-}
-
-/// Handler: update a layout in a package.
-/// - Requires edit access to the package
-/// - Updates the workshop item globally (not entity-specific)
-/// - Returns the updated WorkshopItem
-async fn update_package_layout(
-    AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path((_package_id, layout_id)): Path<(i32, i64)>,
-    ValidatedJson(request): ValidatedJson<PatchWorkshopItem>,
-) -> Result<Json<WorkshopItem>, (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    
-    // TODO: Validate that the layout is linked to this package and user has access
-    let updated = state.layout_service.update_item(layout_id, &request, &session).await.map_err(|e| e.into())?;
-    Ok(Json(updated))
-}
-
-/// Handler: remove a layout from a package.
-/// - Requires edit access to the package  
-/// - Deletes the workshop item globally (since it was created in package context)
-/// - Returns `204 No Content` on success
-async fn remove_package_layout(
-    AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path((_package_id, layout_id)): Path<(i32, i64)>,
-) -> Result<StatusCode, (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    
-    // TODO: Validate that the layout is owned by this package and user has access
-    let _deleted = state.layout_service.delete_item(layout_id, &session).await.map_err(|e| e.into())?;
+    // TODO: Validate that the item is owned by this package and user has access
+    let _deleted = service.delete_entity_item(package_id, item_id, &session).await.map_err(|e| e.into())?;
     Ok(StatusCode::NO_CONTENT)
 }

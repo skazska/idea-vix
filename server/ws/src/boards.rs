@@ -19,125 +19,116 @@ use axum::{ extract::{ Path, State }, http::StatusCode, Json };
 
 use crate::{
     api::{deserialize::AuthToken, validation::ValidatedJson},
-    boards::board_service::{Board, NewBoardAccessItem, NewBoardItem, PatchBoardItem},
+    boards::board_service::{Board, BoardService, NewBoardAccessItem, NewBoardItem, PatchBoardItem},
     common::{
-        access::{self, ItemAccess, ItemRole, SqliteItemAccessQueries},
-        crud::CrudService,
-        workshop_store::{WorkshopStore, WorkshopItemType},
+        access::{CommonItemAccess, ItemAccess, ItemRole, SqliteItemAccessQueries},
+        crud::{CrudService, ListParams}, workshop_store::WorkshopStores,
     },
     db::TransactionStarter,
     session::session_jwt::SessionJWTService,
-    workshop::generic_service::WorkshopService,
+    workshop::{entity_service::WorkshopEntityService, workshop_service::{NewWorkshopItem, PatchWorkshopItem, WorkshopItem}},
 };
 
 mod board_store;
 mod board_service;
 
-struct RouteState {
-    access_service: access::CommonItemAccess,
-    service: board_service::BoardService,
-    jwt_service: Arc<SessionJWTService>,
-    shape_service: Arc<WorkshopService>,
-    line_service: Arc<WorkshopService>,
-    rule_service: Arc<WorkshopService>,
-    layout_service: Arc<WorkshopService>,
-}
+const ENTITY: &str = "board";
 
 pub fn get_router<'a>(
     transaction_starter: Arc<TransactionStarter>,
     jwt_service: Arc<SessionJWTService>,
+    workshop_stores: Arc<WorkshopStores>,
 ) -> axum::Router {
 
     let access_store = Arc::new(SqliteItemAccessQueries::new(
         "board_access_roles",
         "board_id",
     ));
-    let access_service = access::CommonItemAccess::new(transaction_starter.clone(), access_store.clone());
 
     let items_store = Arc::new(board_store::BoardStore::new());
-    let board_service = board_service::BoardService::new(transaction_starter.clone(), items_store, access_store);
-
-    let shape_service = Arc::new(WorkshopService::new(
-        transaction_starter.clone(),
-        Arc::new(WorkshopStore::new(WorkshopItemType::Shape))
-    ));
-    let line_service = Arc::new(WorkshopService::new(
-        transaction_starter.clone(),
-        Arc::new(WorkshopStore::new(WorkshopItemType::Line))
-    ));
-    let rule_service = Arc::new(WorkshopService::new(
-        transaction_starter.clone(),
-        Arc::new(WorkshopStore::new(WorkshopItemType::Rule))
-    ));
-    let layout_service = Arc::new(WorkshopService::new(
-        transaction_starter.clone(),
-        Arc::new(WorkshopStore::new(WorkshopItemType::Layout))
-    ));
-
-    let state= Arc::new(RouteState {
-        access_service,
-        service: board_service,
-        jwt_service,
-        shape_service,
-        line_service,
-        rule_service,
-        layout_service,
-    });
 
     crate::resource_router!(
         get_items,
         add_item,
         get_item,
         update_item,
-        delete_item
-    ).nest("/{id}", crate::access_router!(
+        delete_item,
+        Arc::new((jwt_service.clone(), BoardService::new(
+            transaction_starter.clone(),
+            items_store,
+            access_store.clone()
+        )))
+    )
+    .nest("/{id}", crate::access_router!(
         add_access,
         list_access,
         revoke_access,
-        check_access
+        check_access,
+        Arc::new((jwt_service.clone(), CommonItemAccess::new(transaction_starter.clone(), access_store.clone())))
     ))
     .nest("/{id}/workshop/shapes", crate::workshop_item_router!(
-        list_board_shapes,
-        add_board_shape,
-        update_board_shape,
-        remove_board_shape
+        list_package_items,
+        add_package_item,
+        update_package_item,
+        remove_package_item,
+        Arc::new((jwt_service.clone(), WorkshopEntityService::new(
+            ENTITY,
+            transaction_starter.clone(),
+            workshop_stores.shape_store.clone(),
+        )))
     ))
     .nest("/{id}/workshop/lines", crate::workshop_item_router!(
-        list_board_lines,
-        add_board_line,
-        update_board_line,
-        remove_board_line
+        list_package_items,
+        add_package_item,
+        update_package_item,
+        remove_package_item,
+        Arc::new((jwt_service.clone(), WorkshopEntityService::new(
+            ENTITY,
+            transaction_starter.clone(),
+            workshop_stores.line_store.clone(),
+        )))
     ))
     .nest("/{id}/workshop/rules", crate::workshop_item_router!(
-        list_board_rules,
-        add_board_rule,
-        update_board_rule,
-        remove_board_rule
+        list_package_items,
+        add_package_item,
+        update_package_item,
+        remove_package_item,
+        Arc::new((jwt_service.clone(), WorkshopEntityService::new(
+            ENTITY,
+            transaction_starter.clone(),
+            workshop_stores.rule_store.clone(),
+        )))
     ))
     .nest("/{id}/workshop/layouts", crate::workshop_item_router!(
-        list_board_layouts,
-        add_board_layout,
-        update_board_layout,
-        remove_board_layout
+        list_package_items,
+        add_package_item,
+        update_package_item,
+        remove_package_item,
+        Arc::new((jwt_service.clone(), WorkshopEntityService::new(
+            ENTITY,
+            transaction_starter.clone(),
+            workshop_stores.layout_store.clone(),
+        )))
     ))
-    .with_state(state)
 }
+
 
 // #[axum::debug_handler]
 /// Handler: list boards visible to the caller.
 /// - Returns only public boards when no valid JWT is provided
 /// - With a valid JWT, also returns boards accessible to the user
 /// - Returns a JSON array of `Board`
-async fn get_items(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>) -> Result<Json<Vec<Board>>, (StatusCode, String)> {
-    let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
-    
+async fn get_items(AuthToken(token): AuthToken, State(state): State<Arc<(Arc<SessionJWTService>, BoardService)>>) -> Result<Json<Vec<Board>>, (StatusCode, String)> {
+    let (jwt_service, board_service) = state.as_ref();
+    let session = jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
+
     // Create default list parameters
     let lister = board_service::BoardLister {
         filter: None,
         pager: None,
     };
 
-    let result = state.service.get_items(&lister, session.as_ref()).await.map_err(|e| e.into())?;
+    let result = board_service.get_items(&lister, session.as_ref()).await.map_err(|e| e.into())?;
 
     Ok(Json(result))
 }
@@ -152,9 +143,10 @@ async fn get_items(AuthToken(token): AuthToken, State(state): State<Arc<RouteSta
 /// ```json
 /// { "name": "My Board", "description": "optional", "is_public": true }
 /// ```
-async fn add_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>, ValidatedJson(mut item): ValidatedJson<NewBoardItem>) -> Result<(StatusCode, Json<Board>), (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    let result = state.service.add_item(&mut item, &session).await.map_err(|e| e.into())?;
+async fn add_item(AuthToken(token): AuthToken, State(state): State<Arc<(Arc<SessionJWTService>, BoardService)>>, ValidatedJson(mut item): ValidatedJson<NewBoardItem>) -> Result<(StatusCode, Json<Board>), (StatusCode, String)> {
+    let (jwt_service, state) = state.as_ref();
+    let session = jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    let result = state.add_item(&mut item, &session).await.map_err(|e| e.into())?;
     Ok((StatusCode::CREATED, Json(result)))
 }
 
@@ -163,9 +155,10 @@ async fn add_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteStat
 /// - Returns public boards without authentication
 /// - Private boards require access for the caller
 /// - Returns `404` if the board is not accessible or does not exist
-async fn get_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>, axum::extract::Path(id): Path<i64>) -> Result<Json<Board>, (StatusCode, String)> {
-    let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
-    let result = state.service.get_item(id, session.as_ref()).await.map_err(|e| e.into())?;
+async fn get_item(AuthToken(token): AuthToken, State(state): State<Arc<(Arc<SessionJWTService>, BoardService)>>, axum::extract::Path(id): Path<i64>) -> Result<Json<Board>, (StatusCode, String)> {
+    let (jwt_service, state) = state.as_ref();
+    let session = jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
+    let result = state.get_item(id, session.as_ref()).await.map_err(|e| e.into())?;
     Ok(Json(result))
 }
 
@@ -180,9 +173,10 @@ async fn get_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteStat
 /// Example payloads:
 /// - Update name only: `{ "name": "New Name" }`
 /// - Clear description: `{ "description": null }`
-async fn update_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>, axum::extract::Path(id): Path<i64>, ValidatedJson(item): ValidatedJson<PatchBoardItem>) -> Result<Json<Board>, (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    let result = state.service.update_item(id, &item, &session).await.map_err(|e| e.into())?;
+async fn update_item(AuthToken(token): AuthToken, State(state): State<Arc<(Arc<SessionJWTService>, BoardService)>>, axum::extract::Path(id): Path<i64>, ValidatedJson(item): ValidatedJson<PatchBoardItem>) -> Result<Json<Board>, (StatusCode, String)> {
+    let (jwt_service, state) = state.as_ref();
+    let session = jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    let result = state.update_item(id, &item, &session).await.map_err(|e| e.into())?;
     Ok(Json(result))
 }
 
@@ -191,10 +185,11 @@ async fn update_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteS
 /// - Authenticates via JWT
 /// - Requires `owner` or `manage` role
 /// - Returns `200 Ok` and deleted board on success
-async fn delete_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteState>>, axum::extract::Path(id): Path<i64>) -> Result<Json<Board>, (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+async fn delete_item(AuthToken(token): AuthToken, State(state): State<Arc<(Arc<SessionJWTService>, BoardService)>>, axum::extract::Path(id): Path<i64>) -> Result<Json<Board>, (StatusCode, String)> {
+    let (jwt_service, state) = state.as_ref();
+    let session = jwt_service.get_session_data(&token).map_err(|e| e.into())?;
     // perform deletion, ignore returned entity for API contract
-    let result = state.service.delete_item(id, &session).await.map_err(|e| e.into())?;
+    let result = state.delete_item(id, &session).await.map_err(|e| e.into())?;
     Ok(Json(result))
 }
 
@@ -206,17 +201,18 @@ async fn delete_item(AuthToken(token): AuthToken, State(state): State<Arc<RouteS
 /// - Returns created mapping
 async fn add_access(
     AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
+    State(state): State<Arc<(Arc<SessionJWTService>, CommonItemAccess)>>,
     axum::extract::Path(id): Path<i64>,
     ValidatedJson(item): ValidatedJson<NewBoardAccessItem>,
 ) -> Result<Json<ItemRole<i64>>, (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    let (jwt_service, service) = state.as_ref();
+    let session = jwt_service.get_session_data(&token).map_err(|e| e.into())?;
     let role_dto = ItemRole {
         address: item.address,
         role: item.role,
         item_id: id,
     };
-    let result = state.access_service.add_access_role(role_dto, &session).await.map_err(|e| e.into())?;
+    let result = service.add_access_role(role_dto, &session).await.map_err(|e| e.into())?;
     Ok(Json(result))
 }
 
@@ -227,11 +223,12 @@ async fn add_access(
 /// - Path: /{id}/access/{address}
 async fn revoke_access(
     AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
+    State(state): State<Arc<(Arc<SessionJWTService>, CommonItemAccess)>>,
     Path((id, address)): Path<(i64, String)>,
 ) -> Result<Json<Vec<ItemRole<i64>>>, (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    let result = state.access_service.revoke_access_roles(id, address, &session).await.map_err(|e| e.into())?;
+    let (jwt_service, access_service) = state.as_ref();
+    let session = jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    let result = access_service.revoke_access_roles(id, address, &session).await.map_err(|e| e.into())?;
     Ok(Json(result))
 }
 
@@ -242,11 +239,12 @@ async fn revoke_access(
 /// - Returns array of mappings
 async fn list_access(
     AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
+    State(state): State<Arc<(Arc<SessionJWTService>, CommonItemAccess)>>,
     Path(id): Path<i64>,
 ) -> Result<Json<Vec<ItemRole<i64>>>, (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    let result = state.access_service.list_access_roles(id, &session).await.map_err(|e| e.into())?;
+    let (jwt_service, access_service) = state.as_ref();
+    let session = jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    let result = access_service.list_access_roles(id, &session).await.map_err(|e| e.into())?;
     Ok(Json(result))
 }
 
@@ -257,13 +255,14 @@ async fn list_access(
 /// - Returns `404` if the board is not accessible or does not exist
 async fn check_access(
     AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
+    State(state): State<Arc<(Arc<SessionJWTService>, CommonItemAccess)>>,
     Path(id): Path<i64>,
 ) -> Result<Json<Vec<String>>, (StatusCode, String)> {
-    let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
+    let (jwt_service, access_service) = state.as_ref();
+    let session = jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
     let result = match &session {
         Some(s) => {
-            let roles = state.access_service.get_my_access_roles(id, &s).await.map_err(|e| e.into())?;
+            let roles = access_service.get_my_access_roles(id, &s).await.map_err(|e| e.into())?;
             roles.into_iter().map(|r| r.into()).collect::<Vec<String>>()
         },
         None => vec![],
@@ -271,264 +270,69 @@ async fn check_access(
     Ok(Json(result))
 }
 
-/// - Requires read access to the board
-/// - Returns array of shapes linked to the board
-async fn list_board_shapes(
+/// Handler: list items associated with a package.
+/// - Requires read access to the package
+/// - Returns array of items linked to the package
+async fn list_package_items(
     AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path(board_id): Path<i32>,
-) -> Result<Json<Vec<crate::workshop::generic_service::WorkshopItem>>, (StatusCode, String)> {
-    use crate::common::crud::ListParams;
-    let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
+    State(state): State<Arc<(Arc<SessionJWTService>, WorkshopEntityService)>>,
+    Path(package_id): Path<i32>,
+) -> Result<Json<Vec<WorkshopItem>>, (StatusCode, String)> {
+    let (jwt_service, service) = state.as_ref();
+    let session = jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
     let list_params = ListParams { filter: None, pager: None };
-    let result = state.shape_service.list_entity_items("board", board_id as i64, &list_params, session.as_ref()).await.map_err(|e| e.into())?;
+    let result = service.list_entity_items(package_id as i64, &list_params, session.as_ref()).await.map_err(|e| e.into())?;
     Ok(Json(result))
 }
 
-/// Handler: add a shape to a board.
-/// - Requires edit access to the board
-/// - Body: { "name": "Shape Name", "slug": "shape-slug", "description": "optional", "definition": {...} }
-async fn add_board_shape(
+/// Handler: add a shape to a package.
+/// - Requires edit access to the package
+/// - Body: { "workshop_item_id": 123 }
+async fn add_package_item(
     AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path(board_id): Path<i32>,
-    ValidatedJson(request): ValidatedJson<crate::workshop::generic_service::NewWorkshopItem>,
-) -> Result<(StatusCode, Json<crate::workshop::generic_service::WorkshopItem>), (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-        
+    State(state): State<Arc<(Arc<SessionJWTService>, WorkshopEntityService)>>,
+    Path(package_id): Path<i64>,
+    ValidatedJson(request): ValidatedJson<NewWorkshopItem>,
+) -> Result<(StatusCode, Json<WorkshopItem>), (StatusCode, String)> {
+    let (jwt_service, service) = state.as_ref();
+    let session = jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+
     let mut new_item = request;
-    let created = state.shape_service.create_entity_item("board", board_id as i64, &mut new_item, &session).await.map_err(|e| e.into())?;
+    let created = service.create_entity_item(package_id, &mut new_item, &session).await.map_err(|e| e.into())?;
     Ok((StatusCode::CREATED, Json(created)))
 }
 
-/// Handler: update a shape in a board.
-/// - Requires edit access to the board
+/// Handler: update a shape in a package.
+/// - Requires edit access to the package
 /// - Updates the workshop item globally (not entity-specific)
 /// - Returns the updated WorkshopItem
-async fn update_board_shape(
+async fn update_package_item(
     AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path((_board_id, shape_id)): Path<(i32, i64)>,
-    ValidatedJson(request): ValidatedJson<crate::workshop::generic_service::PatchWorkshopItem>,
-) -> Result<Json<crate::workshop::generic_service::WorkshopItem>, (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    
-    // TODO: Validate that the shape is linked to this board and user has access
-    let updated = state.shape_service.update_item(shape_id, &request, &session).await.map_err(|e| e.into())?;
+    State(state): State<Arc<(Arc<SessionJWTService>, WorkshopEntityService)>>,
+    Path((package_id, item_id)): Path<(i64, i64)>,
+    ValidatedJson(request): ValidatedJson<PatchWorkshopItem>,
+) -> Result<Json<WorkshopItem>, (StatusCode, String)> {
+    let (jwt_service, service) = state.as_ref();
+    let session = jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+
+    // TODO: Validate that the item is linked to this package and user has access
+    let updated = service.update_entity_item(package_id, item_id, &request, &session).await.map_err(|e| e.into())?;
     Ok(Json(updated))
 }
 
-/// Handler: remove a shape from a board.
-/// - Requires edit access to the board  
-/// - Deletes the workshop item globally (since it was created in board context)
+/// Handler: remove a shape from a package.
+/// - Requires edit access to the package  
+/// - Deletes the workshop item globally (since it was created in package context)
 /// - Returns `204 No Content` on success
-async fn remove_board_shape(
+async fn remove_package_item(
     AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path((_board_id, shape_id)): Path<(i32, i64)>,
+    State(state): State<Arc<(Arc<SessionJWTService>, WorkshopEntityService)>>,
+    Path((package_id, item_id)): Path<(i64, i64)>,
 ) -> Result<StatusCode, (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    
-    // TODO: Validate that the shape is owned by this board and user has access
-    let _deleted = state.shape_service.delete_item(shape_id, &session).await.map_err(|e| e.into())?;
+    let (jwt_service, service) = state.as_ref();
+    let session = jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+
+    // TODO: Validate that the item is owned by this package and user has access
+    let _deleted = service.delete_entity_item(package_id, item_id, &session).await.map_err(|e| e.into())?;
     Ok(StatusCode::NO_CONTENT)
 }
-
-// Board-Line Association Handlers
-
-/// Handler: list lines associated with a board.
-/// - Requires read access to the board
-/// - Returns array of lines linked to the board
-async fn list_board_lines(
-    AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path(board_id): Path<i32>,
-) -> Result<Json<Vec<crate::workshop::generic_service::WorkshopItem>>, (StatusCode, String)> {
-    use crate::common::crud::ListParams;
-    let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
-    let list_params = ListParams { filter: None, pager: None };
-    let result = state.line_service.list_entity_items("board", board_id as i64, &list_params, session.as_ref()).await.map_err(|e| e.into())?;
-    Ok(Json(result))
-}
-
-/// Handler: add a line to a board.
-/// - Requires edit access to the board
-/// - Body: { "name": "Line Name", "slug": "line-slug", "description": "optional", "definition": {...} }
-async fn add_board_line(
-    AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path(board_id): Path<i32>,
-    ValidatedJson(request): ValidatedJson<crate::workshop::generic_service::NewWorkshopItem>,
-) -> Result<(StatusCode, Json<crate::workshop::generic_service::WorkshopItem>), (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-        
-    let mut new_item = request;
-    let created = state.line_service.create_entity_item("board", board_id as i64, &mut new_item, &session).await.map_err(|e| e.into())?;
-    Ok((StatusCode::CREATED, Json(created)))
-}
-
-/// Handler: update a line in a board.
-/// - Requires edit access to the board
-/// - Updates the workshop item globally (not entity-specific)
-/// - Returns the updated WorkshopItem
-async fn update_board_line(
-    AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path((_board_id, line_id)): Path<(i32, i64)>,
-    ValidatedJson(request): ValidatedJson<crate::workshop::generic_service::PatchWorkshopItem>,
-) -> Result<Json<crate::workshop::generic_service::WorkshopItem>, (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    
-    // TODO: Validate that the line is linked to this board and user has access
-    let updated = state.line_service.update_item(line_id, &request, &session).await.map_err(|e| e.into())?;
-    Ok(Json(updated))
-}
-
-/// Handler: remove a line from a board.
-/// - Requires edit access to the board  
-/// - Deletes the workshop item globally (since it was created in board context)
-/// - Returns `204 No Content` on success
-async fn remove_board_line(
-    AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path((_board_id, line_id)): Path<(i32, i64)>,
-) -> Result<StatusCode, (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    
-    // TODO: Validate that the line is owned by this board and user has access
-    let _deleted = state.line_service.delete_item(line_id, &session).await.map_err(|e| e.into())?;
-    Ok(StatusCode::NO_CONTENT)
-}
-
-// Board-Rule Association Handlers
-
-/// Handler: list rules associated with a board.
-/// - Requires read access to the board
-/// - Returns array of rules linked to the board
-async fn list_board_rules(
-    AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path(board_id): Path<i32>,
-) -> Result<Json<Vec<crate::workshop::generic_service::WorkshopItem>>, (StatusCode, String)> {
-    use crate::common::crud::ListParams;
-    let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
-    let list_params = ListParams { filter: None, pager: None };
-    let result = state.rule_service.list_entity_items("board", board_id as i64, &list_params, session.as_ref()).await.map_err(|e| e.into())?;
-    Ok(Json(result))
-}
-
-/// Handler: add a rule to a board.
-/// - Requires edit access to the board
-/// - Body: { "name": "Rule Name", "slug": "rule-slug", "description": "optional", "definition": {...} }
-async fn add_board_rule(
-    AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path(board_id): Path<i32>,
-    ValidatedJson(request): ValidatedJson<crate::workshop::generic_service::NewWorkshopItem>,
-) -> Result<(StatusCode, Json<crate::workshop::generic_service::WorkshopItem>), (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-        
-    let mut new_item = request;
-    let created = state.rule_service.create_entity_item("board", board_id as i64, &mut new_item, &session).await.map_err(|e| e.into())?;
-    Ok((StatusCode::CREATED, Json(created)))
-}
-
-/// Handler: update a rule in a board.
-/// - Requires edit access to the board
-/// - Updates the workshop item globally (not entity-specific)
-/// - Returns the updated WorkshopItem
-async fn update_board_rule(
-    AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path((_board_id, rule_id)): Path<(i32, i64)>,
-    ValidatedJson(request): ValidatedJson<crate::workshop::generic_service::PatchWorkshopItem>,
-) -> Result<Json<crate::workshop::generic_service::WorkshopItem>, (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    
-    // TODO: Validate that the rule is linked to this board and user has access
-    let updated = state.rule_service.update_item(rule_id, &request, &session).await.map_err(|e| e.into())?;
-    Ok(Json(updated))
-}
-
-/// Handler: remove a rule from a board.
-/// - Requires edit access to the board  
-/// - Deletes the workshop item globally (since it was created in board context)
-/// - Returns `204 No Content` on success
-async fn remove_board_rule(
-    AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path((_board_id, rule_id)): Path<(i32, i64)>,
-) -> Result<StatusCode, (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    
-    // TODO: Validate that the rule is owned by this board and user has access
-    let _deleted = state.rule_service.delete_item(rule_id, &session).await.map_err(|e| e.into())?;
-    Ok(StatusCode::NO_CONTENT)
-}
-
-// Board-Layout Association Handlers
-
-/// Handler: list layouts associated with a board.
-/// - Requires read access to the board
-/// - Returns array of layouts linked to the board
-async fn list_board_layouts(
-    AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path(board_id): Path<i32>,
-) -> Result<Json<Vec<crate::workshop::generic_service::WorkshopItem>>, (StatusCode, String)> {
-    use crate::common::crud::ListParams;
-    let session = state.jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
-    let list_params = ListParams { filter: None, pager: None };
-    let result = state.layout_service.list_entity_items("board", board_id as i64, &list_params, session.as_ref()).await.map_err(|e| e.into())?;
-    Ok(Json(result))
-}
-
-/// Handler: add a layout to a board.
-/// - Requires edit access to the board
-/// - Body: { "name": "Layout Name", "slug": "layout-slug", "description": "optional", "definition": {...} }
-async fn add_board_layout(
-    AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path(board_id): Path<i32>,
-    ValidatedJson(request): ValidatedJson<crate::workshop::generic_service::NewWorkshopItem>,
-) -> Result<(StatusCode, Json<crate::workshop::generic_service::WorkshopItem>), (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-        
-    let mut new_item = request;
-    let created = state.layout_service.create_entity_item("board", board_id as i64, &mut new_item, &session).await.map_err(|e| e.into())?;
-    Ok((StatusCode::CREATED, Json(created)))
-}
-
-/// Handler: update a layout in a board.
-/// - Requires edit access to the board
-/// - Updates the workshop item globally (not entity-specific)
-/// - Returns the updated WorkshopItem
-async fn update_board_layout(
-    AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path((_board_id, layout_id)): Path<(i32, i64)>,
-    ValidatedJson(request): ValidatedJson<crate::workshop::generic_service::PatchWorkshopItem>,
-) -> Result<Json<crate::workshop::generic_service::WorkshopItem>, (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    
-    // TODO: Validate that the layout is linked to this board and user has access
-    let updated = state.layout_service.update_item(layout_id, &request, &session).await.map_err(|e| e.into())?;
-    Ok(Json(updated))
-}
-
-/// Handler: remove a layout from a board.
-/// - Requires edit access to the board  
-/// - Deletes the workshop item globally (since it was created in board context)
-/// - Returns `204 No Content` on success
-async fn remove_board_layout(
-    AuthToken(token): AuthToken,
-    State(state): State<Arc<RouteState>>,
-    Path((_board_id, layout_id)): Path<(i32, i64)>,
-) -> Result<StatusCode, (StatusCode, String)> {
-    let session = state.jwt_service.get_session_data(&token).map_err(|e| e.into())?;
-    
-    // TODO: Validate that the layout is owned by this board and user has access
-    let _deleted = state.layout_service.delete_item(layout_id, &session).await.map_err(|e| e.into())?;
-    Ok(StatusCode::NO_CONTENT)
-}
-
