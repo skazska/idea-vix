@@ -22,11 +22,15 @@ use crate::{
     boards::board_service::{Board, BoardService, NewBoardAccessItem, NewBoardItem, PatchBoardItem},
     common::{
         access::{CommonItemAccess, ItemAccess, ItemRole, SqliteItemAccessQueries},
-        crud::{CrudService, ListParams}, workshop_store::WorkshopStores,
+        crud::{CrudService, ListParams},
     },
     db::TransactionStarter,
     session::session_jwt::SessionJWTService,
-    workshop::{entity_service::WorkshopEntityService, workshop_service::{NewWorkshopItem, PatchWorkshopItem, WorkshopItem}},
+    workshop::{
+        entity_service::WorkshopEntityService,
+        workshop_service::{NewWorkshopItem, PatchWorkshopItem, WorkshopItem},
+        workshop_store::WorkshopStores
+    },
 };
 
 mod board_store;

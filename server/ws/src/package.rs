@@ -35,7 +35,6 @@ use crate::{
     common::{
         access::{CommonItemAccess, ItemAccess, ItemAccessGrantDto, ItemRole, SqliteItemAccessQueries},
         crud::{CrudService, ListParams},
-        workshop_store::WorkshopStores
     },
     db::TransactionStarter,
     package::package_service::{
@@ -44,7 +43,7 @@ use crate::{
     session::session_jwt::SessionJWTService,
     workshop::{
         entity_service::WorkshopEntityService,
-        workshop_service::{ NewWorkshopItem, PatchWorkshopItem, WorkshopItem }
+        workshop_service::{ NewWorkshopItem, PatchWorkshopItem, WorkshopItem }, workshop_store::WorkshopStores
     }
 };
 

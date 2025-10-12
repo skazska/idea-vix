@@ -3,15 +3,19 @@
 //! The workshop provides global read-only access to diagram element blueprints for discovery.
 //! Workshop items are created and managed within the context of packages and boards.
 
+pub mod workshop_service;
+pub mod entity_service;
+pub mod workshop_store;
+
 use std::sync::Arc;
 use crate::common::crud::{CrudService, ListParams};
 use crate::db::TransactionStarter;
 use crate::session::session_jwt::SessionJWTService;
-use crate::workshop::workshop_service::{
+use workshop_service::{
     WorkshopService,
     Shape, Line, Rule, Layout,
 };
-use crate::common::workshop_store::{WorkshopStores};
+use workshop_store::WorkshopStores;
 use axum::extract::Query;
 use axum::{
     extract::{Path, State},
@@ -22,8 +26,7 @@ use axum::{
 };
 use serde::Deserialize;
 
-pub mod workshop_service;
-pub mod entity_service;
+
 /// Shared state for the workshop routes.
 struct RouteState {
     shape_service: WorkshopService,
