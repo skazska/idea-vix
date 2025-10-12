@@ -29,7 +29,7 @@ const App: ParentComponent = (props) => {
     const [pageState] = usePageState(); 
 
     return (<>
-        <nav class="flex items-center justify-between p-2 bg-gray-800 text-white">
+        <nav class="flex flex-shrink-0 items-center justify-between p-2 bg-gray-800 text-white">
             <header class="flex items-center w-full">
                 <h1 id="title" class="pr-4">{pageState.title()}</h1>
                 <div id='sub-menu' class="flex items-left space-x-4"></div>
@@ -45,14 +45,14 @@ const App: ParentComponent = (props) => {
                 </li>
             </ul>
         </nav>
-        <main class="h-full">
+        <main class="flex-grow overflow-auto scrollbar-thin [scrollbar-gutter:stable]">
             <Suspense fallback={<div class="p-4">Loading...</div>}>
                 <div class="p-4">
                     {props.children}
                 </div>
             </Suspense>
         </main>
-        <footer class="flex justify-between flex-row items-center p-1 bg-gray-800 text-white">
+        <footer class="flex flex-shrink-0 justify-between flex-row items-center p-1 bg-gray-800 text-white">
             <p class="text-xs">status</p>
             <p>{APP_COPYRIGHT}</p>
         </footer>
