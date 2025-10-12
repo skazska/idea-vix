@@ -287,7 +287,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
-  /api/board/{id}/my/access:
+  /api/board/{id}/access/my:
     get:
       tags:
        - Boards
@@ -583,7 +583,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
-  /api/package/{id}/my/access:
+  /api/package/{id}/access/my:
     get:
       tags:
         - Packages
