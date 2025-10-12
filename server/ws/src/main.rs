@@ -5,7 +5,10 @@ use axum::{
 };
 use clap::Parser;
 
-use ws::{boards, common::workshop_store::{WorkshopItemType, WorkshopStore, WorkshopStores}, config::Config, db, package, session, workshop};
+use ws::{
+    boards, config::Config, db, package, session,
+    workshop::{self, workshop_store::{WorkshopItemType, WorkshopStore, WorkshopStores}}
+};
 
 /// WebSocket server application
 #[derive(Parser, Debug)]

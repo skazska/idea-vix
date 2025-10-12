@@ -1,7 +1,11 @@
 use std::sync::Arc;
 
 use axum::{routing::get, Router};
-use ws::{common::workshop_store::{WorkshopItemType, WorkshopStore, WorkshopStores}, db, session};
+use ws::{
+    workshop::workshop_store::{WorkshopItemType, WorkshopStore, WorkshopStores},
+    db,
+    session
+};
 
 pub struct TestApp {
     pub router: Router,
