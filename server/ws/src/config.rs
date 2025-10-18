@@ -115,6 +115,8 @@ impl Config {
             }
         }
 
+        println!("Final configuration: {:?}", config);
+
         config
     }
 

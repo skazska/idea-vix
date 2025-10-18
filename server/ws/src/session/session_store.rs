@@ -39,6 +39,16 @@ impl<'a> SessionStore {
         let connection = self.pool.deref();
         let mut transaction = connection.begin().await?;
 
+        let old_session = sqlx::query_as::<_, SessionDb>(
+            "DELETE FROM session WHERE address = ? AND code = ? RETURNING id, address, sent_at, expires_at",
+        )
+        .bind(item.address)
+        .bind(item.code)
+        .fetch_optional(&mut *transaction)
+        .await?;
+
+        println!("Old session deleted: {:?}", old_session);
+
         let result = match sqlx::query_as::<_, SessionDb>(
             "INSERT INTO session (address, code, sent_at, expires_at) VALUES (?, ?, ?, ?) RETURNING id, address, code, sent_at, expires_at",
         )
