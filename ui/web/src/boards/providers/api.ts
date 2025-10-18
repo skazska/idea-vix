@@ -1,5 +1,6 @@
 import { query } from "@solidjs/router";
 import type { TBoard, TBoardNew, TBoardUpdate } from "../model";
+import type { TPackage } from "../../package/model";
 import type { AccessMapping, AccessRole, GrantRequest, IAccessApi, IAccessMapApi } from "../../common/access/model";
 import { getResponse, type IBackend } from "../../common/providers/backend";
 import { ENTITIES_NAME, REST_PATH } from "../const";
@@ -70,6 +71,35 @@ export async function myBoardAccess(backend: IBackend, id: string): Promise<Acce
     );
 }
 
+// Package endpoints
+export async function listBoardPackages(backend: IBackend, id: string): Promise<TPackage[]> {
+    return getResponse(
+        backend.fetchJson(`${REST_PATH}/${id}/packages`),
+        (data) => data as TPackage[],
+        `${REST_PATH}/${id}/packages`
+    );
+}
+
+export async function addBoardPackage(backend: IBackend, id: string, packageId: number): Promise<TPackage[]> {
+    return getResponse(
+        backend.fetchJson(`${REST_PATH}/${id}/packages`, {
+            method: 'POST',
+            body: JSON.stringify({ package_id: packageId }),
+            headers: { 'Content-Type': 'application/json' }
+        }),
+        (data) => data as TPackage[],
+        `${REST_PATH}/${id}/packages`
+    );
+}
+
+export async function removeBoardPackage(backend: IBackend, id: string, packageId: number): Promise<TPackage[]> {
+    return getResponse(
+        backend.fetchJson(`${REST_PATH}/${id}/packages/${packageId}`, { method: 'DELETE' }),
+        (data) => data as TPackage[],
+        `${REST_PATH}/${id}/packages/${packageId}`
+    );
+}
+
 export class BoardApi implements IAccessMapApi, ICrudApi<TBoard, TBoardNew, TBoardUpdate>, IAccessApi {
     private _backend: IBackend
 
@@ -90,6 +120,9 @@ export class BoardApi implements IAccessMapApi, ICrudApi<TBoard, TBoardNew, TBoa
     public grantAccess = query((id: string, item: GrantRequest) => grantBoardAccess(this.backend, id, item), `${ENTITIES_NAME}_grant`)
     public revokeAccess = query((id: string, address: string) => revokeBoardAccess(this.backend, id, address), `${ENTITIES_NAME}_revoke`)
     public myAccess = query((id: string) => myBoardAccess(this.backend, id), `${ENTITIES_NAME}_my_access`)
+    public listPackages = query((id: string) => listBoardPackages(this.backend, id), `${ENTITIES_NAME}_packages`)
+    public addPackage = query((id: string, packageId: number) => addBoardPackage(this.backend, id, packageId), `add_${ENTITIES_NAME}_package`)
+    public removePackage = query((id: string, packageId: number) => removeBoardPackage(this.backend, id, packageId), `remove_${ENTITIES_NAME}_package`)
 }
 
 let boardApi: BoardApi | undefined;

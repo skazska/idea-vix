@@ -37,6 +37,7 @@ use crate::common::slug::generate_slug;
 use crate::db::TransactionStarter;
 use crate::error::ModelError;
 use crate::boards::board_store::{BoardDb, BoardStore, NewBoardDb, PatchBoardDb};
+use crate::package::package_service::{Package, PackageService};
 use crate::session::session_service::SessionData;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
@@ -121,19 +122,27 @@ pub type BoardLister = ListParams;
 /// - Validation and conversion between API payloads and storage models
 /// - Access control decisions that require knowing the caller's session
 /// - Delegating persistence to `BoardStore`
+#[derive(Clone)]
 pub struct BoardService {
     transaction_starter: Arc<TransactionStarter>,
     items_store: Arc<BoardStore>,
     access_store: Arc<SqliteItemAccessQueries>,
+    package_service: Arc<PackageService>,
 }
 
 impl BoardService {
     /// Create a new service with the provided store.
-    pub fn new(transaction_starter: Arc<TransactionStarter>, items_store: Arc<BoardStore>, access_store: Arc<SqliteItemAccessQueries>) -> Self {
+    pub fn new(
+        transaction_starter: Arc<TransactionStarter>,
+        items_store: Arc<BoardStore>,
+        access_store: Arc<SqliteItemAccessQueries>,
+        package_service: Arc<PackageService>,
+    ) -> Self {
         Self {
             transaction_starter,
             items_store,
             access_store,
+            package_service,
         }
     }
 }
@@ -242,6 +251,95 @@ impl CrudService for BoardService {
         }).await?;
 
         Ok(Self::Item::from(result))
+    }
+}
+
+impl BoardService {
+    /// List all packages associated with a board.
+    /// - Returns packages if board is accessible
+    /// - Uses PackageService to get full package details
+    pub async fn list_board_packages(&self, board_id: i64, session: Option<&SessionData>) -> Result<Vec<Package>, ModelError> {
+        let access = session.map(|s| s.address.as_str());
+
+        let result = self.transaction_starter.run_in_transaction(async move |trx| {
+            // Verify board is accessible
+            let _board = self.items_store.get_item(board_id, access, trx).await?;
+
+            // Get package IDs
+            let package_ids = self.items_store.get_board_package_ids(board_id, trx).await?;
+
+            Ok(package_ids)
+        }).await?;
+
+        // Fetch full package details using PackageService
+        let mut packages = Vec::new();
+        for package_id in result {
+            match self.package_service.get_item(package_id, session).await {
+                Ok(package) => packages.push(package),
+                Err(_) => {
+                    // Package might have been deleted or is not accessible
+                    // Skip it silently
+                    continue;
+                }
+            }
+        }
+
+        Ok(packages)
+    }
+
+    /// Add a package to a board.
+    /// - Verifies the caller has `owner` role on the board
+    /// - Verifies the package exists and is accessible
+    /// - Returns the updated list of board packages
+    pub async fn add_board_package(&self, board_id: i64, package_id: i64, session: &SessionData) -> Result<Vec<Package>, ModelError> {
+        // First verify package exists and is accessible (this will throw 404 if not)
+        let _package = self.package_service.get_item(package_id, Some(session)).await?;
+
+        // Add association in transaction
+        self.transaction_starter.run_in_transaction(async move |trx| {
+            // Verify caller has owner role on the board
+            let roles = self.access_store.get_access_roles(board_id, session, Some(&Vec::from([ROLE_OWNER])), trx).await?;
+
+            if roles.is_empty() {
+                return Err(ModelError::Forbidden("You are not allowed to add packages to this board".to_string()));
+            }
+
+            // Check if already added (to provide better error message)
+            let already_added = self.items_store.is_package_in_board(board_id, package_id, trx).await?;
+            if already_added {
+                return Err(ModelError::Conflict("Package is already added to this board".to_string()));
+            }
+
+            // Add the package
+            self.items_store.add_board_package(board_id, package_id, trx).await?;
+
+            Ok(())
+        }).await?;
+
+        // Return updated list of packages
+        self.list_board_packages(board_id, Some(session)).await
+    }
+
+    /// Remove a package from a board.
+    /// - Verifies the caller has `owner` role on the board
+    /// - Returns the updated list of board packages
+    pub async fn remove_board_package(&self, board_id: i64, package_id: i64, session: &SessionData) -> Result<Vec<Package>, ModelError> {
+        self.transaction_starter.run_in_transaction(async move |trx| {
+            // Verify caller has owner role on the board
+            let roles = self.access_store.get_access_roles(board_id, session, Some(&Vec::from([ROLE_OWNER])), trx).await?;
+
+            if roles.is_empty() {
+                return Err(ModelError::Forbidden("You are not allowed to remove packages from this board".to_string()));
+            }
+
+            // Remove the package (idempotent - no error if not present)
+            self.items_store.remove_board_package(board_id, package_id, trx).await?;
+
+            Ok(())
+        }).await?;
+
+        // Return updated list of packages
+        self.list_board_packages(board_id, Some(session)).await
     }
 }
 

@@ -106,30 +106,30 @@ How:
 
 #### add package to board
 
-Status []
+Status [v]
 
 Who:
 
-- board owner []
+- board owner [v]
 
 How:
 
-1. click "Add Package" button in board view []
-2. Select package from list []
-3. Click "Add" button []
+1. click "Add Package" button in board view [v]
+2. Select package from list [v]
+3. Click "Add" button [v]
 
 #### remove package from board
 
-Status []
+Status [v]
 
 Who:
 
-- board owner []
+- board owner [v]
 
 How:
 
-1. Select package from list []
-2. Click "Remove" button on package []
+1. Select package from list [v]
+2. Click "Remove" button on package [v]
 
 Restrictions:
 

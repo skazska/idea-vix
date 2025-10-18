@@ -15,6 +15,7 @@ import { AccessProvider } from "../common/access/access.provider";
 import { AccessMapProvider } from "../common/access/accessMap.provider";
 import Accessible from "../common/access/Accessible";
 import { WorkshopManagerProvider, WorkshopManager } from "../common/workshop";
+import BoardPackages from "./BoardPackages";
 
 function BoardContent() {
     console.log("BoardContent rendered");
@@ -263,6 +264,13 @@ function BoardContent() {
                                             <AccessMapProvider id={b().id} api={boardApi}>
                                                 <AccessManager id={b().id}/>
                                             </AccessMapProvider>
+                                        </Expandable>
+                                    </Accessible>
+
+                                    {/* Packages Section */}
+                                    <Accessible roles={["owner"]}>
+                                        <Expandable title="Packages" openByDefault={false} name="board-section-packages">
+                                            <BoardPackages boardId={boardId!} />
                                         </Expandable>
                                     </Accessible>
 

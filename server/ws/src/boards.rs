@@ -25,6 +25,7 @@ use crate::{
         crud::{CrudService, ListParams},
     },
     db::TransactionStarter,
+    package::package_service::{Package, PackageService},
     session::session_jwt::SessionJWTService,
     workshop::{
         entity_service::WorkshopEntityService,
@@ -32,6 +33,8 @@ use crate::{
         workshop_store::WorkshopStores
     },
 };
+use serde::{Deserialize};
+use validator::Validate;
 
 mod board_store;
 mod board_service;
@@ -51,17 +54,36 @@ pub fn get_router<'a>(
 
     let items_store = Arc::new(board_store::BoardStore::new());
 
+    let package_access_store = Arc::new(SqliteItemAccessQueries::new(
+        "package_access_roles",
+        "package_id",
+    ));
+
+    let package_items_store = Arc::new(crate::package::package_store::PackageStore::new());
+
+    let package_service = Arc::new(PackageService::new(
+        transaction_starter.clone(),
+        package_items_store,
+        package_access_store,
+    ));
+
+    let board_service = BoardService::new(
+        transaction_starter.clone(),
+        items_store,
+        access_store.clone(),
+        package_service.clone(),
+    );
+
+    let board_service_arc = Arc::new(board_service);
+    let board_service_state_packages = Arc::new((jwt_service.clone(), board_service_arc.clone()));
+
     crate::resource_router!(
         get_items,
         add_item,
         get_item,
         update_item,
         delete_item,
-        Arc::new((jwt_service.clone(), BoardService::new(
-            transaction_starter.clone(),
-            items_store,
-            access_store.clone()
-        )))
+        Arc::new((jwt_service.clone(), (*board_service_arc).clone()))
     )
     .nest("/{id}", crate::access_router!(
         add_access,
@@ -70,6 +92,11 @@ pub fn get_router<'a>(
         check_access,
         Arc::new((jwt_service.clone(), CommonItemAccess::new(transaction_starter.clone(), access_store.clone())))
     ))
+    .nest("/{id}/packages", axum::Router::new()
+        .route("/", axum::routing::get(list_board_packages).post(add_board_package))
+        .route("/{package_id}", axum::routing::delete(remove_board_package))
+        .with_state(board_service_state_packages.clone())
+    )
     .nest("/{id}/workshop/shapes", crate::workshop_item_router!(
         list_package_items,
         add_package_item,
@@ -339,4 +366,55 @@ async fn remove_package_item(
     // TODO: Validate that the item is owned by this package and user has access
     let _deleted = service.delete_entity_item(package_id, item_id, &session).await.map_err(|e| e.into())?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// Handler: list packages associated with a board.
+/// - Returns packages for accessible board
+async fn list_board_packages(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<(Arc<SessionJWTService>, Arc<BoardService>)>>,
+    Path(board_id): Path<i64>,
+) -> Result<Json<Vec<Package>>, (StatusCode, String)> {
+    let (jwt_service, board_service) = state.as_ref();
+    let session = jwt_service.get_optional_session_data(&token).map_err(|e| e.into())?;
+    let result = board_service.list_board_packages(board_id, session.as_ref()).await.map_err(|e| e.into())?;
+    Ok(Json(result))
+}
+
+/// Handler: add a package to a board.
+/// - Requires authentication
+/// - Requires owner role on board
+/// - Returns updated list of board packages
+async fn add_board_package(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<(Arc<SessionJWTService>, Arc<BoardService>)>>,
+    Path(board_id): Path<i64>,
+    ValidatedJson(request): ValidatedJson<AddPackageRequest>,
+) -> Result<Json<Vec<Package>>, (StatusCode, String)> {
+    let (jwt_service, board_service) = state.as_ref();
+    let session = jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    let result = board_service.add_board_package(board_id, request.package_id, &session).await.map_err(|e| e.into())?;
+    Ok(Json(result))
+}
+
+/// Handler: remove a package from a board.
+/// - Requires authentication
+/// - Requires owner role on board
+/// - Returns updated list of board packages
+async fn remove_board_package(
+    AuthToken(token): AuthToken,
+    State(state): State<Arc<(Arc<SessionJWTService>, Arc<BoardService>)>>,
+    Path((board_id, package_id)): Path<(i64, i64)>,
+) -> Result<Json<Vec<Package>>, (StatusCode, String)> {
+    let (jwt_service, board_service) = state.as_ref();
+    let session = jwt_service.get_session_data(&token).map_err(|e| e.into())?;
+    let result = board_service.remove_board_package(board_id, package_id, &session).await.map_err(|e| e.into())?;
+    Ok(Json(result))
+}
+
+/// Request DTO for adding a package to a board
+#[derive(Deserialize, Validate)]
+struct AddPackageRequest {
+    #[validate(range(min = 1))]
+    package_id: i64,
 }

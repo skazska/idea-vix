@@ -27,12 +27,12 @@ Iteration details are in folder named `YY-MM-DD-{name}`.
 
 2. `research.md` - To register results of research or analysis related to the iteration (should pass an overview):
 
-- analysis of definition content
-- code, data, documentation stressed or referenced in definition or project documentation in `dev-docs` and `analysis` folders
-- insights, findings, conclusions to be used for implementation with references.
-- any weak points, lack of clarity, requests for additional information.
+- analysis of definition content (considering also related code, data, project documentation)
+- refs to: code, data, project documentation parts, stressed or referenced in definition.md
+- ask questions, note uncertainties, challenges
+- refs to any spikes, prototypes, experiments done
 
-3. `plan.md` - To outline the approach, tasks, and description of what, how and why to be done: changing, adding, removing, actualizing tests, code, data, documentation, other artifacts (should pass overview). 
+3. `plan.md` - To outline and sync up on an approach, tasks, and description of what, how and why to be done: changing, adding, removing, actualizing tests, code, data, documentation, other artifacts (should pass overview). 
 
 for code change, it should look like:
 - tests related tasks
@@ -71,11 +71,11 @@ When plan, implement, run tests, consider: `r&d/dev-docs/testing/testing_overvie
 
 # Project Documentation
 - `r&d/dev-docs/openapi.yaml` - API - is a contract between frontend and backend.
-
 - `r&d/analysis/stories/*` - core feature concept, user stories, status.
 - `r&d/analysis/requirements/*` - requirements. 
 - `r&d/dev-docs/storage.dbml` - database schema.
 - `r&d/dev-docs/project-implementation-overview.md` - project implementation overview.
+- 'server/ws/README.md'/'ui/web/README.md' - backend/frontend setup and implementation overview.
 - Keep documents up-to-date with code changes.
 
 # System Overview

@@ -47,8 +47,8 @@ use crate::{
     }
 };
 
-mod package_store;
-mod package_service;
+pub mod package_store;
+pub mod package_service;
 
 const ENTITY: &str = "package";
 

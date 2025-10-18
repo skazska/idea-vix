@@ -109,24 +109,39 @@ Legend:
     <tr>
       <td rowspan="3">Boards · <a href="../stories/core.md#add-package-to-board">Add package to board</a></td>
       <td>Owner/manage roles can list packages available for attachment.</td>
-      <td>—</td>
-      <td rowspan="3">Pending backend attach/detach endpoints and UI flows; add tests to verify invitation roles inherit package access.</td>
-      <td rowspan="3">[]</td>
+      <td>
+        B: <code>boards_packages.rs::list_board_packages_ok</code><br/>
+        B: <code>boards_packages.rs::non_owner_cannot_list_packages_in_private_board</code><br/>
+        F: <code>board_packages_flow.spec.ts</code> — owner can add and remove packages from board
+      </td>
+      <td rowspan="3">Implementation complete. UI includes search filtering and duplicate prevention.</td>
+      <td rowspan="3">[v]</td>
     </tr>
     <tr>
       <td>Selecting a package attaches it to the board and exposes its workshop items.</td>
-      <td>—</td>
+      <td>
+        B: <code>boards_packages.rs::add_board_package_ok</code><br/>
+        B: <code>boards_packages.rs::add_multiple_packages</code><br/>
+        F: <code>board_packages_flow.spec.ts</code> — owner can add packages
+      </td>
     </tr>
     <tr>
       <td>Re-attaching an already linked package surfaces a clear conflict.</td>
-      <td>—</td>
+      <td>
+        B: <code>boards_packages.rs::cannot_add_duplicate_package</code><br/>
+        F: <code>board_packages_flow.spec.ts</code> — added packages are filtered from available list
+      </td>
     </tr>
     <tr>
       <td rowspan="3">Boards · <a href="../stories/core.md#remove-package-from-board">Remove package from board</a></td>
       <td>Owner/manage roles can detach a package from the board.</td>
-      <td>—</td>
-      <td rowspan="3">Need backend regression ensuring imported items persist and UI confirmation preventing accidental loss.</td>
-      <td rowspan="3">[]</td>
+      <td>
+        B: <code>boards_packages.rs::remove_board_package_ok</code><br/>
+        B: <code>boards_packages.rs::add_and_remove_package</code><br/>
+        F: <code>board_packages_flow.spec.ts</code> — owner can remove packages
+      </td>
+      <td rowspan="3">Implementation complete. Authorization requires owner role. Package isolation verified.</td>
+      <td rowspan="3">[v]</td>
     </tr>
     <tr>
       <td>Imported items remain available after the source package is detached.</td>

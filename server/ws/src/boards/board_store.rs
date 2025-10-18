@@ -255,3 +255,60 @@ impl<'d> CrudQueries<'d> for BoardStore {
         result
     }
 }
+
+/*******
+* Board-Package Association Operations
+*/
+
+impl BoardStore {
+    /// Get all package IDs associated with a board
+    pub async fn get_board_package_ids(&self, board_id: i64, trx: &mut Trx) -> Result<Vec<i64>, DbErr> {
+        let transaction = trx.get_mut();
+
+        let result = sqlx::query_scalar::<_, i64>("SELECT origin_id FROM board_package WHERE board_id = ?")
+            .bind(board_id)
+            .fetch_all(&mut **transaction)
+            .await?;
+
+        Ok(result)
+    }
+
+    /// Add a package to a board
+    pub async fn add_board_package(&self, board_id: i64, package_id: i64, trx: &mut Trx) -> Result<(), DbErr> {
+        let transaction = trx.get_mut();
+
+        sqlx::query("INSERT INTO board_package (board_id, origin_id) VALUES (?, ?)")
+            .bind(board_id)
+            .bind(package_id)
+            .execute(&mut **transaction)
+            .await?;
+
+        Ok(())
+    }
+
+    /// Remove a package from a board
+    pub async fn remove_board_package(&self, board_id: i64, package_id: i64, trx: &mut Trx) -> Result<(), DbErr> {
+        let transaction = trx.get_mut();
+
+        sqlx::query("DELETE FROM board_package WHERE board_id = ? AND origin_id = ?")
+            .bind(board_id)
+            .bind(package_id)
+            .execute(&mut **transaction)
+            .await?;
+
+        Ok(())
+    }
+
+    /// Check if a package is associated with a board
+    pub async fn is_package_in_board(&self, board_id: i64, package_id: i64, trx: &mut Trx) -> Result<bool, DbErr> {
+        let transaction = trx.get_mut();
+
+        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM board_package WHERE board_id = ? AND origin_id = ?")
+            .bind(board_id)
+            .bind(package_id)
+            .fetch_one(&mut **transaction)
+            .await?;
+
+        Ok(count > 0)
+    }
+}
